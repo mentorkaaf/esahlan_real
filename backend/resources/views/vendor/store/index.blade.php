@@ -47,6 +47,43 @@
                     <label class="form-label">Address</label>
                     <input type="text" name="address" class="form-control" value="{{ old('address',$vendor->address) }}">
                 </div>
+
+                {{-- ── Map Location Picker ───────────────────────────────────── --}}
+                <div class="form-group">
+                    <label class="form-label" style="display:flex;align-items:center;gap:8px;">
+                        <i class="fa-solid fa-location-dot" style="color:var(--brand);"></i>
+                        Store Location on Map
+                        <span style="font-size:11px;color:#94a3b8;font-weight:400;">(drag the pin to your exact location)</span>
+                    </label>
+
+                    {{-- Lat/Lng display + manual inputs --}}
+                    <div style="display:flex;gap:10px;margin-bottom:10px;">
+                        <div style="flex:1;">
+                            <label style="font-size:11px;color:#64748b;font-weight:600;display:block;margin-bottom:4px;">LATITUDE</label>
+                            <input type="number" id="map_lat" name="latitude" step="0.000001"
+                                class="form-control" style="font-size:13px;"
+                                value="{{ old('latitude', $vendor->latitude) }}"
+                                placeholder="e.g. 9.5594">
+                        </div>
+                        <div style="flex:1;">
+                            <label style="font-size:11px;color:#64748b;font-weight:600;display:block;margin-bottom:4px;">LONGITUDE</label>
+                            <input type="number" id="map_lng" name="longitude" step="0.000001"
+                                class="form-control" style="font-size:13px;"
+                                value="{{ old('longitude', $vendor->longitude) }}"
+                                placeholder="e.g. 44.0650">
+                        </div>
+                        <div style="display:flex;align-items:flex-end;">
+                            <button type="button" id="detect_location_btn"
+                                style="padding:9px 14px;background:var(--brand);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">
+                                <i class="fa-solid fa-crosshairs"></i> My Location
+                            </button>
+                        </div>
+                    </div>
+
+                    {{-- Map container --}}
+                    <div id="vendor_map" style="width:100%;height:300px;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;background:#f0f4f8;"></div>
+                    <p style="font-size:11px;color:#94a3b8;margin-top:6px;"><i class="fa-solid fa-circle-info"></i> Click on the map or drag the marker to set your exact store location.</p>
+                </div>
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Minimum Order ($)</label>
@@ -154,4 +191,84 @@
         </div>
     </form>
 </div>
+@push('scripts')
+{{-- Leaflet.js — open-source map, no API key needed --}}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function() {
+    const DEFAULT_LAT = 9.5594, DEFAULT_LNG = 44.0650; // Hargeysa center
+    const initLat = parseFloat(document.getElementById('map_lat').value) || DEFAULT_LAT;
+    const initLng = parseFloat(document.getElementById('map_lng').value) || DEFAULT_LNG;
+    const hasPin  = !!document.getElementById('map_lat').value;
+
+    const map = L.map('vendor_map').setView([initLat, initLng], hasPin ? 15 : 13);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Custom marker icon
+    const icon = L.divIcon({
+        html: '<div style="width:34px;height:34px;background:var(--brand,#f97316);border:3px solid #fff;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 3px 12px rgba(249,115,22,.5);"></div>',
+        iconSize:[34,34], iconAnchor:[17,34], className:''
+    });
+
+    let marker = null;
+
+    function setMarker(lat, lng) {
+        if (marker) map.removeLayer(marker);
+        marker = L.marker([lat, lng], { icon, draggable: true }).addTo(map);
+        document.getElementById('map_lat').value = lat.toFixed(6);
+        document.getElementById('map_lng').value = lng.toFixed(6);
+        marker.on('dragend', function(e) {
+            const p = e.target.getLatLng();
+            document.getElementById('map_lat').value = p.lat.toFixed(6);
+            document.getElementById('map_lng').value = p.lng.toFixed(6);
+        });
+    }
+
+    if (hasPin) setMarker(initLat, initLng);
+
+    map.on('click', function(e) {
+        setMarker(e.latlng.lat, e.latlng.lng);
+        map.setView(e.latlng, Math.max(map.getZoom(), 16));
+    });
+
+    // Sync manual lat/lng inputs → move map
+    ['map_lat','map_lng'].forEach(id => {
+        document.getElementById(id).addEventListener('change', function() {
+            const lat = parseFloat(document.getElementById('map_lat').value);
+            const lng = parseFloat(document.getElementById('map_lng').value);
+            if (!isNaN(lat) && !isNaN(lng)) {
+                map.setView([lat, lng], 16);
+                setMarker(lat, lng);
+            }
+        });
+    });
+
+    // Detect current location
+    document.getElementById('detect_location_btn').addEventListener('click', function() {
+        this.disabled = true;
+        this.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Detecting...';
+        const btn = this;
+        if (!navigator.geolocation) {
+            alert('Geolocation is not supported by your browser.');
+            btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-crosshairs"></i> My Location';
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(function(pos) {
+            const lat = pos.coords.latitude, lng = pos.coords.longitude;
+            map.setView([lat, lng], 17);
+            setMarker(lat, lng);
+            btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-crosshairs"></i> My Location';
+        }, function() {
+            alert('Could not get your location. Please allow location access or enter coordinates manually.');
+            btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-crosshairs"></i> My Location';
+        });
+    });
+})();
+</script>
+@endpush
 @endsection

@@ -511,6 +511,12 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::post('/discount-campaigns/{id}/send',       [AdminNotificationController::class, 'sendCampaignNotification'])->name('discount-campaigns.send');
             Route::post('/discount-campaigns/{id}/template',   [AdminNotificationController::class, 'updateCampaignTemplate'])->name('discount-campaigns.template');
             Route::post('/discount-campaigns/{id}/pause',      [AdminNotificationController::class, 'toggleCampaignPause'])->name('discount-campaigns.pause');
+
+            // ── Auto Notifications (eTicket flights, future types) ──────────
+            Route::get('/auto',                    [AdminNotificationController::class, 'autoNotifications'])->name('auto');
+            Route::post('/auto/{slug}/update',     [AdminNotificationController::class, 'updateAutoTemplate'])->name('auto.update');
+            Route::post('/auto/{slug}/toggle',     [AdminNotificationController::class, 'toggleAutoTemplate'])->name('auto.toggle');
+            Route::post('/auto/{slug}/send-now',   [AdminNotificationController::class, 'sendAutoNow'])->name('auto.send-now');
         });
 
         // Database Cleaner

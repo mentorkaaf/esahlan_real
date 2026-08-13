@@ -533,7 +533,7 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
           data: (data) {
             final list = data is List ? data : (data['data'] ?? []);
             if (list.isEmpty) return const SizedBox.shrink();
-            final shown = list.length > 5 ? list.sublist(0, 5) : list;
+            final shown = list; // show all — no artificial limit
             return Column(
               children: [
                 for (int i = 0; i < shown.length; i++)

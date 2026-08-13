@@ -468,4 +468,91 @@ class AdminNotificationController extends Controller
 
         return response()->json($users);
     }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // AUTO NOTIFICATIONS — Template management (eTicket flights, future types)
+    // ══════════════════════════════════════════════════════════════════════════
+
+    public function autoNotifications()
+    {
+        $templates = \DB::table('auto_notification_templates')
+            ->orderBy('type')
+            ->orderBy('label')
+            ->get();
+
+        // Per-template: recent send logs
+        $logs = \DB::table('auto_notification_logs')
+            ->orderByDesc('created_at')
+            ->limit(50)
+            ->get()
+            ->groupBy('template_slug');
+
+        // eTicket: upcoming flights (for preview)
+        $upcomingFlights = \DB::table('flights')
+            ->where('status', 'scheduled')
+            ->where('available_seats', '>', 0)
+            ->whereDate('departure_at', '>=', now()->toDateString())
+            ->orderBy('departure_at')
+            ->limit(5)
+            ->get(['id', 'flight_number', 'from_city', 'to_city', 'from_code', 'to_code', 'departure_at', 'available_seats', 'seat_classes']);
+
+        // Stats
+        $stats = [
+            'users_with_fcm' => User::whereNotNull('fcm_token')->where('fcm_token', '!=', '')->count(),
+        ];
+
+        return view('admin.notifications.auto_notifications', compact('templates', 'logs', 'upcomingFlights', 'stats'));
+    }
+
+    public function updateAutoTemplate(Request $request, string $slug)
+    {
+        $request->validate([
+            'title_template'  => 'required|string|max:255',
+            'body_template'   => 'required|string|max:1000',
+            'interval_hours'  => 'required|integer|min:1|max:168',
+        ]);
+
+        \DB::table('auto_notification_templates')
+            ->where('slug', $slug)
+            ->update([
+                'title_template' => $request->title_template,
+                'body_template'  => $request->body_template,
+                'interval_hours' => (int) $request->interval_hours,
+                'updated_at'     => now(),
+            ]);
+
+        return back()->with('success', 'Template updated successfully.');
+    }
+
+    public function toggleAutoTemplate(Request $request, string $slug)
+    {
+        $current = \DB::table('auto_notification_templates')->where('slug', $slug)->value('is_active');
+        \DB::table('auto_notification_templates')
+            ->where('slug', $slug)
+            ->update(['is_active' => !$current, 'updated_at' => now()]);
+
+        $status = $current ? 'disabled' : 'enabled';
+        return response()->json(['success' => true, 'is_active' => !$current, 'message' => "Notification {$status}."]);
+    }
+
+    public function sendAutoNow(Request $request, string $slug)
+    {
+        $template = \DB::table('auto_notification_templates')->where('slug', $slug)->first();
+        if (!$template) return back()->with('error', 'Template not found.');
+
+        // Dispatch artisan command in background
+        $command = match($slug) {
+            'eticket_upcoming_flight' => 'eticket:send-flight-notifications',
+            default => null,
+        };
+
+        if (!$command) return back()->with('error', 'No command registered for this template.');
+
+        try {
+            \Artisan::queue($command)->onQueue('default');
+            return back()->with('success', "Notification job queued. Will send shortly.");
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Failed to queue: ' . $e->getMessage());
+        }
+    }
 }

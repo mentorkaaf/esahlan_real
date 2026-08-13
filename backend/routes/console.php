@@ -108,3 +108,13 @@ Schedule::command('efood:send-campaign-notifications --urgent')
     ->name('efood:campaign-notifications-urgent')
     ->withoutOverlapping()
     ->runInBackground();
+
+// ── eTicket: upcoming flight notifications ────────────────────────────────
+// Every 12 hours (twice/day). Sends to all users with FCM.
+// Template & timing controlled from Admin → Notifications → Auto Notifications.
+// Deep link: /eticket/flight/:id → opens passenger selection screen.
+Schedule::command('eticket:send-flight-notifications')
+    ->everyTwelveHours()
+    ->name('eticket:flight-notifications')
+    ->withoutOverlapping()
+    ->runInBackground();

@@ -31,6 +31,8 @@ class VendorStoreWebController extends Controller
             'delivery_time' => 'nullable|string|max:50',
             'logo'          => 'nullable|image|max:2048',
             'cover_image'   => 'nullable|image|max:4096',
+            'latitude'      => 'nullable|numeric|between:-90,90',
+            'longitude'     => 'nullable|numeric|between:-180,180',
         ]);
 
         if ($request->hasFile('logo')) {
