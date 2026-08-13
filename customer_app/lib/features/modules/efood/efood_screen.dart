@@ -460,51 +460,54 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
           Text(l.foodCategories, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: context.colors.navyText)),
           TextButton(onPressed: () {}, child: Text(l.viewAll, style: const TextStyle(color: _primary, fontWeight: FontWeight.w600))),
         ]),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         cats.when(
           data: (data) {
             final raw = data is Map ? (data['data'] ?? data) : data;
             final list = (raw is List && raw.isNotEmpty) ? raw : <dynamic>[];
             if (list.isEmpty) return const SizedBox.shrink();
-            return GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 5,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 8,
-                childAspectRatio: 0.75,
-              ),
-              itemCount: list.length > 10 ? 10 : list.length,
-              itemBuilder: (_, i) {
-                final c = list[i];
-                final name = c['name'] ?? '';
-                final sel = _selectedCat == name;
-                return GestureDetector(
-                  onTap: () => setState(() => _selectedCat = sel ? '' : name),
-                  child: Column(children: [
-                    Container(
-                      width: 52, height: 52,
-                      decoration: BoxDecoration(
-                        color: sel ? _primary : context.colors.cardBg,
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 8)],
-                      ),
-                      child: c['image'] != null
-                          ? ClipRRect(borderRadius: BorderRadius.circular(14), child: NetImage(url: c['image'], fit: BoxFit.cover))
-                          : const Center(child: Icon(Icons.fastfood_rounded, color: _primary, size: 24)),
+            final shown = list.length > 10 ? list.sublist(0, 10) : list;
+            return SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: shown.asMap().entries.map<Widget>((e) {
+                  final c = e.value;
+                  final name = c['name'] ?? '';
+                  final sel = _selectedCat == name;
+                  return GestureDetector(
+                    onTap: () => setState(() => _selectedCat = sel ? '' : name),
+                    child: Container(
+                      width: 66,
+                      margin: const EdgeInsets.only(right: 8),
+                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                        Container(
+                          width: 52, height: 52,
+                          decoration: BoxDecoration(
+                            color: sel ? _primary : context.colors.cardBg,
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 8)],
+                          ),
+                          child: c['image'] != null
+                              ? ClipRRect(borderRadius: BorderRadius.circular(14), child: NetImage(url: c['image'], fit: BoxFit.cover))
+                              : const Center(child: Icon(Icons.fastfood_rounded, color: _primary, size: 24)),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(name, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: sel ? _primary : context.colors.bodyText), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      ]),
                     ),
-                    SizedBox(height: 6),
-                    Text(name, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: sel ? _primary : context.colors.bodyText), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
-                  ]),
-                );
-              },
+                  );
+                }).toList(),
+              ),
             );
           },
-          loading: () => Row(children: List.generate(5, (_) => Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: Column(children: [_shimmer(w: 52, h: 52, r: 14), const SizedBox(height: 6), _shimmer(w: 40, h: 10)]),
-          ))),
+          loading: () => SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(children: List.generate(5, (_) => Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [_shimmer(w: 52, h: 52, r: 14), const SizedBox(height: 6), _shimmer(w: 40, h: 10)]),
+            ))),
+          ),
           error: (_, __) => const SizedBox.shrink(),
         ),
       ]),
