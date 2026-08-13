@@ -128,6 +128,39 @@ Schedule::command('fcm:validate-tokens')
     ->withoutOverlapping()
     ->runInBackground();
 
+// ── Marketing: Re-engagement notifications ────────────────────────────────
+// Daily — processes all 4 inactive periods (3d, 7d, 14d, 30d) in one run.
+Schedule::command('marketing:reengagement')
+    ->daily()
+    ->name('marketing:reengagement')
+    ->withoutOverlapping()
+    ->runInBackground();
+
+// ── Marketing: Time-based notifications ───────────────────────────────────
+// Every 30 minutes — each slug checks its own time window internally.
+// lunch_time=11:30, evening_deals=18:00, weekend_promo=Friday 10:00
+Schedule::command('marketing:time-based')
+    ->everyThirtyMinutes()
+    ->name('marketing:time-based')
+    ->withoutOverlapping()
+    ->runInBackground();
+
+// ── Marketing: New vendor district notifications ───────────────────────────
+// Hourly — finds vendors approved in the last hour, notifies nearby users.
+Schedule::command('marketing:new-vendor')
+    ->hourly()
+    ->name('marketing:new-vendor')
+    ->withoutOverlapping()
+    ->runInBackground();
+
+// ── Marketing: Loyalty notifications ─────────────────────────────────────
+// Daily at 09:00 — points expiry (3-day warning) + low wallet balance.
+Schedule::command('marketing:loyalty')
+    ->dailyAt('09:00')
+    ->name('marketing:loyalty')
+    ->withoutOverlapping()
+    ->runInBackground();
+
 // ── eTicket: upcoming flight notifications ────────────────────────────────
 // Every 12 hours (twice/day). Sends to all users with FCM.
 // Template & timing controlled from Admin → Notifications → Auto Notifications.

@@ -509,7 +509,10 @@ class AdminNotificationController extends Controller
         $request->validate([
             'title_template'  => 'required|string|max:255',
             'body_template'   => 'required|string|max:1000',
-            'interval_hours'  => 'required|integer|min:1|max:168',
+            'title_so'        => 'nullable|string|max:255',
+            'body_so'         => 'nullable|string|max:1000',
+            'language'        => 'nullable|in:en,so,both',
+            'interval_hours'  => 'required|integer|min:1|max:720',
         ]);
 
         \DB::table('auto_notification_templates')
@@ -517,6 +520,9 @@ class AdminNotificationController extends Controller
             ->update([
                 'title_template' => $request->title_template,
                 'body_template'  => $request->body_template,
+                'title_so'       => $request->title_so ?: null,
+                'body_so'        => $request->body_so  ?: null,
+                'language'       => $request->language  ?? 'en',
                 'interval_hours' => (int) $request->interval_hours,
                 'updated_at'     => now(),
             ]);
@@ -541,8 +547,17 @@ class AdminNotificationController extends Controller
         if (!$template) return back()->with('error', 'Template not found.');
 
         // Dispatch artisan command in background
-        $command = match($slug) {
-            'eticket_upcoming_flight' => 'eticket:send-flight-notifications',
+        $command = match(true) {
+            $slug === 'reengagement_3d'  => 'marketing:reengagement --days=3',
+            $slug === 'reengagement_7d'  => 'marketing:reengagement --days=7',
+            $slug === 'reengagement_14d' => 'marketing:reengagement --days=14',
+            $slug === 'reengagement_30d' => 'marketing:reengagement --days=30',
+            in_array($slug, ['lunch_time', 'evening_deals', 'weekend_promo'])
+                                         => "marketing:time-based --slug={$slug}",
+            $slug === 'new_vendor_district' => 'marketing:new-vendor',
+            $slug === 'points_expiry'    => 'marketing:loyalty --type=points_expiry',
+            $slug === 'wallet_low'       => 'marketing:loyalty --type=wallet_low',
+            $slug === 'eticket_upcoming_flight' => 'eticket:send-flight-notifications',
             default => null,
         };
 
