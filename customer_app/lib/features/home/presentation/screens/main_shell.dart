@@ -464,66 +464,63 @@ class _ESpaceNavItem extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         child: SizedBox(
           height: 66,
-          child: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
-                  curve: Curves.easeOutBack,
-                  width:  active ? 50 : 44,
-                  height: active ? 50 : 44,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              AnimatedOpacity(
+                opacity: active ? 1 : 0,
+                duration: const Duration(milliseconds: 250),
+                child: Container(
+                  width: 52,
+                  height: 36,
                   decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: active
-                          ? [_kOrange, const Color(0xFFFF6B00)]
-                          : [const Color(0xFF2A3557), const Color(0xFF1E2A4A)],
-                    ),
-                    boxShadow: active
-                        ? [
-                            BoxShadow(
-                              color: _kOrange.withValues(alpha: 0.55),
-                              blurRadius: 16,
-                              spreadRadius: 1,
-                              offset: const Offset(0, 3),
-                            ),
-                          ]
-                        : [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                    border: Border.all(
-                      color: active
-                          ? Colors.white.withValues(alpha: 0.3)
-                          : _kOrange.withValues(alpha: 0.35),
-                      width: 1.5,
-                    ),
-                  ),
-                  child: Icon(
-                    active ? Icons.hub_rounded : Icons.hub_outlined,
-                    color: active ? Colors.white : _kOrange.withValues(alpha: 0.85),
-                    size: active ? 24 : 22,
+                    color: _kOrange.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(18),
                   ),
                 ),
-                const SizedBox(height: 3),
-                AnimatedDefaultTextStyle(
-                  duration: const Duration(milliseconds: 200),
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w700,
-                    color: active ? _kOrange : Colors.white.withValues(alpha: 0.55),
-                    letterSpacing: 0.4,
+              ),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    transitionBuilder: (child, anim) =>
+                        ScaleTransition(scale: anim, child: child),
+                    child: Icon(
+                      active ? Icons.people : Icons.people_outline,
+                      key: ValueKey(active),
+                      color: _kOrange,
+                      size: active ? 28 : 26,
+                    ),
                   ),
-                  child: const Text('eSpace'),
+                  const SizedBox(height: 2),
+                  Text(
+                    'eSpace',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: _kOrange,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ],
+              ),
+              if (active)
+                Positioned(
+                  bottom: 6,
+                  child: Container(
+                    width: 4,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: _kOrange,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(color: _kOrange.withValues(alpha: 0.6), blurRadius: 6),
+                      ],
+                    ),
+                  ),
                 ),
-              ],
-            ),
+            ],
           ),
         ),
       ),
