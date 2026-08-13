@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\AdminAlertService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
@@ -32,9 +33,27 @@ class Order extends Model
     protected static function boot(): void
     {
         parent::boot();
+
         static::creating(function ($order) {
-            $order->uuid = (string) Str::uuid();
+            $order->uuid         = (string) Str::uuid();
             $order->order_number = 'ESH-' . strtoupper(Str::random(8));
+        });
+
+        // Admin email alert — fires for ANY order from ANY controller/module
+        static::created(function (Order $order) {
+            try {
+                $module = strtoupper($order->module_slug ?? $order->module_id ?? 'N/A');
+                AdminAlertService::send('new_order', "New Order {$order->order_number}", [
+                    'Order #'   => $order->order_number,
+                    'Module'    => $module,
+                    'Total'     => '$' . number_format((float) $order->total_amount, 2),
+                    'Payment'   => strtoupper($order->payment_method ?? 'N/A'),
+                    'Status'    => ucfirst($order->status ?? 'pending'),
+                    'Placed At' => now()->format('d M Y H:i') . ' UTC',
+                ]);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('[AdminAlert][Order::created] ' . $e->getMessage());
+            }
         });
     }
 
