@@ -229,12 +229,18 @@ class SendLoyaltyNotifications extends Command
         }
 
         try {
-            $walletUserIds = DB::table($walletTable)
-                ->whereNotNull('user_id')
+            // wallets is polymorphic (owner_type + owner_id) — check which column exists
+            $hasUserId = Schema::hasColumn($walletTable, 'user_id');
+            $query = DB::table($walletTable)
                 ->where('balance', '<', self::LOW_WALLET_THRESHOLD)
-                ->where('balance', '>=', 0)
-                ->pluck('user_id')
-                ->toArray();
+                ->where('balance', '>=', 0);
+            if ($hasUserId) {
+                $query->whereNotNull('user_id');
+                $walletUserIds = $query->pluck('user_id')->filter()->unique()->values()->toArray();
+            } else {
+                $query->where('owner_type', \App\Models\User::class)->whereNotNull('owner_id');
+                $walletUserIds = $query->pluck('owner_id')->filter()->unique()->values()->toArray();
+            }
         } catch (\Throwable $e) {
             Log::warning("[LoyaltyNotif] Could not query {$walletTable}: " . $e->getMessage());
             $this->line("  [{$slug}] Failed to query {$walletTable}: " . $e->getMessage());
