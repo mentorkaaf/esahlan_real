@@ -214,7 +214,7 @@
                 🕐 Every <strong>{{ $flightTpl->interval_hours }}h</strong> via scheduler
             </div>
             <form action="{{ route('admin.notifications.auto.send-now', 'eticket_upcoming_flight') }}" method="POST" style="display:inline;"
-                onsubmit="return confirm('Send flight notifications to all {{ number_format($stats[\'users_with_fcm\']) }} users NOW?')">
+                onsubmit="return confirm('Send flight notifications to all {{ number_format($stats["users_with_fcm"]) }} users NOW?')">
                 @csrf
                 <button type="submit" class="btn btn-primary" style="font-size:13px;background:linear-gradient(135deg,#f97316,#ea580c);">
                     <i class="fa-solid fa-paper-plane"></i> Send Now
