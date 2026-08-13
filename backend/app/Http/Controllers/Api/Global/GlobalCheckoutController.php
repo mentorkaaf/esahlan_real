@@ -10,6 +10,7 @@ use App\Models\Global\GlobalShippingZone;
 use App\Models\Global\GlobalSetting;
 use App\Services\Global\StripeService;
 use App\Services\Global\PayPalService;
+use App\Services\AdminAlertService;
 use App\Services\FcmService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -340,6 +341,23 @@ class GlobalCheckoutController extends Controller
                 DB::table('global_products')
                     ->where('id', $item->global_product_id)
                     ->decrement('stock', $item->quantity);
+
+                // Low stock alert if remaining stock <= 5
+                $remaining = DB::table('global_products')->where('id', $item->global_product_id)->value('stock');
+                if ($remaining !== null && $remaining <= 5) {
+                    try {
+                        AdminAlertService::send('low_stock',
+                            "⚠️ Low Stock: {$item->name} ({$remaining} left)",
+                            [
+                                'Product'    => $item->name,
+                                'Stock Left' => $remaining . ($remaining === 0 ? ' — OUT OF STOCK' : ''),
+                                'Threshold'  => '5 units',
+                                'Checked At' => now()->format('d M Y H:i') . ' UTC',
+                            ],
+                            'low_stock_' . $item->global_product_id, 3600
+                        );
+                    } catch (\Throwable) {}
+                }
             }
         }
 

@@ -345,6 +345,21 @@ class OrderController extends Controller
 
         if ($order->vendor_id) \App\Services\FcmService::notifyVendorNewOrder($order->vendor_id, $order, $order->module_slug ?? 'efood');
 
+        // ── Admin alert email ────────────────────────────────────────────
+        try {
+            $order->loadMissing(['user', 'vendor']);
+            \App\Services\AdminAlertService::send('new_order', "New Order #{$order->order_number}", [
+                'Order #'      => $order->order_number,
+                'Customer'     => $order->user?->name ?? 'N/A',
+                'Vendor'       => $order->vendor?->name ?? 'N/A',
+                'Module'       => strtoupper($order->module_slug ?? 'N/A'),
+                'Total'        => '$' . number_format((float)$order->total_amount, 2),
+                'Payment'      => strtoupper($order->payment_method),
+                'Status'       => ucfirst($order->status),
+                'Placed At'    => now()->format('d M Y H:i') . ' UTC',
+            ]);
+        } catch (\Throwable) {}
+
         // ── New order emails ─────────────────────────────────────────────
         try {
             $order->loadMissing(['user', 'vendor']);

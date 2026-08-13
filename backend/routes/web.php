@@ -519,6 +519,16 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::post('/auto/{slug}/send-now',   [AdminNotificationController::class, 'sendAutoNow'])->name('auto.send-now');
         });
 
+        // ── Admin Email Alert Settings ─────────────────────────────────────
+        Route::prefix('alerts')->name('alerts.')->group(function () {
+            $ac = \App\Http\Controllers\Admin\AdminAlertSettingsController::class;
+            Route::get('/',                   [$ac, 'index'])->name('index');
+            Route::post('/email',             [$ac, 'saveEmail'])->name('save-email');
+            Route::post('/toggle/{key}',      [$ac, 'toggle'])->name('toggle');
+            Route::post('/test',              [$ac, 'test'])->name('test');
+            Route::post('/clear-logs',        [$ac, 'clearLogs'])->name('clear-logs');
+        });
+
         // Database Cleaner
         Route::prefix('db-clean')->name('db-clean.')->group(function () {
             Route::get('/', [\App\Http\Controllers\Admin\AdminDbCleanController::class, 'index'])->name('index');

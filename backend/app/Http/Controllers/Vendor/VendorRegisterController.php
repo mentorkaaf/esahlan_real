@@ -116,6 +116,19 @@ class VendorRegisterController extends Controller
             try { Mail::to($vendorEmail)->send(new WelcomeVendorMail($vendorName)); } catch (\Exception) {}
         }
 
+        // Admin alert
+        try {
+            \App\Services\AdminAlertService::send('new_vendor', "New Vendor Registration: {$request->store_name}", [
+                'Store Name'  => $request->store_name,
+                'Owner'       => $request->name,
+                'Email'       => $request->email,
+                'Phone'       => $request->phone_full,
+                'Module'      => $module->name ?? 'N/A',
+                'Status'      => 'Pending Approval',
+                'Submitted'   => now()->format('d M Y H:i') . ' UTC',
+            ]);
+        } catch (\Throwable) {}
+
         return redirect()->route('vendor.login')
             ->with('register_success', true)
             ->with('success', 'Registration submitted! Your store application is under review. Admin will approve within 24 hours. You can log in once approved.');

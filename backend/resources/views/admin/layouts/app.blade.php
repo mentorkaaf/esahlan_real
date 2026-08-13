@@ -856,6 +856,9 @@
             <a href="{{ route('admin.notifications.discount-campaigns') }}" class="nav-link {{ request()->routeIs('admin.notifications.discount-campaigns*') ? 'active' : '' }}">
                 <div class="nav-icon"><i class="fas fa-fire"></i></div><span class="nav-text">Discount Campaigns</span>
             </a>
+            <a href="{{ route('admin.alerts.index') }}" class="nav-link {{ request()->routeIs('admin.alerts.*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-envelope-open-text"></i></div><span class="nav-text">Email Alerts</span>
+            </a>
             <a href="{{ route('admin.inbox.conversations') }}" class="nav-link {{ request()->routeIs('admin.inbox.conversations') ? 'active' : '' }}">
                 <div class="nav-icon"><i class="fas fa-headset"></i></div><span class="nav-text">Support Inbox</span>
             </a>

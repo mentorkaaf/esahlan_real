@@ -6,6 +6,7 @@ use App\Models\Addon;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\Vendor;
+use App\Services\AdminAlertService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -75,6 +76,17 @@ class VendorProductWebController extends Controller
         if ($request->has('branch_ids')) {
             $this->copyProductToBranches($product, $request->branch_ids, $request->addon_ids ?? []);
         }
+
+        // Admin alert: new product added by vendor
+        try {
+            AdminAlertService::send('new_product', "📦 New Product Added by Vendor", [
+                'Product'     => $data['name'],
+                'Price'       => 'USD ' . number_format($data['price'], 2),
+                'Vendor'      => $vendor->name ?? 'ID #' . $vendor->id,
+                'Stock'       => $data['stock_quantity'],
+                'Added At'    => now()->format('d M Y H:i') . ' UTC',
+            ], 'new_product_' . $vendor->id, 60);
+        } catch (\Throwable) {}
 
         return redirect()->route('vendor.products.index')->with('success', 'Product created successfully.');
     }

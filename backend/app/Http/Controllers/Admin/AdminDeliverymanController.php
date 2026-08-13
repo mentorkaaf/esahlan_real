@@ -71,6 +71,19 @@ class AdminDeliverymanController extends Controller
             Wallet::getOrCreateFor('App\\Models\\User', $user->id);
         });
 
+        // Admin alert
+        try {
+            \App\Services\AdminAlertService::send('new_agent', "New Driver Registered: {$request->name}", [
+                'Name'         => $request->name,
+                'Phone'        => $request->phone,
+                'Driver Type'  => ucfirst($request->driver_type),
+                'Vehicle'      => $request->vehicle_type,
+                'Plate'        => $request->plate_number ?? 'N/A',
+                'Status'       => 'Pending Approval',
+                'Registered'   => now()->format('d M Y H:i') . ' UTC',
+            ]);
+        } catch (\Throwable) {}
+
         return back()->with('success', 'Driver created.');
     }
 

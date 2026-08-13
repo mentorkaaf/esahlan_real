@@ -109,6 +109,15 @@ Schedule::command('efood:send-campaign-notifications --urgent')
     ->withoutOverlapping()
     ->runInBackground();
 
+// ── Admin server health check ─────────────────────────────────────────────
+// Every 5 minutes: CPU, RAM, disk, failed queue jobs, slow DB, brute force.
+// Sends admin alert emails when thresholds exceeded (rate-limited per alert).
+Schedule::command('admin:server-health-check')
+    ->everyFiveMinutes()
+    ->name('admin:server-health-check')
+    ->withoutOverlapping()
+    ->runInBackground();
+
 // ── eTicket: upcoming flight notifications ────────────────────────────────
 // Every 12 hours (twice/day). Sends to all users with FCM.
 // Template & timing controlled from Admin → Notifications → Auto Notifications.
