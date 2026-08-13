@@ -77,16 +77,7 @@ class VendorProductWebController extends Controller
             $this->copyProductToBranches($product, $request->branch_ids, $request->addon_ids ?? []);
         }
 
-        // Admin alert: new product added by vendor
-        try {
-            AdminAlertService::send('new_product', "📦 New Product Added by Vendor", [
-                'Product'     => $data['name'],
-                'Price'       => 'USD ' . number_format($data['price'], 2),
-                'Vendor'      => $vendor->name ?? 'ID #' . $vendor->id,
-                'Stock'       => $data['stock_quantity'],
-                'Added At'    => now()->format('d M Y H:i') . ' UTC',
-            ], 'new_product_' . $vendor->id, 60);
-        } catch (\Throwable) {}
+        // Admin alert fired automatically via Product::created() model event
 
         return redirect()->route('vendor.products.index')->with('success', 'Product created successfully.');
     }

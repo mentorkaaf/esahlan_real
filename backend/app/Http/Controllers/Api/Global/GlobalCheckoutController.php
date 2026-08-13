@@ -356,7 +356,9 @@ class GlobalCheckoutController extends Controller
                             ],
                             'low_stock_' . $item->global_product_id, 3600
                         );
-                    } catch (\Throwable) {}
+                    } catch (\Throwable $e) {
+                        \Illuminate\Support\Facades\Log::error('[AdminAlert][low_stock] ' . $e->getMessage());
+                    }
                 }
             }
         }

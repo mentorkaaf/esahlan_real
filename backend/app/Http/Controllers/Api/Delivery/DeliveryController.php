@@ -10,6 +10,7 @@ use App\Models\OrderStatusHistory;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Events\DeliveryLocationUpdated;
+use App\Services\AdminAlertService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\DB;
@@ -85,6 +86,20 @@ class DeliveryController extends Controller
         });
 
         $token = $user->createToken('driver-app')->plainTextToken;
+
+        // Admin alert — new driver registered via app
+        try {
+            AdminAlertService::send('new_agent', "New Driver Registered: {$user->name}", [
+                'Name'         => $user->name,
+                'Phone'        => $user->phone,
+                'Driver Type'  => $request->driver_type ?? 'N/A',
+                'Vehicle'      => $request->vehicle_type ?? 'N/A',
+                'Status'       => 'Pending Approval',
+                'Registered At'=> now()->format('d M Y H:i') . ' UTC',
+            ]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('[AdminAlert][new_agent] ' . $e->getMessage());
+        }
 
         return response()->json([
             'success' => true,

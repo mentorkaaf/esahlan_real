@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Modules;
 
 use App\Http\Controllers\Controller;
+use App\Services\AdminAlertService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -137,6 +138,24 @@ class EExchangeController extends Controller
         if ($paymentMethod === 'wallet') {
             $w = Wallet::getOrCreateFor('App\\Models\\User', $user->id);
             $w->debit($sentAmount, "eExchange {$fromVal}→{$toVal} ref:{$reference}", 'exchange_order', $exchangeId);
+        }
+
+        // ── Admin alert email ─────────────────────────────────────────────
+        try {
+            AdminAlertService::send('new_order', "New eExchange Order {$reference}", [
+                'Reference'   => $reference,
+                'Module'      => 'EEXCHANGE',
+                'From'        => $fromVal,
+                'To'          => $toVal,
+                'Sent Amount' => number_format($sentAmount, 2) . ' ' . $fromVal,
+                'Converted'   => number_format($calc['converted_amount'], 2) . ' ' . $toVal,
+                'Fee'         => number_format($calc['fee'], 2),
+                'Payment'     => strtoupper($paymentMethod),
+                'Status'      => 'Pending',
+                'Placed At'   => now()->format('d M Y H:i') . ' UTC',
+            ]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('[AdminAlert][eexchange] ' . $e->getMessage());
         }
 
         // ── Push notification: order placed ──────────────────────────────
