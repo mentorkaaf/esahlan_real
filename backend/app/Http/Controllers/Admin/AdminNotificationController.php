@@ -513,6 +513,7 @@ class AdminNotificationController extends Controller
             'body_so'         => 'nullable|string|max:1000',
             'language'        => 'nullable|in:en,so,both',
             'interval_hours'  => 'required|integer|min:1|max:720',
+            'send_time'       => 'nullable|date_format:H:i',
         ]);
 
         \DB::table('auto_notification_templates')
@@ -524,6 +525,7 @@ class AdminNotificationController extends Controller
                 'body_so'        => $request->body_so  ?: null,
                 'language'       => $request->language  ?? 'en',
                 'interval_hours' => (int) $request->interval_hours,
+                'send_time'      => $request->send_time ?: null,
                 'updated_at'     => now(),
             ]);
 

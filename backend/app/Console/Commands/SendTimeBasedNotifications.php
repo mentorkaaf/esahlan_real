@@ -13,16 +13,12 @@ use Carbon\Carbon;
 /**
  * Sends time-based promotional push notifications.
  *
- * Templates:
- *  - lunch_time   → 11:30 AM daily
- *  - evening_deals → 6:00 PM daily
- *  - weekend_promo → Friday 10:00 AM
+ * Timing is read from auto_notification_templates.send_time column (HH:MM).
+ * weekend_promo also checks day-of-week via the 'target_audience' column
+ * (value "friday" fires only on Fridays, otherwise daily).
  *
- * Runs every 30 minutes via scheduler. Each template checks internally
- * whether the current time matches its send_time window (±5 minutes).
- * Use --slug to force-send a specific template regardless of time.
- *
- * Admin can enable/disable each template from Auto Notifications panel.
+ * Runs every 30 minutes. Each template checks if current time is within
+ * ±15 minutes of its send_time. Admin can change time from the panel — live.
  */
 class SendTimeBasedNotifications extends Command
 {
@@ -32,17 +28,39 @@ class SendTimeBasedNotifications extends Command
 
     protected $description = 'Send time-based promotional push notifications (lunch, evening, weekend)';
 
-    /** Slug → time-check callable */
-    private function shouldSend(string $slug, Carbon $now): bool
+    /** Read send_time from DB and check if now is within ±15 min window */
+    private function shouldSend(object $template, Carbon $now): bool
     {
-        return match($slug) {
-            'lunch_time'    => $now->hour === 11 && $now->minute >= 25 && $now->minute <= 35,
-            'evening_deals' => $now->hour === 17 && $now->minute >= 55
-                            || $now->hour === 18 && $now->minute <= 5,
-            'weekend_promo' => $now->dayOfWeek === Carbon::FRIDAY
-                            && $now->hour === 10 && $now->minute <= 30,
-            default => false,
-        };
+        $sendTime = $template->send_time ?? null;
+
+        // Fallback defaults if admin never set a time
+        if (!$sendTime) {
+            $sendTime = match($template->slug) {
+                'lunch_time'    => '11:30',
+                'evening_deals' => '18:00',
+                'weekend_promo' => '10:00',
+                default         => null,
+            };
+        }
+
+        if (!$sendTime) return false;
+
+        [$h, $m] = array_map('intval', explode(':', $sendTime));
+        $target  = $now->copy()->setTime($h, $m, 0);
+        $diff    = abs($now->diffInMinutes($target, false));
+
+        // Must be within ±15 minutes of the configured time
+        if ($diff > 15) return false;
+
+        // weekend_promo: only fire on Friday (or as configured via target_audience)
+        if ($template->slug === 'weekend_promo') {
+            $audience = strtolower($template->target_audience ?? 'friday');
+            if (str_contains($audience, 'friday') && $now->dayOfWeek !== Carbon::FRIDAY) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public function handle(): int
@@ -53,7 +71,6 @@ class SendTimeBasedNotifications extends Command
 
         $slugs = ['lunch_time', 'evening_deals', 'weekend_promo'];
 
-        // If specific slug forced, only process that one
         if ($slugForce) {
             $slugs = in_array($slugForce, $slugs) ? [$slugForce] : [];
             if (empty($slugs)) {
@@ -65,13 +82,16 @@ class SendTimeBasedNotifications extends Command
         $totalSent = 0;
 
         foreach ($slugs as $slug) {
-            // Skip if not forced and time window doesn't match
-            if (!$slugForce && !$this->shouldSend($slug, $now)) {
-                $this->line("  [{$slug}] Not in time window — skipping.");
+            // Load template to read send_time from DB
+            $template = DB::table('auto_notification_templates')->where('slug', $slug)->first();
+
+            if (!$slugForce && !$this->shouldSend($template, $now)) {
+                $time = $template?->send_time ?? 'not set';
+                $this->line("  [{$slug}] Not in time window (send_time={$time}) — skipping.");
                 continue;
             }
 
-            $sent = $this->processSlug($slug, $dryRun);
+            $sent = $this->processSlug($slug, $template, $dryRun);
             $totalSent += $sent;
         }
 
@@ -80,11 +100,8 @@ class SendTimeBasedNotifications extends Command
         return 0;
     }
 
-    private function processSlug(string $slug, bool $dryRun): int
+    private function processSlug(string $slug, ?object $template, bool $dryRun): int
     {
-        // ── Load template ────────────────────────────────────────────────────
-        $template = DB::table('auto_notification_templates')->where('slug', $slug)->first();
-
         if ($template && !$template->is_active) {
             $this->line("  [{$slug}] DISABLED by admin — skipping.");
             return 0;
@@ -99,10 +116,9 @@ class SendTimeBasedNotifications extends Command
             $body  = $template->body_so ?? $template->body_template;
         } else {
             $title = $template?->title_template ?? 'Special offer from eSahlan!';
-            $body  = $template?->body_template  ?? 'Check out today\'s deals!';
+            $body  = $template?->body_template  ?? "Check out today's deals!";
         }
 
-        // ── All users with FCM ────────────────────────────────────────────────
         $users = User::whereNotNull('fcm_token')
             ->where('fcm_token', '!=', '')
             ->where('status', '!=', 'banned')
@@ -129,7 +145,7 @@ class SendTimeBasedNotifications extends Command
             if (Cache::has($cacheKey)) continue;
 
             if ($dryRun) {
-                $this->line("    [DRY] → user#{$user->id} | {$title}");
+                $this->line("    [DRY] user#{$user->id} | {$title}");
             } else {
                 $ok = FcmService::sendToToken(
                     fcmToken:  $user->fcm_token,

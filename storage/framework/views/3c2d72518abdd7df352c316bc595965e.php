@@ -1,0 +1,494 @@
+<?php $__env->startSection('title', 'Ads Management'); ?>
+<?php $__env->startSection('content'); ?>
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Ads Management</h1>
+        <ul class="breadcrumb">
+            <li><a href="<?php echo e(route('admin.dashboard')); ?>">Dashboard</a></li>
+            <li>Ads</li>
+        </ul>
+    </div>
+    <button class="btn btn-primary" onclick="openModal('createAdModal')">
+        <i class="fas fa-plus"></i> Create Ad
+    </button>
+</div>
+
+<?php if(session('success')): ?>
+<div class="alert alert-success"><i class="fas fa-check-circle"></i> <?php echo e(session('success')); ?></div>
+<?php endif; ?>
+<?php if(session('error')): ?>
+<div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> <?php echo e(session('error')); ?></div>
+<?php endif; ?>
+
+
+<?php
+    $totalAds    = $ads->count();
+    $activeAds   = $ads->where('status','active')->count();
+    $popupAds    = $ads->whereIn('ad_type',['popup_fullscreen','popup_modal'])->count();
+    $bannerAds   = $ads->whereIn('ad_type',['banner_slider','banner_inline'])->count();
+    $totalImpr   = $ads->sum('impressions');
+    $totalClicks = $ads->sum('clicks');
+    $ctr         = $totalImpr > 0 ? round(($totalClicks / $totalImpr) * 100, 1) : 0;
+?>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:20px;">
+    <div class="card" style="margin-bottom:0;padding:16px 18px;">
+        <div style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Total Ads</div>
+        <div style="font-size:26px;font-weight:900;color:#111827;"><?php echo e($totalAds); ?></div>
+    </div>
+    <div class="card" style="margin-bottom:0;padding:16px 18px;">
+        <div style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Active</div>
+        <div style="font-size:26px;font-weight:900;color:#10b981;"><?php echo e($activeAds); ?></div>
+    </div>
+    <div class="card" style="margin-bottom:0;padding:16px 18px;">
+        <div style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Impressions</div>
+        <div style="font-size:26px;font-weight:900;color:#3b82f6;"><?php echo e(number_format($totalImpr)); ?></div>
+    </div>
+    <div class="card" style="margin-bottom:0;padding:16px 18px;">
+        <div style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Clicks</div>
+        <div style="font-size:26px;font-weight:900;color:#FF8A00;"><?php echo e(number_format($totalClicks)); ?></div>
+    </div>
+    <div class="card" style="margin-bottom:0;padding:16px 18px;">
+        <div style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">CTR</div>
+        <div style="font-size:26px;font-weight:900;color:#8b5cf6;"><?php echo e($ctr); ?>%</div>
+    </div>
+</div>
+
+
+<?php if($ads->count() > 0): ?>
+<div class="card">
+    <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;">
+            <thead>
+                <tr style="border-bottom:2px solid #f1f5f9;">
+                    <th style="text-align:left;padding:12px 16px;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;">Ad</th>
+                    <th style="text-align:left;padding:12px 16px;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;">Type</th>
+                    <th style="text-align:left;padding:12px 16px;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;">Target</th>
+                    <th style="text-align:left;padding:12px 16px;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;">Schedule</th>
+                    <th style="text-align:left;padding:12px 16px;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;">Stats</th>
+                    <th style="text-align:left;padding:12px 16px;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;">Status</th>
+                    <th style="text-align:right;padding:12px 16px;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            <?php $__currentLoopData = $ads; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $ad): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+            <tr style="border-bottom:1px solid #f9fafb;transition:background .1s;" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background=''">
+                
+                <td style="padding:14px 16px;">
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <?php $imgSrc = $ad->image ? asset('storage/'.$ad->image) : $ad->image_url; ?>
+                        <div style="width:56px;height:40px;border-radius:8px;overflow:hidden;background:#f1f5f9;flex-shrink:0;">
+                            <?php if($imgSrc): ?>
+                                <img src="<?php echo e($imgSrc); ?>" style="width:100%;height:100%;object-fit:cover;">
+                            <?php else: ?>
+                                <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#d1d5db;">
+                                    <i class="fas fa-image" style="font-size:18px;"></i>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                        <div>
+                            <div style="font-weight:700;font-size:13px;color:#111827;"><?php echo e($ad->title); ?></div>
+                            <?php if($ad->description): ?>
+                            <div style="font-size:11px;color:#9ca3af;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?php echo e($ad->description); ?></div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </td>
+
+                
+                <td style="padding:14px 16px;">
+                    <?php
+                        $typeColors = [
+                            'popup_fullscreen' => ['bg'=>'#fff7ed','color'=>'#ea580c','label'=>'Popup Full'],
+                            'popup_modal'      => ['bg'=>'#fef3c7','color'=>'#d97706','label'=>'Popup Modal'],
+                            'banner_slider'    => ['bg'=>'#eff6ff','color'=>'#2563eb','label'=>'Banner Slider'],
+                            'banner_inline'    => ['bg'=>'#f0fdf4','color'=>'#16a34a','label'=>'Banner Inline'],
+                            'card'             => ['bg'=>'#fdf4ff','color'=>'#9333ea','label'=>'Card'],
+                        ];
+                        $tc = $typeColors[$ad->ad_type] ?? ['bg'=>'#f1f5f9','color'=>'#64748b','label'=>$ad->ad_type];
+                    ?>
+                    <span style="display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:<?php echo e($tc['bg']); ?>;color:<?php echo e($tc['color']); ?>;">
+                        <?php echo e($tc['label']); ?>
+
+                    </span>
+                </td>
+
+                
+                <td style="padding:14px 16px;">
+                    <div style="font-size:12px;font-weight:600;color:#374151;">
+                        <?php if($ad->target_module && $ad->target_module !== 'all'): ?>
+                            <span style="background:#eff6ff;color:#2563eb;padding:2px 8px;border-radius:12px;font-size:11px;"><?php echo e(strtoupper($ad->target_module)); ?></span>
+                        <?php else: ?>
+                            <span style="color:#9ca3af;">All Users</span>
+                        <?php endif; ?>
+                    </div>
+                    <?php if($ad->district): ?>
+                    <div style="font-size:11px;color:#9ca3af;margin-top:3px;"><i class="fas fa-map-marker-alt" style="font-size:10px;"></i> <?php echo e($ad->district->name); ?></div>
+                    <?php endif; ?>
+                </td>
+
+                
+                <td style="padding:14px 16px;">
+                    <div style="font-size:11px;color:#6b7280;">
+                        <?php if($ad->start_date || $ad->end_date): ?>
+                            <?php if($ad->start_date): ?><div><i class="fas fa-calendar-check" style="color:#10b981;margin-right:4px;"></i><?php echo e($ad->start_date->format('d M Y')); ?></div><?php endif; ?>
+                            <?php if($ad->end_date): ?><div><i class="fas fa-calendar-times" style="color:#ef4444;margin-right:4px;"></i><?php echo e($ad->end_date->format('d M Y')); ?></div><?php endif; ?>
+                        <?php else: ?>
+                            <span style="color:#9ca3af;">Always</span>
+                        <?php endif; ?>
+                    </div>
+                    <div style="font-size:10px;color:#d1d5db;margin-top:4px;">Every <?php echo e($ad->display_frequency); ?>x · Delay <?php echo e($ad->display_delay_seconds); ?>s</div>
+                </td>
+
+                
+                <td style="padding:14px 16px;">
+                    <div style="display:flex;gap:14px;">
+                        <div style="text-align:center;">
+                            <div style="font-size:14px;font-weight:800;color:#3b82f6;"><?php echo e(number_format($ad->impressions)); ?></div>
+                            <div style="font-size:10px;color:#9ca3af;">Views</div>
+                        </div>
+                        <div style="text-align:center;">
+                            <div style="font-size:14px;font-weight:800;color:#FF8A00;"><?php echo e(number_format($ad->clicks)); ?></div>
+                            <div style="font-size:10px;color:#9ca3af;">Clicks</div>
+                        </div>
+                        <?php if($ad->impressions > 0): ?>
+                        <div style="text-align:center;">
+                            <div style="font-size:14px;font-weight:800;color:#8b5cf6;"><?php echo e(round(($ad->clicks/$ad->impressions)*100,1)); ?>%</div>
+                            <div style="font-size:10px;color:#9ca3af;">CTR</div>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                </td>
+
+                
+                <td style="padding:14px 16px;">
+                    <form action="<?php echo e(route('admin.ads.toggle', $ad->id)); ?>" method="POST">
+                        <?php echo csrf_field(); ?>
+                        <button type="submit" style="background:none;border:none;cursor:pointer;padding:0;">
+                            <label class="toggle" style="pointer-events:none;">
+                                <input type="checkbox" <?php echo e($ad->status === 'active' ? 'checked' : ''); ?>>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </button>
+                    </form>
+                    <div style="font-size:10px;font-weight:600;margin-top:4px;color:<?php echo e($ad->status === 'active' ? '#10b981' : '#9ca3af'); ?>;">
+                        <?php echo e(ucfirst($ad->status)); ?>
+
+                    </div>
+                </td>
+
+                
+                <td style="padding:14px 16px;text-align:right;">
+                    <div style="display:flex;gap:6px;justify-content:flex-end;">
+                        <button class="btn btn-xs btn-outline"
+                                onclick='openEditModal(<?php echo e(json_encode($ad)); ?>)'>
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <form action="<?php echo e(route('admin.ads.destroy', $ad->id)); ?>" method="POST"
+                              onsubmit="return confirm('Delete this ad?')">
+                            <?php echo csrf_field(); ?> <?php echo method_field('DELETE'); ?>
+                            <button type="submit" class="btn btn-xs" style="background:#fff5f5;color:#ef4444;border:1.5px solid #fecaca;">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+<?php else: ?>
+<div class="card">
+    <div class="empty-state">
+        <i class="fas fa-ad"></i>
+        <h3>No ads yet</h3>
+        <p>Create your first ad to start showing promotions inside the app</p>
+        <button class="btn btn-primary" style="margin-top:12px;" onclick="openModal('createAdModal')">
+            <i class="fas fa-plus"></i> Create Ad
+        </button>
+    </div>
+</div>
+<?php endif; ?>
+
+
+
+<div id="createAdModal" class="modal-overlay">
+    <div class="modal-box" style="max-width:620px;max-height:90vh;display:flex;flex-direction:column;">
+        <div class="modal-header">
+            <div class="modal-title"><i class="fas fa-plus-circle" style="color:#FF8A00;margin-right:8px;"></i>Create New Ad</div>
+            <button class="modal-close" onclick="closeModal('createAdModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <form id="createAdForm" action="<?php echo e(route('admin.ads.store')); ?>" method="POST" enctype="multipart/form-data" style="overflow-y:auto;flex:1;" onsubmit="convertDatesToUTC(this)">
+            <?php echo csrf_field(); ?>
+            <div class="modal-body" id="createAdBody">
+                
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline btn-sm" onclick="closeModal('createAdModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-save"></i> Create Ad</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<div id="editAdModal" class="modal-overlay">
+    <div class="modal-box" style="max-width:620px;max-height:90vh;display:flex;flex-direction:column;">
+        <div class="modal-header">
+            <div class="modal-title"><i class="fas fa-edit" style="color:#3b82f6;margin-right:8px;"></i>Edit Ad</div>
+            <button class="modal-close" onclick="closeModal('editAdModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <form id="editAdForm" method="POST" enctype="multipart/form-data" style="overflow-y:auto;flex:1;" onsubmit="convertDatesToUTC(this)">
+            <?php echo csrf_field(); ?> <?php echo method_field('PUT'); ?>
+            <div class="modal-body" id="editAdBody">
+                
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline btn-sm" onclick="closeModal('editAdModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-save"></i> Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<?php $__env->startPush('scripts'); ?>
+<script>
+// ── Modal helpers ────────────────────────────────────────────────────────────
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(m => {
+    m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
+});
+
+// ── Modules & districts for JS use ──────────────────────────────────────────
+const _modules   = <?php echo json_encode($modules->pluck('name', 'slug'), 512) ?>;
+const _districts = <?php echo json_encode($districts->pluck('name', 'id'), 512) ?>;
+
+// ── Build form HTML ──────────────────────────────────────────────────────────
+function buildFormHTML(ad) {
+    const v = (k, d='') => ad ? (ad[k] ?? d) : d;
+    const chk = (k, def=false) => (ad ? !!ad[k] : def) ? 'checked' : '';
+    const sel = (opt, cur) => opt === cur ? 'selected' : '';
+
+    // module options
+    let modOpts = '<option value="">All Users (no filter)</option>';
+    modOpts += '<option value="all" ' + sel('all', v('target_module')) + '>All Modules</option>';
+    Object.entries(_modules).forEach(([slug, name]) => {
+        modOpts += `<option value="${slug}" ${sel(slug, v('target_module'))}>${name} (${slug})</option>`;
+    });
+
+    // district options
+    let distOpts = '<option value="">No district filter</option>';
+    Object.entries(_districts).forEach(([id, name]) => {
+        distOpts += `<option value="${id}" ${sel(id, String(v('target_district_id','')))}>${name}</option>`;
+    });
+
+    return `
+    <div class="form-row">
+        <div class="form-group">
+            <label class="form-label">Title <span style="color:var(--danger)">*</span></label>
+            <input type="text" name="title" class="form-control" value="${escHtml(v('title'))}" required placeholder="e.g. Summer Sale Promo">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Ad Type <span style="color:var(--danger)">*</span></label>
+            <select name="ad_type" class="form-control" required>
+                <option value="popup_modal"      ${sel('popup_modal',      v('ad_type','popup_modal'))}>💬 Popup — Modal (center dialog)</option>
+                <option value="popup_fullscreen"  ${sel('popup_fullscreen', v('ad_type'))}>📱 Popup — Full Screen</option>
+                <option value="banner_slider"     ${sel('banner_slider',    v('ad_type'))}>🎠 Banner — Slider (home/module)</option>
+                <option value="banner_inline"     ${sel('banner_inline',    v('ad_type'))}>📌 Banner — Inline Card</option>
+                <option value="card"              ${sel('card',             v('ad_type'))}>🃏 Promotional Card</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea name="description" class="form-control" rows="2" placeholder="Short promo copy shown below the title">${escHtml(v('description'))}</textarea>
+    </div>
+
+    <div class="form-row">
+        <div class="form-group">
+            <label class="form-label">Upload Image</label>
+            <input type="file" name="image" class="form-control" accept="image/*">
+            <div class="form-hint">JPG/PNG, max 4 MB. Replaces current image.</div>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Or Image URL</label>
+            <input type="text" name="image_url" class="form-control" value="${escHtml(v('image_url'))}" placeholder="https://cdn.example.com/ad.jpg">
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">Video URL (optional)</label>
+        <input type="text" name="video_url" class="form-control" value="${escHtml(v('video_url'))}" placeholder="YouTube, TikTok, or direct .mp4 link">
+        <div class="form-hint">OR upload a video file below (replaces any URL above)</div>
+        <input type="file" name="video" class="form-control mt-1" accept="video/mp4,video/quicktime,video/webm">
+    </div>
+
+    <div class="form-row">
+        <div class="form-group">
+            <label class="form-label">Target Module</label>
+            <select name="target_module" class="form-control">${modOpts}</select>
+            <div class="form-hint">Leave empty to show to all users.</div>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Target District</label>
+            <select name="target_district_id" class="form-control">${distOpts}</select>
+        </div>
+    </div>
+
+    <div class="form-row">
+        <div class="form-group">
+            <label class="form-label">Status <span style="color:var(--danger)">*</span></label>
+            <select name="status" class="form-control" required>
+                <option value="inactive"  ${sel('inactive',  v('status','inactive'))}>⚪ Inactive</option>
+                <option value="active"    ${sel('active',    v('status'))}>🟢 Active</option>
+                <option value="scheduled" ${sel('scheduled', v('status'))}>🕐 Scheduled</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Sort Order</label>
+            <input type="number" name="sort_order" class="form-control" value="${v('sort_order', 0)}" min="0">
+        </div>
+    </div>
+
+    <div class="form-row">
+        <div class="form-group">
+            <label class="form-label">Start Date <span style="color:#9ca3af;font-weight:400;font-size:11px;">(leave empty = show immediately)</span></label>
+            <input type="datetime-local" name="start_date" class="form-control" data-utc-field="1"
+                   value="${utcToLocal(v('start_date',''))}">
+            <div class="form-hint" style="color:#f59e0b;">⚠️ Your local time. Saved as UTC (server is UTC+0).</div>
+        </div>
+        <div class="form-group">
+            <label class="form-label">End Date <span style="color:#9ca3af;font-weight:400;font-size:11px;">(leave empty = no expiry)</span></label>
+            <input type="datetime-local" name="end_date" class="form-control" data-utc-field="1"
+                   value="${utcToLocal(v('end_date',''))}">
+            <div class="form-hint" style="color:#f59e0b;">⚠️ Your local time. Saved as UTC (server is UTC+0).</div>
+        </div>
+    </div>
+
+    <div style="background:#f8fafc;border-radius:12px;padding:16px;margin-bottom:16px;">
+        <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px;">Click Action</div>
+        <div class="form-row">
+            <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label">Action Type</label>
+                <select name="action_type" class="form-control" required>
+                    <option value="none"    ${sel('none',    v('action_type','none'))}>None</option>
+                    <option value="module"  ${sel('module',  v('action_type'))}>Open Module</option>
+                    <option value="vendor"  ${sel('vendor',  v('action_type'))}>Open Vendor</option>
+                    <option value="product" ${sel('product', v('action_type'))}>Open Product</option>
+                    <option value="url"     ${sel('url',     v('action_type'))}>External URL</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label">Action Value</label>
+                <input type="text" name="action_value" class="form-control" value="${escHtml(v('action_value'))}"
+                       placeholder="e.g. efood | 42 | https://...">
+                <div class="form-hint">Module: slug (efood) · Vendor/Product: ID · URL: full URL</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-row">
+        <div class="form-group">
+            <label class="form-label">Button Text</label>
+            <input type="text" name="button_text" class="form-control" value="${escHtml(v('button_text','Learn More'))}" placeholder="Learn More">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Button Color</label>
+            <input type="color" name="button_color" class="form-control" value="${v('button_color','#FF8A00')}" style="padding:4px;height:42px;">
+        </div>
+    </div>
+
+    <div style="background:#f8fafc;border-radius:12px;padding:16px;margin-bottom:16px;">
+        <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px;">Display Behavior</div>
+        <div class="form-row">
+            <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label">Show Every N Opens</label>
+                <input type="number" name="display_frequency" class="form-control" value="${v('display_frequency', 1)}" min="1" max="100">
+                <div class="form-hint">1 = every app open. 3 = once every 3 opens.</div>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label">Delay (seconds)</label>
+                <input type="number" name="display_delay_seconds" class="form-control" value="${v('display_delay_seconds', 2)}" min="0" max="300">
+                <div class="form-hint">Wait N seconds after screen loads.</div>
+            </div>
+        </div>
+        <div style="display:flex;gap:20px;margin-top:14px;flex-wrap:wrap;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;">
+                <input type="checkbox" name="show_on_app_open" value="1" ${chk('show_on_app_open', true)}>
+                Show on App Open
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;">
+                <input type="checkbox" name="show_after_login" value="1" ${chk('show_after_login', false)}>
+                Show After Login
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;">
+                <input type="checkbox" name="allow_dont_show_today" value="1" ${chk('allow_dont_show_today', true)}>
+                Allow "Don't Show Today"
+            </label>
+        </div>
+    </div>
+    `;
+}
+
+function escHtml(s) {
+    if (s == null) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Convert UTC datetime string from server to local datetime-local input value
+function utcToLocal(utcStr) {
+    if (!utcStr) return '';
+    const d = new Date(utcStr.replace(' ', 'T') + (utcStr.includes('Z') ? '' : 'Z'));
+    if (isNaN(d)) return '';
+    const pad = n => String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// Before form submit: convert datetime-local (local time) fields back to UTC ISO string
+function convertDatesToUTC(form) {
+    form.querySelectorAll('input[data-utc-field]').forEach(input => {
+        if (!input.value) return;
+        const local = new Date(input.value);
+        if (!isNaN(local)) {
+            // Create a hidden input with UTC value, disable the original
+            const hidden = document.createElement('input');
+            hidden.type = 'hidden';
+            hidden.name = input.name;
+            hidden.value = local.toISOString().slice(0,19).replace('T',' ');
+            input.name = '_' + input.name; // disable original
+            form.appendChild(hidden);
+        }
+    });
+}
+
+// ── Populate edit modal ──────────────────────────────────────────────────────
+function openEditModal(ad) {
+    document.getElementById('editAdForm').action = `/admin/ads/${ad.id}`;
+    document.getElementById('editAdBody').innerHTML = buildFormHTML(ad);
+    openModal('editAdModal');
+}
+
+// ── Populate create modal body on open ─────────────────────────────────────
+document.getElementById('createAdModal').addEventListener('click', function(e) {
+    // Only build once
+    const body = this.querySelector('.modal-body');
+    if (body && !body.dataset.built) {
+        body.innerHTML = buildFormHTML(null);
+        body.dataset.built = '1';
+    }
+});
+
+// build create form immediately
+(function(){
+    const body = document.getElementById('createAdBody');
+    if (body) { body.innerHTML = buildFormHTML(null); body.dataset.built = '1'; }
+})();
+</script>
+<?php $__env->stopPush(); ?>
+<?php $__env->stopSection(); ?>
+
+<?php echo $__env->make('admin.layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH /var/www/esahlan/backend/resources/views/admin/ads/index.blade.php ENDPATH**/ ?>
