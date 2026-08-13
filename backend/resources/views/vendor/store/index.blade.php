@@ -192,67 +192,87 @@
     </form>
 </div>
 @push('scripts')
-{{-- Leaflet.js — open-source map, no API key needed --}}
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+{{-- Google Maps JS API — interactive map with draggable marker --}}
 <script>
 (function() {
-    const DEFAULT_LAT = 9.5594, DEFAULT_LNG = 44.0650; // Hargeysa center
-    const initLat = parseFloat(document.getElementById('map_lat').value) || DEFAULT_LAT;
-    const initLng = parseFloat(document.getElementById('map_lng').value) || DEFAULT_LNG;
-    const hasPin  = !!document.getElementById('map_lat').value;
+    const GOOGLE_API_KEY = '{{ config("services.google.maps_api_key", "") }}';
+    const DEFAULT_LAT = 9.5594, DEFAULT_LNG = 44.0650;
 
-    const map = L.map('vendor_map').setView([initLat, initLng], hasPin ? 15 : 13);
+    const latInput = document.getElementById('map_lat');
+    const lngInput = document.getElementById('map_lng');
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '© OpenStreetMap contributors'
-    }).addTo(map);
+    let map, marker;
 
-    // Custom marker icon
-    const icon = L.divIcon({
-        html: '<div style="width:34px;height:34px;background:var(--brand,#f97316);border:3px solid #fff;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 3px 12px rgba(249,115,22,.5);"></div>',
-        iconSize:[34,34], iconAnchor:[17,34], className:''
-    });
+    function initMap() {
+        const initLat = parseFloat(latInput.value) || DEFAULT_LAT;
+        const initLng = parseFloat(lngInput.value) || DEFAULT_LNG;
+        const hasPin  = !!latInput.value;
 
-    let marker = null;
+        map = new google.maps.Map(document.getElementById('vendor_map'), {
+            center: { lat: initLat, lng: initLng },
+            zoom: hasPin ? 16 : 13,
+            mapTypeControl: false,
+            streetViewControl: false,
+            fullscreenControl: false,
+            styles: [
+                { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] }
+            ]
+        });
 
-    function setMarker(lat, lng) {
-        if (marker) map.removeLayer(marker);
-        marker = L.marker([lat, lng], { icon, draggable: true }).addTo(map);
-        document.getElementById('map_lat').value = lat.toFixed(6);
-        document.getElementById('map_lng').value = lng.toFixed(6);
-        marker.on('dragend', function(e) {
-            const p = e.target.getLatLng();
-            document.getElementById('map_lat').value = p.lat.toFixed(6);
-            document.getElementById('map_lng').value = p.lng.toFixed(6);
+        if (hasPin) placeMarker({ lat: initLat, lng: initLng });
+
+        map.addListener('click', function(e) {
+            placeMarker(e.latLng);
+            map.panTo(e.latLng);
         });
     }
 
-    if (hasPin) setMarker(initLat, initLng);
+    function placeMarker(position) {
+        if (marker) marker.setMap(null);
+        marker = new google.maps.Marker({
+            position: position,
+            map: map,
+            draggable: true,
+            animation: google.maps.Animation.DROP,
+            icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 12,
+                fillColor: '#f97316',
+                fillOpacity: 1,
+                strokeColor: '#ffffff',
+                strokeWeight: 3,
+            }
+        });
+        updateInputs(marker.getPosition().lat(), marker.getPosition().lng());
+        marker.addListener('dragend', function() {
+            updateInputs(marker.getPosition().lat(), marker.getPosition().lng());
+        });
+    }
 
-    map.on('click', function(e) {
-        setMarker(e.latlng.lat, e.latlng.lng);
-        map.setView(e.latlng, Math.max(map.getZoom(), 16));
-    });
+    function updateInputs(lat, lng) {
+        latInput.value = lat.toFixed(6);
+        lngInput.value = lng.toFixed(6);
+    }
 
     // Sync manual lat/lng inputs → move map
-    ['map_lat','map_lng'].forEach(id => {
+    ['map_lat', 'map_lng'].forEach(function(id) {
         document.getElementById(id).addEventListener('change', function() {
-            const lat = parseFloat(document.getElementById('map_lat').value);
-            const lng = parseFloat(document.getElementById('map_lng').value);
-            if (!isNaN(lat) && !isNaN(lng)) {
-                map.setView([lat, lng], 16);
-                setMarker(lat, lng);
+            const lat = parseFloat(latInput.value);
+            const lng = parseFloat(lngInput.value);
+            if (!isNaN(lat) && !isNaN(lng) && map) {
+                const pos = new google.maps.LatLng(lat, lng);
+                map.panTo(pos);
+                map.setZoom(16);
+                placeMarker(pos);
             }
         });
     });
 
     // Detect current location
     document.getElementById('detect_location_btn').addEventListener('click', function() {
-        this.disabled = true;
-        this.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Detecting...';
         const btn = this;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Detecting...';
         if (!navigator.geolocation) {
             alert('Geolocation is not supported by your browser.');
             btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-crosshairs"></i> My Location';
@@ -260,14 +280,26 @@
         }
         navigator.geolocation.getCurrentPosition(function(pos) {
             const lat = pos.coords.latitude, lng = pos.coords.longitude;
-            map.setView([lat, lng], 17);
-            setMarker(lat, lng);
+            if (map) {
+                const position = new google.maps.LatLng(lat, lng);
+                map.panTo(position);
+                map.setZoom(17);
+                placeMarker(position);
+            }
             btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-crosshairs"></i> My Location';
         }, function() {
             alert('Could not get your location. Please allow location access or enter coordinates manually.');
             btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-crosshairs"></i> My Location';
         });
     });
+
+    // Load Google Maps JS API dynamically
+    window.initVendorMap = initMap;
+    const script = document.createElement('script');
+    script.src = 'https://maps.googleapis.com/maps/api/js?key=' + GOOGLE_API_KEY + '&callback=initVendorMap&loading=async';
+    script.async = true;
+    script.defer = true;
+    document.head.appendChild(script);
 })();
 </script>
 @endpush

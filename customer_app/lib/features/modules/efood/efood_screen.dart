@@ -454,7 +454,7 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
     final cats = ref.watch(_catsProvider);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           Text(l.foodCategories, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: context.colors.navyText)),
@@ -519,7 +519,7 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
     )));
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(0, 24, 0, 0),
+      padding: const EdgeInsets.fromLTRB(0, 10, 0, 0),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1050,7 +1050,7 @@ class _NearYouSectionState extends ConsumerState<_NearYouSection> {
     final l = AppL10n.of(context);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(0, 24, 0, 0),
+      padding: const EdgeInsets.fromLTRB(0, 10, 0, 0),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         // ── Section header ──────────────────────────────────────────────────
         Padding(
