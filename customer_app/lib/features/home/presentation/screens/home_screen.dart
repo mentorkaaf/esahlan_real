@@ -1236,7 +1236,32 @@ class _BestSellersSectionState extends State<_BestSellersSection> {
         if (!loading && products.isEmpty) return const SizedBox.shrink();
 
         return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          _sectionHeader(context, '🏆 Best Sellers'),
+          // Header: "🏆 Best Sellers" + "Last 24 hours" badge
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
+            child: Row(children: [
+              Container(width: 4, height: 20,
+                decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(2))),
+              const SizedBox(width: 10),
+              Text('🏆 Best Sellers',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: context.colors.navyText)),
+              const SizedBox(width: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.35), width: 1),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.access_time_rounded, size: 11, color: AppColors.primary),
+                  const SizedBox(width: 4),
+                  Text('Last 24 hours',
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.primary)),
+                ]),
+              ),
+            ]),
+          ),
           SizedBox(
             height: 185,
             child: loading

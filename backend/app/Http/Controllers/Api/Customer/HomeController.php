@@ -373,21 +373,15 @@ class HomeController extends Controller
     // ──────────────────────────────────────────────────────────────────────────
     public function bestSellers(Request $request)
     {
-        $limit = min((int) $request->get('limit', 10), 30);
+        $limit   = min((int) $request->get('limit', 10), 30);
+        $since   = now()->subHours(24);   // strict 24-hour window
 
-        // Count orders per product from the orders_items table (or orders table)
-        // Falls back gracefully if the column doesn't exist
-        $orderCountSub = DB::table('order_items')
-            ->selectRaw('product_id, COUNT(*) as order_count')
-            ->groupBy('product_id');
-
-        // Try ordered products first; fall back to top-rated if no orders exist yet
         $mapProduct = function ($p, int $orderCount = 0) {
             $deepLink = match($p->module_slug) {
-                'efood'   => '/efood/restaurant/' . $p->vendor_id,
-                'eshop'   => '/eshop/products/' . $p->id,
-                'egrocery'=> '/egrocery',
-                default   => '/' . $p->module_slug,
+                'efood'    => '/efood/restaurant/' . $p->vendor_id,
+                'eshop'    => '/eshop/products/' . $p->id,
+                'egrocery' => '/egrocery',
+                default    => '/' . $p->module_slug,
             };
             return [
                 'id'           => $p->id,
@@ -402,54 +396,49 @@ class HomeController extends Controller
                 'module_slug'  => $p->module_slug,
                 'module_name'  => $p->module_name,
                 'deep_link'    => $deepLink,
+                'period'       => 'last_24h',   // Flutter uses this to show the badge
             ];
         };
 
+        // ── Products ordered most in the last 24 hours ────────────────────────
+        // Join order_items → orders to filter by orders.created_at (last 24h).
+        // Only confirmed/delivered/paid orders count (not cancelled/failed).
+        $orderCountSub = DB::table('order_items as oi')
+            ->join('orders as o', 'oi.order_id', '=', 'o.id')
+            ->where('o.created_at', '>=', $since)
+            ->whereNotIn('o.status', ['cancelled', 'failed', 'refunded'])
+            ->selectRaw('oi.product_id, COUNT(*) as order_count')
+            ->groupBy('oi.product_id');
+
         $products = DB::table('products as p')
-            ->joinSub($orderCountSub, 'oi', 'p.id', '=', 'oi.product_id')
+            ->joinSub($orderCountSub, 'ranked', 'p.id', '=', 'ranked.product_id')
             ->join('vendors as v', 'p.vendor_id', '=', 'v.id')
             ->join('modules as m', 'v.module_id', '=', 'm.id')
             ->where('p.is_available', true)
             ->whereNull('p.deleted_at')
-            ->where('oi.order_count', '>', 0)
+            ->where('ranked.order_count', '>', 0)
             ->where('v.is_active', true)
             ->where('v.is_approved', true)
             ->whereNull('v.deleted_at')
             ->select([
                 'p.id', 'p.name', 'p.price', 'p.sale_price', 'p.thumbnail', 'p.rating',
-                'oi.order_count as total_orders',
+                'ranked.order_count as total_orders',
                 'v.id as vendor_id', 'v.name as vendor_name',
                 'm.slug as module_slug', 'm.name as module_name',
             ])
-            ->orderByDesc('oi.order_count')
+            ->orderByDesc('ranked.order_count')
             ->limit($limit)
             ->get()
             ->map(fn($p) => $mapProduct($p, $p->total_orders));
 
-        // Fallback: if no orders yet, show top-rated available products
-        if ($products->isEmpty()) {
-            $products = DB::table('products as p')
-                ->join('vendors as v', 'p.vendor_id', '=', 'v.id')
-                ->join('modules as m', 'v.module_id', '=', 'm.id')
-                ->where('p.is_available', true)
-                ->whereNull('p.deleted_at')
-                ->where('v.is_active', true)
-                ->where('v.is_approved', true)
-                ->whereNull('v.deleted_at')
-                ->where('p.price', '>', 0)
-                ->select([
-                    'p.id', 'p.name', 'p.price', 'p.sale_price', 'p.thumbnail', 'p.rating',
-                    'v.id as vendor_id', 'v.name as vendor_name',
-                    'm.slug as module_slug', 'm.name as module_name',
-                ])
-                ->orderByDesc('p.rating')
-                ->orderByDesc('p.id')
-                ->limit($limit)
-                ->get()
-                ->map(fn($p) => $mapProduct($p, 0));
-        }
-
-        return response()->json(['success' => true, 'data' => $products]);
+        // ── No orders in last 24h — return empty (section hidden in app) ──────
+        // Do NOT fall back to all-time or top-rated: the section is "Last 24h".
+        return response()->json([
+            'success' => true,
+            'data'    => $products,
+            'period'  => 'last_24h',
+            'count'   => $products->count(),
+        ]);
     }
 
     // ──────────────────────────────────────────────────────────────────────────
