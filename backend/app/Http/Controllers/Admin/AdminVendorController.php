@@ -7,6 +7,7 @@ use App\Mail\VendorApprovedMail;
 use App\Mail\VendorRejectedMail;
 use App\Models\Module;
 use App\Models\Vendor;
+use App\Services\AdminAlertService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -135,6 +136,15 @@ class AdminVendorController extends Controller
         if ($email) {
             try { Mail::to($email)->send(new VendorApprovedMail($vendor->name)); } catch (\Throwable) {}
         }
+
+        try {
+            AdminAlertService::send('vendor_approved', "✅ Vendor Approved: {$vendor->name}", [
+                'Store'       => $vendor->name,
+                'Email'       => $email ?? 'N/A',
+                'Module'      => $vendor->module?->name ?? 'N/A',
+                'Approved At' => now()->format('d M Y H:i') . ' UTC',
+            ]);
+        } catch (\Throwable) {}
 
         return back()->with('success', 'Vendor approved successfully.');
     }

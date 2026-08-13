@@ -8,6 +8,7 @@ use App\Models\OtpCode;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Wallet;
+use App\Services\AdminAlertService;
 use App\Services\FileUploadSecurityService;
 use App\Services\SecurityAuditService;
 use Illuminate\Http\Request;
@@ -96,6 +97,16 @@ class AuthController extends Controller
             SecurityAuditService::fromRequest($request),
             ['user_id' => $user->id, 'identifier' => $user->phone]
         ));
+
+        // Admin alert — new customer (low-volume: rate-limited 1/min per unique phone)
+        try {
+            AdminAlertService::send('new_customer', "New Customer: {$user->name}", [
+                'Name'     => $user->name,
+                'Phone'    => $user->phone,
+                'Email'    => $user->email ?? 'N/A',
+                'Joined At'=> now()->format('d M Y H:i') . ' UTC',
+            ], 'new_customer_' . $user->id, 60);
+        } catch (\Throwable) {}
 
         if ($user->email) {
             try { Mail::to($user->email)->send(new WelcomeMail($user->name)); } catch (\Exception) {}

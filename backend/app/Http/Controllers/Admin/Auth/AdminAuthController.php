@@ -2,6 +2,7 @@
 namespace App\Http\Controllers\Admin\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Services\AdminAlertService;
 use App\Services\SecurityAuditService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -72,6 +73,17 @@ class AdminAuthController extends Controller
             SecurityAuditService::fromRequest($request),
             ['user_id' => $user->id, 'identifier' => $user->email]
         ));
+
+        // Admin alert — admin panel login (rate-limited: max 1 email per admin per 30min)
+        try {
+            AdminAlertService::send('admin_login', "🔐 Admin Login: {$user->email}", [
+                'Admin'    => $user->name . ' (' . $user->email . ')',
+                'Role'     => $user->role?->slug ?? 'N/A',
+                'IP'       => $request->ip(),
+                'Browser'  => substr($request->userAgent() ?? 'N/A', 0, 80),
+                'Logged At'=> now()->format('d M Y H:i') . ' UTC',
+            ], 'admin_login_' . $user->id, 1800);
+        } catch (\Throwable) {}
 
         $request->session()->regenerate();
         return redirect()->route('admin.dashboard');

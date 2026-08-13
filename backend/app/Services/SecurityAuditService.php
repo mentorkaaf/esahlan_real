@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\SecurityAuditLog;
+use App\Services\AdminAlertService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -30,6 +31,23 @@ class SecurityAuditService
             ]);
         } catch (\Throwable $e) {
             Log::warning('[SecurityAudit] Failed to write log: ' . $e->getMessage());
+        }
+
+        // Admin alert for critical security events (rate-limited per event+IP)
+        if (in_array($severity, ['critical', 'crit']) ||
+            in_array($event, ['admin.login.blocked', 'admin.access.denied', 'token.stolen', 'account.locked'])) {
+            try {
+                $ip      = $context['ip'] ?? 'unknown';
+                $rateKey = 'suspicious_' . md5($event . $ip);
+                AdminAlertService::send('suspicious_activity', "🚨 Security: {$event}", [
+                    'Event'      => $event,
+                    'Severity'   => strtoupper($severity),
+                    'IP'         => $ip,
+                    'Identifier' => $context['identifier'] ?? 'N/A',
+                    'User Agent' => substr($context['ua'] ?? 'N/A', 0, 80),
+                    'Detected'   => now()->format('d M Y H:i') . ' UTC',
+                ], $rateKey, 600); // max 1 per IP+event per 10 min
+            } catch (\Throwable) {}
         }
     }
 

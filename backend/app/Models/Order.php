@@ -55,6 +55,37 @@ class Order extends Model
                 \Illuminate\Support\Facades\Log::error('[AdminAlert][Order::created] ' . $e->getMessage());
             }
         });
+
+        // Admin alert — order cancelled or refunded (status/payment_status change)
+        static::updated(function (Order $order) {
+            try {
+                $status        = $order->status;
+                $prevStatus    = $order->getOriginal('status');
+                $payStatus     = $order->payment_status;
+                $prevPayStatus = $order->getOriginal('payment_status');
+
+                // Cancelled
+                if ($status === 'cancelled' && $prevStatus !== 'cancelled') {
+                    AdminAlertService::send('order_cancelled', "❌ Order Cancelled: {$order->order_number}", [
+                        'Order #'      => $order->order_number,
+                        'Module'       => strtoupper($order->module_slug ?? 'N/A'),
+                        'Total'        => '$' . number_format((float) $order->total_amount, 2),
+                        'Payment'      => strtoupper($order->payment_method ?? 'N/A'),
+                        'Cancelled At' => now()->format('d M Y H:i') . ' UTC',
+                    ], 'order_cancelled_' . $order->id, 300);
+                }
+
+                // Refunded
+                if ($payStatus === 'refunded' && $prevPayStatus !== 'refunded') {
+                    AdminAlertService::send('order_refund', "💸 Refund: Order {$order->order_number}", [
+                        'Order #'     => $order->order_number,
+                        'Module'      => strtoupper($order->module_slug ?? 'N/A'),
+                        'Amount'      => '$' . number_format((float) $order->total_amount, 2),
+                        'Refunded At' => now()->format('d M Y H:i') . ' UTC',
+                    ], 'order_refund_' . $order->id, 300);
+                }
+            } catch (\Throwable) {}
+        });
     }
 
     public function user() { return $this->belongsTo(User::class); }

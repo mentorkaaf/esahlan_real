@@ -128,23 +128,25 @@ class AdminServerHealthCheck extends Command
         } catch (\Throwable) {}
     }
 
-    // ── Slow DB queries ───────────────────────────────────────────────────────
+    // ── Stuck orders check (replaces slow_db — query_logs table doesn't exist) ─
 
     private function checkSlowDb(): void
     {
         try {
-            // Count slow queries logged in the last hour
-            $slowCount = DB::table('query_logs')
-                ->where('duration_ms', '>', 1000)
-                ->where('created_at', '>', now()->subHour())
+            // Orders stuck in 'pending' for more than 30 minutes signal
+            // possible payment gateway delays, queue failure, or DB slowness.
+            $stuckOrders = DB::table('orders')
+                ->where('status', 'pending')
+                ->where('created_at', '<', now()->subMinutes(30))
+                ->where('created_at', '>', now()->subHours(24)) // only last 24h
                 ->count();
 
-            if ($slowCount >= 50) {
-                AdminAlertService::send('slow_db', "🐢 {$slowCount} Slow DB Queries in Last Hour", [
-                    'Slow Queries (>1s)' => $slowCount . ' in last 60 min',
-                    'Threshold'          => '50 per hour',
-                    'Action'             => 'Check Admin → Security → Performance tab',
-                    'Checked At'         => now()->format('d M Y H:i') . ' UTC',
+            if ($stuckOrders >= 5) {
+                AdminAlertService::send('slow_db', "🐢 {$stuckOrders} Orders Stuck in Pending (>30 min)", [
+                    'Stuck Orders'   => "{$stuckOrders} orders pending for >30 min",
+                    'Possible Cause' => 'Payment gateway delay, DB slowness, or queue issue',
+                    'Action'         => 'Check Admin → Orders → filter by Pending',
+                    'Checked At'     => now()->format('d M Y H:i') . ' UTC',
                 ], "slow_db", 3600);
             }
         } catch (\Throwable) {}
