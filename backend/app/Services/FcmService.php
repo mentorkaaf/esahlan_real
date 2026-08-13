@@ -105,15 +105,21 @@ class FcmService
                 \App\Models\NotificationLog::where('id', $logId)->update(['status' => 'failed']);
             }
 
-            // Auto-clear stale tokens (check both user and vendor tables)
-            if ($code === 404) {
+            // Auto-clear stale/mismatched tokens (check both user and vendor tables)
+            // 404 = UNREGISTERED (app uninstalled/reinstalled)
+            // 403 = SenderId mismatch (token from old Firebase project / old app version)
+            if ($code === 404 || $code === 403) {
                 $parsed  = json_decode($resp, true);
-                $errCode = $parsed['error']['details'][0]['errorCode'] ?? '';
-                if (in_array($errCode, ['UNREGISTERED', 'SENDER_ID_MISMATCH'])) {
+                $errCode = $parsed['error']['details'][0]['errorCode']
+                    ?? $parsed['error']['status']    // 403 uses 'status' field
+                    ?? '';
+                $clearable = in_array($errCode, ['UNREGISTERED', 'SENDER_ID_MISMATCH', 'PERMISSION_DENIED'])
+                    || str_contains(strtolower($parsed['error']['message'] ?? ''), 'senderid mismatch');
+                if ($clearable) {
                     \App\Models\User::where('fcm_token', $fcmToken)->update(['fcm_token' => null]);
                     \App\Models\Vendor::where('vendor_fcm_token', $fcmToken)->update(['vendor_fcm_token' => null]);
                     \App\Models\Global\GlobalUser::where('fcm_token', $fcmToken)->update(['fcm_token' => null]);
-                    Log::info('[FCM] Cleared stale token', ['errorCode' => $errCode, 'token' => '...' . substr($fcmToken, -20)]);
+                    Log::info('[FCM] Cleared stale/mismatched token', ['code' => $code, 'errorCode' => $errCode, 'token' => '...' . substr($fcmToken, -20)]);
                 }
             }
             return false;
