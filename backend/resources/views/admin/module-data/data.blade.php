@@ -234,7 +234,7 @@
             <div class="sc-title"><i class="fas fa-layer-group" style="color:#1565C0"></i> Internet Bundles</div>
             <div style="display:flex;gap:10px;align-items:center">
                 <input type="text" placeholder="Search bundles…" oninput="filterBundles(this.value)" style="padding:7px 12px;border:1.5px solid #EEEEEE;border-radius:10px;font-size:13px;width:180px">
-                <button class="btn-add" onclick="document.getElementById('addBundleModal').classList.add('open')"><i class="fas fa-plus"></i> Add Bundle</button>
+                <button class="btn-add" onclick="openBulkModal()"><i class="fas fa-plus"></i> Add Bundle</button>
             </div>
         </div>
         <div id="bundleList">
@@ -387,41 +387,172 @@
     </div>
 </div>
 
+{{-- ── Bulk Add Bundles Modal ───────────────────────────────────────── --}}
+<style>
+.bulk-modal-box{background:#fff;border-radius:18px;width:min(1020px,97vw);max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);}
+.bulk-hdr{display:flex;align-items:flex-start;justify-content:space-between;padding:20px 26px 0;}
+.bulk-header-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:16px 26px 14px;border-bottom:1px solid #f0f1f5;background:#fafbff;}
+.bulk-header-grid label{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#6b7280;display:block;margin-bottom:5px;}
+.bulk-header-grid select{width:100%;padding:9px 12px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:13px;background:#fff;}
+.bulk-table-wrap{padding:16px 26px;}
+.bulk-table{width:100%;border-collapse:collapse;font-size:13px;}
+.bulk-table th{text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;padding:8px;border-bottom:2px solid #f0f1f5;white-space:nowrap;}
+.bulk-table td{padding:4px 3px;vertical-align:middle;}
+.bulk-table tr+tr td{border-top:1px solid #f9fafb;}
+.bulk-table input{width:100%;padding:7px 8px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:12px;background:#fff;transition:.15s;box-sizing:border-box;}
+.bulk-table input:focus{border-color:#3B82F6;outline:none;background:#f0f7ff;}
+.bulk-row-num{color:#9ca3af;font-size:11px;font-weight:700;text-align:center;width:28px;}
+.bulk-remove-btn{width:28px;height:28px;border:none;background:#fee2e2;color:#dc2626;border-radius:7px;cursor:pointer;font-size:15px;line-height:1;display:flex;align-items:center;justify-content:center;transition:.15s;flex-shrink:0;}
+.bulk-remove-btn:hover{background:#fca5a5;}
+.bulk-add-row-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:#eff6ff;color:#3B82F6;border:1.5px dashed #93c5fd;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;transition:.15s;margin-top:10px;}
+.bulk-add-row-btn:hover{background:#dbeafe;border-color:#3B82F6;}
+.bulk-footer{display:flex;align-items:center;justify-content:space-between;padding:14px 26px;border-top:1px solid #f0f1f5;background:#fafbff;border-radius:0 0 18px 18px;position:sticky;bottom:0;}
+.btn-save-bulk{display:inline-flex;align-items:center;gap:7px;padding:10px 22px;background:linear-gradient(135deg,#3B82F6,#1d4ed8);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:800;cursor:pointer;transition:.15s;}
+.btn-save-bulk:hover{filter:brightness(1.1);}
+</style>
 <div class="modal-overlay" id="addBundleModal">
-    <div class="modal-box">
-        <div class="modal-head"><h3>Add Bundle</h3><button class="modal-close" onclick="document.getElementById('addBundleModal').classList.remove('open')"><i class="fas fa-times"></i></button></div>
-        <div class="modal-body">
-            <form method="POST" action="{{ route('admin.module-data.data.bundle.store') }}" enctype="multipart/form-data">
+    <div class="bulk-modal-box">
+        <div class="bulk-hdr">
+            <div>
+                <div style="font-size:17px;font-weight:900;color:#1A1A2E;">📦 Add Bundles</div>
+                <div style="font-size:12px;color:#9ca3af;margin-top:3px;">Add one or many bundles at once — one row per bundle</div>
+            </div>
+            <button class="modal-close" onclick="closeBulkModal()"><i class="fas fa-times"></i></button>
+        </div>
+
+        <div class="bulk-header-grid">
+            <div>
+                <label>Provider *</label>
+                <select id="bulk_provider" onchange="bulkFilterPkgs(this.value)">
+                    <option value="">— Select Provider —</option>
+                    @foreach($providers as $p)
+                    <option value="{{ $p->id }}">{{ $p->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label>Package <span style="font-weight:400;font-size:10px;">(shared for all rows, optional)</span></label>
+                <select id="bulk_package">
+                    <option value="">— None —</option>
+                    @foreach($packages as $p)
+                    <option value="{{ $p->id }}" data-provider="{{ $p->provider_id }}">{{ $p->name }} ({{ $p->provider?->name }})</option>
+                    @endforeach
+                </select>
+            </div>
+        </div>
+
+        <div class="bulk-table-wrap">
+            <form id="bulkBundleForm" method="POST" action="{{ route('admin.module-data.data.bundle.store-bulk') }}">
                 @csrf
-                <div class="form-grid-2" style="margin-bottom:14px">
-                    <div class="fgroup"><label>Bundle Name *</label><input type="text" name="name" id="ab_name" required placeholder="e.g. All-in-One Monthly"></div>
-                    <div class="fgroup"><label>Provider *</label><select name="provider_id" id="ab_provider" required onchange="filterPackagesByProvider(this.value,'ab_package')"><option value="">Select</option>@foreach($providers as $p)<option value="{{ $p->id }}">{{ $p->name }}</option>@endforeach</select></div>
-                </div>
-                <div class="fgroup" style="margin-bottom:14px">
-                    <label>Package <span style="color:#8A8A9A;font-weight:400">(which package this bundle belongs to)</span></label>
-                    <select name="package_id" id="ab_package"><option value="">— Select Package —</option>@foreach($packages as $p)<option value="{{ $p->id }}" data-provider="{{ $p->provider_id }}">{{ $p->name }} ({{ $p->provider?->name }})</option>@endforeach</select>
-                </div>
-                <div class="form-grid-3" style="margin-bottom:14px">
-                    <div class="fgroup"><label>Data (GB)</label><input type="number" name="data_gb" min="0" step="0.1"></div>
-                    <div class="fgroup"><label>Minutes</label><input type="number" name="minutes" min="0"></div>
-                    <div class="fgroup"><label>SMS</label><input type="number" name="sms" min="0"></div>
-                </div>
-                <div class="form-grid-2" style="margin-bottom:14px">
-                    <div class="fgroup"><label>Price ($) *</label><input type="number" name="price" min="0" step="0.01" required></div>
-                    <div class="fgroup"><label>Validity (days)</label><input type="number" name="validity_days" value="30" min="1"></div>
-                </div>
-                <div class="form-grid-2" style="margin-bottom:14px">
-                    <div class="fgroup"><label>Description</label><textarea name="description"></textarea></div>
-                    <div class="fgroup"><label>Bundle Image <span style="color:#8A8A9A;font-weight:400">(shown on right side of card)</span></label><input type="file" name="image" accept="image/*"></div>
-                </div>
-                <div style="display:flex;justify-content:flex-end;gap:10px;padding-top:16px;border-top:1px solid #f0f1f5">
-                    <button type="button" class="btn-outline" onclick="document.getElementById('addBundleModal').classList.remove('open')">Cancel</button>
-                    <button type="submit" class="btn-add"><i class="fas fa-plus"></i> Add Bundle</button>
+                <input type="hidden" name="provider_id" id="bulk_prov_h">
+                <input type="hidden" name="package_id"  id="bulk_pkg_h">
+                <table class="bulk-table">
+                    <thead>
+                        <tr>
+                            <th style="width:28px">#</th>
+                            <th style="min-width:155px">Bundle Name *</th>
+                            <th style="width:78px">Data GB</th>
+                            <th style="width:68px">Min</th>
+                            <th style="width:58px">SMS</th>
+                            <th style="width:88px">Price ($) *</th>
+                            <th style="width:72px">Days *</th>
+                            <th style="width:85px">Badge</th>
+                            <th style="min-width:120px">Description</th>
+                            <th style="width:32px"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="bulk_tbody"></tbody>
+                </table>
+                <button type="button" class="bulk-add-row-btn" onclick="addBulkRow()">
+                    <i class="fas fa-plus"></i> Add Row
+                </button>
+                <div style="font-size:11px;color:#9ca3af;margin-top:7px;">
+                    <i class="fas fa-keyboard"></i>&nbsp; Tab moves between cells &mdash; Enter on the last cell adds a new row automatically
                 </div>
             </form>
         </div>
+
+        <div class="bulk-footer">
+            <div style="font-size:12px;font-weight:700;color:#6b7280;">
+                Bundles: <span id="bulk_cnt" style="color:#3B82F6;font-size:15px;font-weight:900;">0</span>
+            </div>
+            <div style="display:flex;gap:10px;">
+                <button type="button" class="btn-outline" onclick="closeBulkModal()">Cancel</button>
+                <button type="button" class="btn-save-bulk" onclick="submitBulk()">
+                    <i class="fas fa-cloud-upload-alt"></i> Save All Bundles
+                </button>
+            </div>
+        </div>
     </div>
 </div>
+
+<script>
+(function(){
+    let idx = 0;
+    window.addBulkRow = function(focus) {
+        const i = idx++;
+        const tb = document.getElementById('bulk_tbody');
+        const num = tb.children.length + 1;
+        const tr = document.createElement('tr');
+        tr.id = 'br_' + i;
+        tr.innerHTML =
+            '<td class="bulk-row-num">' + num + '</td>' +
+            '<td><input type="text"   name="bundles['+i+'][name]"         placeholder="e.g. Anfac 1GB"></td>' +
+            '<td><input type="number" name="bundles['+i+'][data_gb]"       placeholder="1" min="0" step="0.1"></td>' +
+            '<td><input type="number" name="bundles['+i+'][minutes]"       placeholder="—" min="0"></td>' +
+            '<td><input type="number" name="bundles['+i+'][sms]"           placeholder="—" min="0"></td>' +
+            '<td><input type="number" name="bundles['+i+'][price]"         placeholder="0.00" min="0" step="0.01"></td>' +
+            '<td><input type="number" name="bundles['+i+'][validity_days]" value="30" min="1"></td>' +
+            '<td><input type="text"   name="bundles['+i+'][badge_label]"   placeholder="Popular"></td>' +
+            '<td><input type="text"   name="bundles['+i+'][description]"   placeholder="Optional"></td>' +
+            '<td><button type="button" class="bulk-remove-btn" onclick="removeBulkRow(\'br_'+i+'\')">×</button></td>';
+        const inputs = tr.querySelectorAll('input');
+        inputs[inputs.length-1].addEventListener('keydown', function(e){ if(e.key==='Enter'){e.preventDefault();addBulkRow(true);} });
+        tb.appendChild(tr);
+        updateNums();
+        if(focus!==false) tr.querySelector('input').focus();
+    };
+    window.removeBulkRow = function(id) {
+        const el = document.getElementById(id); if(el) el.remove(); updateNums();
+    };
+    function updateNums(){
+        const rows=document.querySelectorAll('#bulk_tbody tr');
+        rows.forEach(function(tr,i){ const td=tr.querySelector('td');if(td)td.textContent=i+1; });
+        document.getElementById('bulk_cnt').textContent=rows.length;
+    }
+    window.bulkFilterPkgs = function(pid){
+        const sel=document.getElementById('bulk_package');
+        Array.from(sel.options).forEach(function(o){ if(!o.value)return; o.style.display=(!pid||o.dataset.provider==pid)?'':'none'; });
+        sel.value='';
+    };
+    window.submitBulk = function(){
+        const pid=document.getElementById('bulk_provider').value;
+        if(!pid){alert('Please select a Provider.');document.getElementById('bulk_provider').focus();return;}
+        const rows=document.querySelectorAll('#bulk_tbody tr');
+        if(!rows.length){alert('Add at least one bundle row.');return;}
+        let ok=true;
+        rows.forEach(function(tr){
+            const n=tr.querySelector('input[name$="[name]"]');
+            const p=tr.querySelector('input[name$="[price]"]');
+            if(!n||!n.value.trim()){if(n){n.style.borderColor='#ef4444';n.style.background='#fff5f5';}ok=false;}
+            if(!p||!p.value){if(p){p.style.borderColor='#ef4444';p.style.background='#fff5f5';}ok=false;}
+        });
+        if(!ok){alert('Please fill Name and Price in every row.');return;}
+        document.getElementById('bulk_prov_h').value=pid;
+        document.getElementById('bulk_pkg_h').value=document.getElementById('bulk_package').value;
+        document.getElementById('bulkBundleForm').submit();
+    };
+    window.closeBulkModal = function(){
+        document.getElementById('addBundleModal').classList.remove('open');
+    };
+    window.openBulkModal = function(){
+        document.getElementById('addBundleModal').classList.add('open');
+        const tb=document.getElementById('bulk_tbody');
+        if(!tb.children.length){addBulkRow(false);addBulkRow(false);addBulkRow(false);}
+    };
+    document.getElementById('addBundleModal').addEventListener('click',function(e){if(e.target===this)closeBulkModal();});
+})();
+</script>
 
 <div class="modal-overlay" id="editBundleModal">
     <div class="modal-box">
@@ -484,8 +615,10 @@ function openAddPackage(provId) {
     document.getElementById('addPackageModal').classList.add('open');
 }
 function openAddBundle(provId) {
-    document.getElementById('ab_provider').value = provId;
-    document.getElementById('addBundleModal').classList.add('open');
+    openBulkModal();
+    // Pre-select the provider
+    const sel = document.getElementById('bulk_provider');
+    if (sel) { sel.value = provId; bulkFilterPkgs(provId); }
 }
 function openEditProvider(prov) {
     document.getElementById('editProviderForm').action = `/admin/module-data/data/providers/${prov.id}`;
