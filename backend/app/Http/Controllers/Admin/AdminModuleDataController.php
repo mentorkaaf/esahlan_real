@@ -564,7 +564,13 @@ class AdminModuleDataController extends Controller
             ->select('data_bundles.*', 'data_providers.name as provider_name')
             ->orderBy('data_bundles.provider_id')->orderBy('data_bundles.sort_order')
             ->get();
-        return view('admin.module-data.data', compact('providers', 'packages', 'bundles'));
+        $userPhones = DB::table('edata_user_phones as ep')
+            ->join('users as u', 'u.id', '=', 'ep.user_id')
+            ->join('data_providers as dp', 'dp.id', '=', 'ep.provider_id')
+            ->select('ep.*', 'u.name as user_name', 'u.email as user_email', 'u.phone as user_phone', 'dp.name as provider_name', 'dp.color as provider_color')
+            ->orderByDesc('ep.updated_at')
+            ->get();
+        return view('admin.module-data.data', compact('providers', 'packages', 'bundles', 'userPhones'));
     }
 
     public function dataProviderStore(Request $request)
@@ -690,6 +696,67 @@ class AdminModuleDataController extends Controller
     {
         DB::table('data_bundles')->where('id', $id)->delete();
         return back()->with('success', 'Bundle deleted.');
+    }
+
+    public function dataBundleStoreBulk(Request $request)
+    {
+        $request->validate([
+            'provider_id' => 'required|exists:data_providers,id',
+            'package_id'  => 'nullable|exists:data_packages,id',
+            'bundles'     => 'required|array|min:1|max:50',
+            'bundles.*.name'          => 'required|string|max:100',
+            'bundles.*.price'         => 'required|numeric|min:0',
+            'bundles.*.validity_days' => 'required|integer|min:1',
+        ]);
+        $providerId = (int)$request->provider_id;
+        $packageId  = $request->package_id ? (int)$request->package_id : null;
+        $inserted   = 0;
+        $now        = now();
+        foreach ($request->input('bundles', []) as $row) {
+            $dataGb = trim(($row['data_amount'] ?? '0') . ' ' . ($row['data_unit'] ?? 'GB'));
+            DB::table('data_bundles')->insert([
+                'provider_id'    => $providerId,
+                'package_id'     => $packageId,
+                'name'           => $row['name'],
+                'data_gb'        => $dataGb,
+                'minutes'        => (int)($row['minutes'] ?? 0),
+                'sms'            => (int)($row['sms'] ?? 0),
+                'price'          => (float)$row['price'],
+                'validity_days'  => (int)$row['validity_days'],
+                'description'    => $row['description'] ?? null,
+                'is_active'      => 1,
+                'created_at'     => $now,
+                'updated_at'     => $now,
+            ]);
+            $inserted++;
+        }
+        return back()->with('success', "{$inserted} bundle(s) added successfully.");
+    }
+
+    public function edataPhoneEmail(int $id)
+    {
+        $row = DB::table('edata_user_phones as ep')
+            ->join('users as u', 'u.id', '=', 'ep.user_id')
+            ->join('data_providers as dp', 'dp.id', '=', 'ep.provider_id')
+            ->select('ep.*', 'u.name as user_name', 'u.email as user_email', 'dp.name as provider_name')
+            ->where('ep.id', $id)
+            ->first();
+        if (!$row || !$row->user_email) {
+            return back()->with('error', 'User email not found.');
+        }
+        \Illuminate\Support\Facades\Mail::raw(
+            "Salaan " . ($row->user_name ?? 'Customer') . ",\n\n" .
+            "Xogtaada eData ee aad u keydisay {$row->provider_name}:\n" .
+            "💳 Telfoonka lacagta: {$row->payment_phone}\n" .
+            "📶 Telfoonka internetka: {$row->data_phone}\n\n" .
+            "Haddii xogtaan khalad tahay, fadlan app-ka oo eData checkout-ka galay oo edit samee.\n\n" .
+            "eSahlan Team",
+            function ($msg) use ($row) {
+                $msg->to($row->user_email, $row->user_name ?? null)
+                    ->subject('eData Phone Numbers — eSahlan');
+            }
+        );
+        return back()->with('success', "Email u diray {$row->user_email}");
     }
 
     // ══════════════════════════════════════════════════════════════

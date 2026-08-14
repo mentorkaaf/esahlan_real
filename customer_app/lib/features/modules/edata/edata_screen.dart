@@ -218,34 +218,81 @@ class _HeroBadge extends StatelessWidget {
 }
 
 // ── Provider Card — Image + Name only ──
-class _ProviderCard extends StatelessWidget {
+class _ProviderCard extends StatefulWidget {
   final Map provider;
   const _ProviderCard({required this.provider});
+  @override
+  State<_ProviderCard> createState() => _ProviderCardState();
+}
 
+class _ProviderCardState extends State<_ProviderCard> {
   Color get _color {
-    final hex = provider['color']?.toString() ?? '#1565C0';
+    final hex = widget.provider['color']?.toString() ?? '#1565C0';
     final c = int.tryParse(hex.replaceFirst('#', '0xFF')) ?? 0xFF1565C0;
     return Color(c);
   }
 
+  Future<void> _onTap() async {
+    final providerId = int.tryParse(widget.provider['id'].toString()) ?? 0;
+    // Check if phones already saved for this provider
+    try {
+      final svc = ModuleApiService.create();
+      final res = await svc.getEdataPhones(providerId);
+      final d   = res is Map ? (res['data'] ?? {}) : {};
+      final saved = d['saved'] == true;
+      if (!mounted) return;
+
+      if (!saved) {
+        // First time — show setup dialog
+        final phones = await showDialog<Map<String, String>>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => _PhoneSetupDialog(
+            providerName: widget.provider['name']?.toString() ?? '',
+            providerColor: _color,
+          ),
+        );
+        if (phones == null || !mounted) return;
+        // Save to backend
+        await svc.saveEdataPhones(providerId, phones['payment_phone']!, phones['data_phone']!);
+        if (!mounted) return;
+        _openFlow(phones['payment_phone'], phones['data_phone']);
+      } else {
+        _openFlow(d['payment_phone']?.toString(), d['data_phone']?.toString());
+      }
+    } catch (_) {
+      // On error, open flow anyway (graceful degradation)
+      if (mounted) _openFlow(null, null);
+    }
+  }
+
+  void _openFlow(String? paymentPhone, String? dataPhone) {
+    showGeneralDialog(
+      context: context,
+      useRootNavigator: !kIsWeb,
+      barrierDismissible: false,
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 300),
+      transitionBuilder: (_, anim, __, child) => SlideTransition(
+        position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
+            .animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
+        child: child,
+      ),
+      pageBuilder: (_, __, ___) => _EDataFlowDialog(
+        provider: widget.provider,
+        providerColor: _color,
+        savedPaymentPhone: paymentPhone,
+        savedDataPhone: dataPhone,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final logoUrl = provider['logo_url']?.toString() ?? provider['logo']?.toString();
-    final name = provider['name']?.toString() ?? '';
+    final logoUrl = widget.provider['logo_url']?.toString() ?? widget.provider['logo']?.toString();
+    final name = widget.provider['name']?.toString() ?? '';
     return GestureDetector(
-      onTap: () => showGeneralDialog(
-        context: context,
-        useRootNavigator: !kIsWeb,
-        barrierDismissible: false,
-        barrierColor: Colors.black54,
-        transitionDuration: const Duration(milliseconds: 300),
-        transitionBuilder: (_, anim, __, child) => SlideTransition(
-          position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
-              .animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
-          child: child,
-        ),
-        pageBuilder: (_, __, ___) => _EDataFlowDialog(provider: provider, providerColor: _color),
-      ),
+      onTap: _onTap,
       child: Container(
         decoration: BoxDecoration(
           color: context.colors.cardBg,
@@ -294,7 +341,12 @@ class _ProviderCard extends StatelessWidget {
 class _EDataFlowDialog extends ConsumerStatefulWidget {
   final Map provider;
   final Color providerColor;
-  const _EDataFlowDialog({required this.provider, required this.providerColor});
+  final String? savedPaymentPhone;
+  final String? savedDataPhone;
+  const _EDataFlowDialog({
+    required this.provider, required this.providerColor,
+    this.savedPaymentPhone, this.savedDataPhone,
+  });
   @override
   ConsumerState<_EDataFlowDialog> createState() => _EDataFlowDialogState();
 }
@@ -307,20 +359,52 @@ class _EDataFlowDialogState extends ConsumerState<_EDataFlowDialog> {
   String _payMethod = 'wallet';
   String? _waafiReference;
   String? _mobileProofToken;
-  final _phoneCtrl = TextEditingController();
+  late final TextEditingController _phoneCtrl;
+  late final TextEditingController _paymentPhoneCtrl;
   bool _loading = false;
   String? _error;
   String _orderNumber = '';
 
   @override
-  void dispose() { _phoneCtrl.dispose(); super.dispose(); }
+  void initState() {
+    super.initState();
+    _phoneCtrl        = TextEditingController(text: widget.savedDataPhone ?? '');
+    _paymentPhoneCtrl = TextEditingController(text: widget.savedPaymentPhone ?? '');
+  }
+
+  @override
+  void dispose() { _phoneCtrl.dispose(); _paymentPhoneCtrl.dispose(); super.dispose(); }
 
   void _selectPackage(Map pkg) => setState(() { _selectedPackage = pkg; _step = 1; });
   void _selectBundle(Map bnd)  => setState(() { _selectedBundle  = bnd; _step = 2; });
 
+  Future<void> _showEditPhonesDialog() async {
+    final providerId = int.tryParse(widget.provider['id'].toString()) ?? 0;
+    final phones = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (_) => _PhoneSetupDialog(
+        providerName: widget.provider['name']?.toString() ?? '',
+        providerColor: widget.providerColor,
+        initialPaymentPhone: _paymentPhoneCtrl.text,
+        initialDataPhone: _phoneCtrl.text,
+      ),
+    );
+    if (phones == null || !mounted) return;
+    setState(() {
+      _paymentPhoneCtrl.text = phones['payment_phone']!;
+      _phoneCtrl.text        = phones['data_phone']!;
+    });
+    try {
+      final svc = ModuleApiService.create();
+      await svc.saveEdataPhones(providerId, phones['payment_phone']!, phones['data_phone']!);
+    } catch (_) {}
+  }
+
   Future<void> _placeOrder() async {
-    final phone = _phoneCtrl.text.trim();
-    if (phone.isEmpty) { setState(() => _error = 'Enter phone number'); return; }
+    final phone        = _phoneCtrl.text.trim();
+    final paymentPhone = _paymentPhoneCtrl.text.trim();
+    if (phone.isEmpty) { setState(() => _error = 'Enter data phone number'); return; }
+    if (paymentPhone.isEmpty) { setState(() => _error = 'Enter payment phone number'); return; }
 
     if (_payMethod == 'mobile_pay') {
       final price = _toD(_selectedBundle!['price']);
@@ -354,6 +438,7 @@ class _EDataFlowDialogState extends ConsumerState<_EDataFlowDialog> {
       final res = await svc.purchaseData({
         'bundle_id': _selectedBundle!['id'],
         'phone_number': phone,
+        'payment_phone': paymentPhone,
         'payment_method': _payMethod,
         if (_waafiReference != null) 'payment_reference': _waafiReference,
       });
@@ -411,11 +496,13 @@ class _EDataFlowDialogState extends ConsumerState<_EDataFlowDialog> {
                   provider: widget.provider,
                   providerColor: widget.providerColor,
                   phoneCtrl: _phoneCtrl,
+                  paymentPhoneCtrl: _paymentPhoneCtrl,
                   payMethod: _payMethod,
                   onPayMethodChanged: (v) => setState(() => _payMethod = v),
                   loading: _loading,
                   error: _error,
                   onSubmit: _placeOrder,
+                  onEditPhones: () => _showEditPhonesDialog(),
                 ) : _SuccessStep(
                   bundle: _selectedBundle!,
                   orderNumber: _orderNumber,
@@ -797,21 +884,170 @@ class _BundleSkeleton extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 // STEP 2 — Order Summary
 // ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// PHONE SETUP DIALOG — shown first time per provider (or when editing)
+// ─────────────────────────────────────────────────────────────────────────────
+class _PhoneSetupDialog extends StatefulWidget {
+  final String providerName;
+  final Color providerColor;
+  final String? initialPaymentPhone;
+  final String? initialDataPhone;
+  const _PhoneSetupDialog({
+    required this.providerName, required this.providerColor,
+    this.initialPaymentPhone, this.initialDataPhone,
+  });
+  @override
+  State<_PhoneSetupDialog> createState() => _PhoneSetupDialogState();
+}
+
+class _PhoneSetupDialogState extends State<_PhoneSetupDialog> {
+  late final TextEditingController _pay;
+  late final TextEditingController _dat;
+  String? _err;
+
+  @override
+  void initState() {
+    super.initState();
+    _pay = TextEditingController(text: widget.initialPaymentPhone ?? '');
+    _dat = TextEditingController(text: widget.initialDataPhone ?? '');
+  }
+
+  @override
+  void dispose() { _pay.dispose(); _dat.dispose(); super.dispose(); }
+
+  void _save() {
+    final pay = _pay.text.trim();
+    final dat = _dat.text.trim();
+    if (pay.length < 7) { setState(() => _err = 'Lacagta phone-kaaga ku qor (ugu yaraan 7 lambar)'); return; }
+    if (dat.length < 7) { setState(() => _err = 'Internet phone-kaaga ku qor (ugu yaraan 7 lambar)'); return; }
+    Navigator.of(context).pop({'payment_phone': pay, 'data_phone': dat});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isEdit = widget.initialPaymentPhone != null;
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // Header
+          Row(children: [
+            Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(
+                color: widget.providerColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(Icons.sim_card_rounded, color: widget.providerColor, size: 24),
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(isEdit ? 'Telfoonada Badal' : 'Telfoonadaada Gelii',
+                  style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17)),
+              Text(widget.providerName,
+                  style: TextStyle(fontSize: 12, color: widget.providerColor, fontWeight: FontWeight.w700)),
+            ])),
+            if (isEdit)
+              IconButton(
+                icon: const Icon(Icons.close_rounded, size: 20),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+          ]),
+
+          const SizedBox(height: 6),
+          if (!isEdit)
+            Text('Hal mar ku qor — checkout markasta si toos ah ayuu u soo buuxsanayaa',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600, height: 1.4)),
+
+          const SizedBox(height: 20),
+
+          // Payment phone
+          _label('💳 Telfoonka Lacagta', 'Telfoonka aad ka tuurtid lacagta'),
+          const SizedBox(height: 6),
+          _phoneField(_pay, 'e.g. 0614333317', widget.providerColor),
+
+          const SizedBox(height: 16),
+
+          // Data phone
+          _label('📶 Telfoonka Internet', 'Telfoonka internetka loo rabo'),
+          const SizedBox(height: 6),
+          _phoneField(_dat, 'e.g. 0614333317', widget.providerColor),
+
+          if (_err != null) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(10)),
+              child: Row(children: [
+                const Icon(Icons.error_outline_rounded, color: Colors.red, size: 16),
+                const SizedBox(width: 8),
+                Expanded(child: Text(_err!, style: const TextStyle(color: Colors.red, fontSize: 12))),
+              ]),
+            ),
+          ],
+
+          const SizedBox(height: 22),
+
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _save,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: widget.providerColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: Text(isEdit ? 'Save' : 'Xifso & Sii wad', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  Widget _label(String title, String sub) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+    Text(sub, style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+  ]);
+
+  Widget _phoneField(TextEditingController ctrl, String hint, Color color) => TextField(
+    controller: ctrl,
+    keyboardType: TextInputType.phone,
+    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+    decoration: InputDecoration(
+      hintText: hint,
+      prefixIcon: const Icon(Icons.phone_rounded, color: _kOrange),
+      filled: true, fillColor: const Color(0xFFF5F7FA),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: color, width: 2)),
+    ),
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 class _OrderSummaryStep extends ConsumerWidget {
   final Map bundle, package, provider;
   final Color providerColor;
   final TextEditingController phoneCtrl;
+  final TextEditingController paymentPhoneCtrl;
   final String payMethod;
   final ValueChanged<String> onPayMethodChanged;
   final bool loading;
   final String? error;
   final VoidCallback onSubmit;
+  final VoidCallback onEditPhones;
 
   const _OrderSummaryStep({
     required this.bundle, required this.package, required this.provider,
-    required this.providerColor, required this.phoneCtrl, required this.payMethod,
+    required this.providerColor, required this.phoneCtrl,
+    required this.paymentPhoneCtrl,
+    required this.payMethod,
     required this.onPayMethodChanged, required this.loading, this.error,
-    required this.onSubmit,
+    required this.onSubmit, required this.onEditPhones,
   });
 
   @override
@@ -887,7 +1123,7 @@ class _OrderSummaryStep extends ConsumerWidget {
 
         SizedBox(height: 20),
 
-        // ── Phone Number ──
+        // ── Phone Numbers Card ──
         Container(
           decoration: BoxDecoration(
             color: context.colors.cardBg, borderRadius: BorderRadius.circular(16),
@@ -895,23 +1131,57 @@ class _OrderSummaryStep extends ConsumerWidget {
           ),
           padding: const EdgeInsets.all(16),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Data Destination', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: context.colors.navyText)),
-            SizedBox(height: 4),
-            Text('Phone number that will receive the data',
-                style: TextStyle(fontSize: 12, color: context.colors.mutedText)),
-            const SizedBox(height: 12),
+            Row(children: [
+              Text('Phone Numbers', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: context.colors.navyText)),
+              const Spacer(),
+              GestureDetector(
+                onTap: onEditPhones,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: providerColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.edit_rounded, size: 12, color: providerColor),
+                    const SizedBox(width: 4),
+                    Text('Edit', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: providerColor)),
+                  ]),
+                ),
+              ),
+            ]),
+            const SizedBox(height: 14),
+            // Payment phone
+            Text('💳 Lacagta ka dirtaa', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: context.colors.mutedText)),
+            const SizedBox(height: 5),
             TextField(
-              controller: phoneCtrl,
+              controller: paymentPhoneCtrl,
               keyboardType: TextInputType.phone,
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
               decoration: InputDecoration(
                 hintText: '061XXXXXXX',
-                prefixIcon: Icon(Icons.phone_rounded, color: _kOrange),
+                prefixIcon: const Icon(Icons.payment_rounded, color: _kOrange),
                 filled: true, fillColor: context.colors.inputFill,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                 enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: providerColor, width: 2)),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: providerColor, width: 2)),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Data phone
+            Text('📶 Internetka loo rabo', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: context.colors.mutedText)),
+            const SizedBox(height: 5),
+            TextField(
+              controller: phoneCtrl,
+              keyboardType: TextInputType.phone,
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+              decoration: InputDecoration(
+                hintText: '061XXXXXXX',
+                prefixIcon: Icon(Icons.sim_card_rounded, color: providerColor),
+                filled: true, fillColor: context.colors.inputFill,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: providerColor, width: 2)),
               ),
             ),
           ]),

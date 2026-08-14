@@ -120,6 +120,7 @@
     <button class="module-tab" onclick="switchTab('packages',this)"><i class="fas fa-box-open"></i> Packages</button>
     <button class="module-tab" onclick="switchTab('bundles',this)"><i class="fas fa-layer-group"></i> Bundles</button>
     <button class="module-tab" onclick="switchTab('add-provider',this)"><i class="fas fa-plus-circle"></i> Add Provider</button>
+    <button class="module-tab" onclick="switchTab('user-phones',this)"><i class="fas fa-mobile-alt"></i> User Phones</button>
 </div>
 
 {{-- PROVIDERS --}}
@@ -451,7 +452,7 @@
                         <tr>
                             <th style="width:28px">#</th>
                             <th style="min-width:155px">Bundle Name *</th>
-                            <th style="width:78px">Data GB</th>
+                            <th style="width:110px">Data</th>
                             <th style="width:68px">Min</th>
                             <th style="width:58px">SMS</th>
                             <th style="width:88px">Price ($) *</th>
@@ -498,7 +499,12 @@
         tr.innerHTML =
             '<td class="bulk-row-num">' + num + '</td>' +
             '<td><input type="text"   name="bundles['+i+'][name]"         placeholder="e.g. Anfac 1GB"></td>' +
-            '<td><input type="number" name="bundles['+i+'][data_gb]"       placeholder="1" min="0" step="0.1"></td>' +
+            '<td><div style="display:flex;gap:2px;">' +
+                '<input type="number" name="bundles['+i+'][data_amount]" placeholder="e.g. 1" min="0" step="0.1" style="width:52px;min-width:0;">' +
+                '<select name="bundles['+i+'][data_unit]" style="width:50px;padding:7px 3px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:11px;font-weight:700;background:#fff;">' +
+                    '<option value="GB">GB</option><option value="MB">MB</option><option value="Mbps">Mbps</option>' +
+                '</select>' +
+            '</div></td>' +
             '<td><input type="number" name="bundles['+i+'][minutes]"       placeholder="—" min="0"></td>' +
             '<td><input type="number" name="bundles['+i+'][sms]"           placeholder="—" min="0"></td>' +
             '<td><input type="number" name="bundles['+i+'][price]"         placeholder="0.00" min="0" step="0.01"></td>' +
@@ -591,6 +597,91 @@
     </div>
 </div>
 
+{{-- USER PHONES --}}
+<div id="tab-user-phones" class="tab-pane">
+<style>
+.up-search { display:flex; gap:10px; align-items:center; margin-bottom:18px; }
+.up-search input { flex:1; padding:9px 14px; border:1.5px solid #EEEEEE; border-radius:10px; font-size:13px; font-family:inherit; }
+.up-search input:focus { outline:none; border-color:#1565C0; }
+.provider-pill { display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; color:#fff; }
+.user-avatar { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px; color:#fff; flex-shrink:0; }
+.phone-chip { display:inline-flex; align-items:center; gap:5px; padding:4px 10px; border-radius:8px; font-size:12px; font-weight:600; background:#f4f5fa; color:#1A1A2E; }
+.phone-chip i { font-size:10px; color:#8A8A9A; }
+.btn-email { padding:5px 12px; border-radius:8px; border:none; background:rgba(21,101,192,.1); color:#1565C0; font-size:12px; font-weight:700; cursor:pointer; transition:all .15s; font-family:inherit; display:inline-flex; align-items:center; gap:5px; }
+.btn-email:hover { background:#1565C0; color:#fff; }
+</style>
+<div class="sc">
+    <div class="sc-head">
+        <div class="sc-title"><i class="fas fa-mobile-alt" style="color:#1565C0"></i> User Saved Phones
+            <span style="background:rgba(21,101,192,.1);color:#1565C0;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:700;margin-left:8px;">{{ $userPhones->count() }}</span>
+        </div>
+        <div style="font-size:12px;color:#8A8A9A;">Userska eData checkout-ka loo soo save gareeyay</div>
+    </div>
+    <div style="padding:16px 20px 0;">
+        <div class="up-search">
+            <input type="text" id="upSearch" placeholder="🔍  Search by name, email, phone, or provider..." oninput="filterUserPhones(this.value)">
+        </div>
+    </div>
+    <div style="overflow-x:auto;">
+    <table class="dtbl" id="upTable">
+        <thead>
+            <tr>
+                <th>User</th>
+                <th>Provider</th>
+                <th style="width:150px">💳 Payment Phone</th>
+                <th style="width:150px">📶 Data Phone</th>
+                <th>Saved On</th>
+                <th style="width:90px">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+        @forelse($userPhones as $row)
+            @php
+                $initials = strtoupper(substr($row->user_name ?? 'U', 0, 1) . (strpos($row->user_name ?? '', ' ') !== false ? substr(strstr($row->user_name, ' '), 1, 1) : ''));
+                $avatarColors = ['#1565C0','#7c3aed','#10b981','#f59e0b','#ef4444','#06b6d4'];
+                $avatarColor  = $avatarColors[crc32($row->user_name ?? '') % count($avatarColors)];
+                $provColor    = $row->provider_color ?? '#1565C0';
+            @endphp
+            <tr data-search="{{ strtolower(($row->user_name ?? '') . ' ' . ($row->user_email ?? '') . ' ' . ($row->payment_phone ?? '') . ' ' . ($row->data_phone ?? '') . ' ' . ($row->provider_name ?? '')) }}">
+                <td>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <div class="user-avatar" style="background:{{ $avatarColor }}">{{ $initials }}</div>
+                        <div>
+                            <div style="font-weight:700;font-size:13px;">{{ $row->user_name ?? '—' }}</div>
+                            <div style="font-size:11px;color:#8A8A9A;">{{ $row->user_email ?? '' }}</div>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <span class="provider-pill" style="background:{{ $provColor }}">{{ $row->provider_name ?? '—' }}</span>
+                </td>
+                <td>
+                    <span class="phone-chip"><i class="fas fa-credit-card"></i> {{ $row->payment_phone ?? '—' }}</span>
+                </td>
+                <td>
+                    <span class="phone-chip"><i class="fas fa-sim-card"></i> {{ $row->data_phone ?? '—' }}</span>
+                </td>
+                <td style="color:#8A8A9A;font-size:12px;">{{ \Carbon\Carbon::parse($row->updated_at)->diffForHumans() }}</td>
+                <td>
+                    @if($row->user_email)
+                    <form method="POST" action="{{ route('admin.edata.phone.email', $row->id) }}" style="display:inline;">
+                        @csrf
+                        <button type="submit" class="btn-email" onclick="return confirm('Send email to {{ addslashes($row->user_name ?? $row->user_email) }}?')">
+                            <i class="fas fa-envelope"></i> Email
+                        </button>
+                    </form>
+                    @endif
+                </td>
+            </tr>
+        @empty
+            <tr class="empty-row"><td colspan="6"><i class="fas fa-inbox" style="font-size:24px;display:block;margin-bottom:8px;color:#d1d5db"></i>Weli xog la soo keydifin</td></tr>
+        @endforelse
+        </tbody>
+    </table>
+    </div>
+</div>
+</div>
+
 <script>
 function switchTab(name, el) {
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
@@ -657,6 +748,12 @@ function filterPackagesByProvider(providerId, targetId) {
         opt.style.display = (!providerId || opt.dataset.provider == providerId) ? '' : 'none';
     });
     sel.value = '';
+}
+function filterUserPhones(q) {
+    q = q.toLowerCase();
+    document.querySelectorAll('#upTable tbody tr:not(.empty-row)').forEach(r => {
+        r.style.display = (r.dataset.search || '').includes(q) ? '' : 'none';
+    });
 }
 document.querySelectorAll('.modal-overlay').forEach(m => {
     m.addEventListener('click', function(e){ if(e.target===this) this.classList.remove('open'); });

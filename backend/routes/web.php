@@ -610,6 +610,8 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::post('/data/bundles',              [$ctrl, 'dataBundleStore'])->name('data.bundle.store');
             Route::match(['PUT','PATCH'],'/data/bundles/{id}',        [$ctrl, 'dataBundleUpdate'])->name('data.bundle.update');
             Route::delete('/data/bundles/{id}',       [$ctrl, 'dataBundleDestroy'])->name('data.bundle.destroy');
+            Route::post('/data/bundles/bulk',          [$ctrl, 'dataBundleStoreBulk'])->name('data.bundle.store-bulk');
+            Route::post('/data/user-phones/{id}/email',[$ctrl, 'edataPhoneEmail'])->name('edata.phone.email');
 
             // eExchange
             Route::get('/exchange',                  [$ctrl, 'exchangeIndex'])->name('exchange');

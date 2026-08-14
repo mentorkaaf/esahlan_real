@@ -126,6 +126,10 @@ class ModuleApiService {
   Future<dynamic> getDataHistory() => _get('/edata/history');
   Future<dynamic> getDataFavorites() => _get('/edata/favorites');
   Future<dynamic> toggleDataFavorite(Map<String, dynamic> data) => _post('/edata/favorites/toggle', data);
+  Future<dynamic> getEdataPhones(int providerId) => _get('/edata/my-phones/$providerId');
+  Future<dynamic> saveEdataPhones(int providerId, String paymentPhone, String dataPhone) =>
+      _post('/edata/my-phones', {'provider_id': providerId, 'payment_phone': paymentPhone, 'data_phone': dataPhone});
+  Future<dynamic> getAllEdataPhones() => _get('/edata/my-phones');
 
   // ═══════════════════════════════════════════════════════════════════
   // eEXCHANGE
