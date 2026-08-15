@@ -6,6 +6,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/widgets/network_image_widget.dart';
 import 'package:intl/intl.dart';
 import '../../../core/api/module_api_service.dart';
+import '../../../core/services/edata_local_cache.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../../core/theme/app_color_tokens.dart';
@@ -108,6 +109,10 @@ class _BuyDataTab extends ConsumerWidget {
       error: (e, _) => _ErrorState(message: AppErrorHandler.message(e), onRetry: () => ref.invalidate(_providersProvider)),
       data: (data) {
         final providers = List<Map>.from(data is Map ? (data['data'] ?? []) : data ?? []);
+        // cache providers for offline use
+        if (providers.isNotEmpty) {
+          EdataLocalCache.saveProviders(providers);
+        }
         if (providers.isEmpty) return _EmptyState(
           icon: Icons.sim_card_outlined, title: AppL10n.of(context).noProviders, subtitle: AppL10n.of(context).dataProvidersHere);
         return CustomScrollView(slivers: [
@@ -253,8 +258,9 @@ class _ProviderCardState extends State<_ProviderCard> {
           ),
         );
         if (phones == null || !mounted) return;
-        // Save to backend
+        // Save to backend + local cache
         await svc.saveEdataPhones(providerId, phones['payment_phone']!, phones['data_phone']!);
+        EdataLocalCache.savePhones(providerId, phones['payment_phone']!, phones['data_phone']!);
         if (!mounted) return;
         _openFlow(phones['payment_phone'], phones['data_phone']);
       } else {
@@ -905,6 +911,14 @@ class _PhoneSetupDialogState extends State<_PhoneSetupDialog> {
   late final TextEditingController _dat;
   String? _err;
 
+  String get _phonePlaceholder {
+    final n = widget.providerName.toLowerCase();
+    if (n.contains('somtel'))  return 'e.g. 62xxxxxxx';
+    if (n.contains('somnet'))  return 'e.g. 68xxxxxxx';
+    if (n.contains('amtel'))   return 'e.g. 71xxxxxxx';
+    return 'e.g. 61xxxxxxx';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -966,14 +980,14 @@ class _PhoneSetupDialogState extends State<_PhoneSetupDialog> {
           // Payment phone
           _label('💳 Telfoonka Lacagta', 'Telfoonka aad ka tuurtid lacagta'),
           const SizedBox(height: 6),
-          _phoneField(_pay, 'e.g. 0614333317', widget.providerColor),
+          _phoneField(_pay, _phonePlaceholder, widget.providerColor),
 
           const SizedBox(height: 16),
 
           // Data phone
           _label('📶 Telfoonka Internet', 'Telfoonka internetka loo rabo'),
           const SizedBox(height: 6),
-          _phoneField(_dat, 'e.g. 0614333317', widget.providerColor),
+          _phoneField(_dat, _phonePlaceholder, widget.providerColor),
 
           if (_err != null) ...[
             const SizedBox(height: 10),

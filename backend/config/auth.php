@@ -17,6 +17,11 @@ return [
             'driver'   => 'sanctum',
             'provider' => 'global_users',
         ],
+        // HR Panel — separate session guard for hr_staff table
+        'hr' => [
+            'driver'   => 'session',
+            'provider' => 'hr_staff',
+        ],
     ],
 
     'providers' => [
@@ -27,6 +32,10 @@ return [
         'global_users' => [
             'driver' => 'eloquent',
             'model'  => App\Models\Global\GlobalUser::class,
+        ],
+        'hr_staff' => [
+            'driver' => 'eloquent',
+            'model'  => App\Models\HR\HrStaff::class,
         ],
     ],
 

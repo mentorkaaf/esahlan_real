@@ -137,37 +137,6 @@
     <div class="splash-bar"><div class="splash-bar-fill"></div></div>
   </div>
 
-  <div id="pwa-overlay"></div>
-
-  <!-- Android install -->
-  <div id="android-banner" class="pwa-sheet">
-    <div class="banner-row">
-      <div class="logo">🌍</div>
-      <div>
-        <strong>eSahlan Global Store</strong>
-        <span>Shop USA &amp; Europe — Fast worldwide delivery</span>
-      </div>
-    </div>
-    <button id="android-install-btn" class="install-btn">⬇️ &nbsp; Install App</button>
-  </div>
-
-  <!-- iOS install -->
-  <div id="ios-banner" class="pwa-sheet">
-    <div class="banner-row">
-      <div class="logo">🌍</div>
-      <div>
-        <strong>eSahlan Global Store</strong>
-        <span>Shop USA &amp; Europe — Fast worldwide delivery</span>
-      </div>
-    </div>
-    <div class="ios-instruction">
-      <div class="ios-tap-icon" id="ios-tap-icon">⬆️</div>
-      <div class="ios-instr-text" id="ios-instr-text">
-        Tap <b>⬆️</b> → <b>"Add to Home Screen"</b>
-      </div>
-    </div>
-  </div>
-
   <!-- Stripe.js required for flutter_stripe web support -->
   <script src="https://js.stripe.com/v3/" async></script>
 
@@ -180,52 +149,8 @@
       if (s) { s.classList.add('hidden'); setTimeout(function(){s.remove();}, 500); }
     });
 
-    // ── IP-based redirect: disabled ───────────────────────────────────────────
-    // global.esahlan.com is the explicit global store URL — anyone who navigates
-    // here intentionally should see the global store regardless of their country.
-    // IP redirect is NOT used here. The Somalia redirect only applies when users
-    // open the main Flutter app (app.esahlan.com) and are auto-detected there.
-
-    // ── PWA install prompts ───────────────────────────────────────────────────
-    var isStandalone = window.matchMedia('(display-mode: standalone)').matches
-                    || window.navigator.standalone === true;
-
-    function isMobile() { return /android|iphone|ipad|ipod/i.test(navigator.userAgent); }
-    function isIOS()    { return /iphone|ipad|ipod/i.test(navigator.userAgent); }
-
-    function getIOSInstruction() {
-      var ua = navigator.userAgent;
-      if (/CriOS/i.test(ua)) return { icon:'⋯', html:'Tap <b>⋯</b> (top right) → <b>"Add to Home Screen"</b>' };
-      if (/FxiOS/i.test(ua)) return { icon:'☰', html:'Tap <b>☰</b> (bottom right) → <b>"Add to Home Screen"</b>' };
-      return { icon:'⬆️', html:'Tap <b>⬆️</b> (bottom) → <b>"Add to Home Screen"</b>' };
-    }
-
-    if (isMobile() && !isStandalone) {
-      var deferredPrompt = null;
-      window.addEventListener('beforeinstallprompt', function(e) {
-        e.preventDefault();
-        deferredPrompt = e;
-        document.getElementById('pwa-overlay').style.display = 'block';
-        document.getElementById('android-banner').style.display = 'block';
-      });
-      document.getElementById('android-install-btn').addEventListener('click', function() {
-        if (!deferredPrompt) return;
-        deferredPrompt.prompt();
-        deferredPrompt.userChoice.then(function(r) {
-          deferredPrompt = null;
-          document.getElementById('android-banner').style.display = 'none';
-          document.getElementById('pwa-overlay').style.display = 'none';
-        });
-      });
-
-      if (isIOS()) {
-        var instr = getIOSInstruction();
-        document.getElementById('ios-tap-icon').textContent = instr.icon;
-        document.getElementById('ios-instr-text').innerHTML = instr.html;
-        document.getElementById('pwa-overlay').style.display = 'block';
-        document.getElementById('ios-banner').style.display = 'block';
-      }
-    }
+    // PWA install prompt suppressed — mobile users browse directly in browser
+    window.addEventListener('beforeinstallprompt', function(e) { e.preventDefault(); });
   </script>
 </body>
 </html>

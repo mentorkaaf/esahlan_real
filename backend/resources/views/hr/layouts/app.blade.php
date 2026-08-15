@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>@yield('title', 'HR Panel') — eSahlan HR</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        navy:   { DEFAULT: '#1B1444', 50: '#EEF0FF', 100: '#D5D9FF', 500: '#2D2467', 700: '#150F32', 900: '#0A0720' },
+                        brand:  { DEFAULT: '#F7941D', 50: '#FFF4E5', 100: '#FFE5B8', 500: '#F7941D', 600: '#E07800', 700: '#C06600' },
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        [x-cloak] { display: none !important; }
+        .sidebar-link { @apply flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-navy-100 hover:bg-white/10 transition-colors; }
+        .sidebar-link.active { @apply bg-brand text-white; }
+    </style>
+    @stack('styles')
+</head>
+<body class="bg-slate-100 text-gray-900 min-h-screen flex">
+
+    {{-- Sidebar --}}
+    <aside class="w-64 min-h-screen bg-navy flex flex-col flex-shrink-0">
+        <div class="p-6 border-b border-white/10">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-lg bg-brand flex items-center justify-center text-white font-bold text-lg">e</div>
+                <div>
+                    <div class="text-white font-bold text-sm leading-tight">eSahlan</div>
+                    <div class="text-navy-100 text-xs opacity-70">HR Panel</div>
+                </div>
+            </div>
+        </div>
+
+        <nav class="flex-1 p-4 space-y-1">
+            @php $route = request()->route()->getName(); @endphp
+
+            <a href="{{ route('hr.dashboard') }}"
+               class="sidebar-link {{ str_starts_with($route, 'hr.dashboard') ? 'active' : '' }}">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                </svg>
+                Dashboard
+            </a>
+
+            <a href="{{ route('hr.employees.index') }}"
+               class="sidebar-link {{ str_starts_with($route, 'hr.employees') ? 'active' : '' }}">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+                Employees
+            </a>
+
+            @if(Auth::guard('hr')->user()->isManager())
+            <a href="{{ route('hr.departments.index') }}"
+               class="sidebar-link {{ str_starts_with($route, 'hr.departments') ? 'active' : '' }}">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                </svg>
+                Departments
+            </a>
+
+            <a href="{{ route('hr.positions.index') }}"
+               class="sidebar-link {{ str_starts_with($route, 'hr.positions') ? 'active' : '' }}">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                </svg>
+                Positions
+            </a>
+
+            <a href="{{ route('hr.audit.index') }}"
+               class="sidebar-link {{ str_starts_with($route, 'hr.audit') ? 'active' : '' }}">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                </svg>
+                Audit Log
+            </a>
+            @endif
+        </nav>
+
+        <div class="p-4 border-t border-white/10">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="w-8 h-8 rounded-full bg-brand/80 flex items-center justify-center text-white text-xs font-bold">
+                    {{ strtoupper(substr(Auth::guard('hr')->user()->name, 0, 2)) }}
+                </div>
+                <div>
+                    <div class="text-white text-xs font-medium">{{ Auth::guard('hr')->user()->name }}</div>
+                    <div class="text-navy-100 text-xs opacity-60">{{ Auth::guard('hr')->user()->role_label }}</div>
+                </div>
+            </div>
+            <form method="POST" action="{{ route('hr.logout') }}">
+                @csrf
+                <button type="submit" class="w-full text-left sidebar-link text-red-300 hover:text-red-200">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                    </svg>
+                    Sign Out
+                </button>
+            </form>
+        </div>
+    </aside>
+
+    {{-- Main --}}
+    <main class="flex-1 flex flex-col min-h-screen overflow-x-hidden">
+
+        {{-- Top bar --}}
+        <header class="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between">
+            <h1 class="text-gray-900 font-semibold text-lg">@yield('heading', 'Dashboard')</h1>
+            <div class="text-sm text-gray-400">{{ now()->format('D, d M Y') }}</div>
+        </header>
+
+        {{-- Flash --}}
+        @if(session('success'))
+        <div class="mx-8 mt-6 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm">
+            {{ session('success') }}
+        </div>
+        @endif
+        @if(session('error'))
+        <div class="mx-8 mt-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+            {{ session('error') }}
+        </div>
+        @endif
+
+        <div class="flex-1 p-8">
+            @yield('content')
+        </div>
+    </main>
+
+    @stack('scripts')
+</body>
+</html>

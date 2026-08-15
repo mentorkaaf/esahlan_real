@@ -4,6 +4,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withProviders([
@@ -15,6 +16,12 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         channels: __DIR__.'/../routes/channels.php',
         health: '/up',
+        then: function () {
+            Route::middleware('web')
+                ->prefix('hr')
+                ->name('hr.')
+                ->group(base_path('routes/hr.php'));
+        },
     )
     ->withMiddleware(function (Middleware $middleware) {
         // Override the default Authenticate middleware to redirect to admin.login
@@ -27,6 +34,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin.gate'       => \App\Http\Middleware\AdminModuleGate::class,
             'brute_force'      => \App\Http\Middleware\CheckBruteForce::class,
             'admin.monitor'    => \App\Http\Middleware\AdminRouteMonitor::class,
+            'auth.hr'          => \App\Http\Middleware\HrAuthenticate::class,
+            'hr.role'          => \App\Http\Middleware\HrRole::class,
         ]);
 
         // Sanitize text input on every API request (strip null bytes + control chars)
@@ -54,6 +63,10 @@ return Application::configure(basePath: dirname(__DIR__))
             // Vendor routes → redirect to vendor login
             if ($request->is('vendor/*') || $request->is('vendor')) {
                 return redirect()->route('vendor.login');
+            }
+            // HR routes → redirect to HR login
+            if ($request->is('hr/*') || $request->is('hr')) {
+                return redirect()->route('hr.login');
             }
         });
 
