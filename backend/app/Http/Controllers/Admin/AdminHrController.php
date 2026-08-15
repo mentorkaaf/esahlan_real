@@ -198,7 +198,7 @@ class AdminHrController extends Controller
         }
 
         $logs    = $q->paginate(50)->withQueryString();
-        $actors  = \App\Models\HR\HrStaff::orderBy('first_name')->get();
+        $actors  = \App\Models\HR\HrStaff::orderBy('name')->get();
         $actions = HrAuditLog::selectRaw("SUBSTRING_INDEX(action, '.', 1) as module")
             ->distinct()->pluck('module');
 

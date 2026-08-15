@@ -23,7 +23,7 @@
         <select name="actor_id" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-400">
             <option value="">All actors</option>
             @foreach($actors as $actor)
-                <option value="{{ $actor->id }}" @selected(request('actor_id') == $actor->id)>{{ $actor->first_name }} {{ $actor->last_name }}</option>
+                <option value="{{ $actor->id }}" @selected(request('actor_id') == $actor->id)>{{ $actor->name }}</option>
             @endforeach
         </select>
     </div>

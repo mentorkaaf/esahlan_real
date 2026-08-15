@@ -35,7 +35,7 @@ class HrPerformanceCycleController extends Controller
 
         HrPerformanceCycle::create($data);
 
-        return back()->with('success', "Cycle "{$data['name']}" created.");
+        return back()->with('success', "Cycle \"{$data['name']}\" created.");
     }
 
     public function update(Request $request, HrPerformanceCycle $cycle)
