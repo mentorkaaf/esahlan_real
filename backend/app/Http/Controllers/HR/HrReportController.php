@@ -127,12 +127,15 @@ class HrReportController extends Controller
             $month = now()->subMonths($i);
             $label = $month->format('M Y');
 
-            $hires = HrEmployee::whereYear('join_date', $month->year)
-                ->whereMonth('join_date', $month->month)
+            $hires = HrEmployee::whereYear('hire_date', $month->year)
+                ->whereMonth('hire_date', $month->month)
                 ->count();
 
-            $exits = HrEmployee::whereYear('end_date', $month->year)
-                ->whereMonth('end_date', $month->month)
+            // Exits = employees whose status changed to terminated this month
+            // Approximated via hr_employees where status=terminated and updated_at matches
+            $exits = HrEmployee::where('status', 'terminated')
+                ->whereYear('updated_at', $month->year)
+                ->whereMonth('updated_at', $month->month)
                 ->count();
 
             $rows[] = compact('label','hires','exits');

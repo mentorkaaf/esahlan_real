@@ -91,7 +91,7 @@ class DisciplineService
             // Termination — set employee status + end-date active contracts
             if ($outcome === 'termination') {
                 $emp = $case->employee;
-                $emp->update(['status' => 'terminated', 'end_date' => today()]);
+                $emp->update(['status' => 'terminated']);
 
                 // End-date active contracts
                 $emp->contracts()->where('status', 'active')->update([

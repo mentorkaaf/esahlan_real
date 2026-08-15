@@ -22,6 +22,12 @@ class HrAuditLog extends Model
         'created_at' => 'datetime',
     ];
 
+    /** Actor relation — only valid when actor_type='hr' */
+    public function actor()
+    {
+        return $this->belongsTo(HrStaff::class, 'actor_id');
+    }
+
     // Human-readable diff of before/after
     public function getDiffAttribute(): array
     {
