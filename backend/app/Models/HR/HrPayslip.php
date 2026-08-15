@@ -3,13 +3,14 @@
 namespace App\Models\HR;
 
 use App\Traits\HR\HrAuditable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class HrPayslip extends Model
 {
-    use HrAuditable;
+    use HasFactory, HrAuditable;
 
     protected $table = 'hr_payslips';
 

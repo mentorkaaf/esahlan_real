@@ -1173,3 +1173,22 @@ Route::prefix('v1/global')->group(function () {
         Route::post('/checkout/paypal/capture',[\App\Http\Controllers\Api\Global\GlobalCheckoutController::class, 'paypalCapture']);
     });
 });
+
+// ── Phase 6: Employee Self-Service (Sanctum) ──────────────────────────────────
+Route::prefix('v1/hr/me')
+    ->middleware(['auth:sanctum', 'throttle:60,1'])
+    ->name('api.hr.me.')
+    ->group(function () {
+        $ctrl = \App\Http\Controllers\Api\HR\HrSelfServiceController::class;
+
+        Route::get('/',                       [$ctrl, 'profile'])->name('profile');
+        Route::get('/attendance',             [$ctrl, 'attendance'])->name('attendance');
+        Route::post('/attendance/check-in',   [$ctrl, 'checkIn'])->name('check_in');
+        Route::post('/attendance/check-out',  [$ctrl, 'checkOut'])->name('check_out');
+        Route::get('/leave/balances',         [$ctrl, 'leaveBalances'])->name('leave.balances');
+        Route::get('/leave/requests',         [$ctrl, 'leaveRequests'])->name('leave.requests');
+        Route::post('/leave/requests',        [$ctrl, 'submitLeave'])->name('leave.store');
+        Route::get('/payslips',               [$ctrl, 'payslips'])->name('payslips');
+        Route::get('/payslips/{id}/pdf',      [$ctrl, 'payslipPdf'])->name('payslips.pdf');
+        Route::get('/announcements',          [$ctrl, 'announcements'])->name('announcements');
+    });

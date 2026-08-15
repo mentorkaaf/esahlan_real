@@ -17,6 +17,7 @@ class HrAttendance extends Model
         'check_in', 'check_out', 'status',
         'late_minutes', 'overtime_minutes',
         'note', 'is_manual', 'corrected_by',
+        'source', 'check_in_lat', 'check_in_lng', 'check_out_lat', 'check_out_lng',
     ];
 
     protected $casts = [

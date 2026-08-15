@@ -12,6 +12,7 @@ use App\Models\HR\HrPayslipItem;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use App\Services\FcmService;
 use Illuminate\Support\Facades\Storage;
 
 class PayrollService
@@ -317,6 +318,24 @@ class PayrollService
             'payment_method' => $method,
             'payment_ref'    => $ref,
         ]);
+
+        // FCM — notify employee their payslip is paid
+        try {
+            $payslip->loadMissing('employee.user', 'run');
+            $token = $payslip->employee?->user?->fcm_token;
+            if ($token) {
+                $period = $payslip->run?->period ?? 'this period';
+                FcmService::sendToToken(
+                    fcmToken: $token,
+                    title: '💰 Payslip Paid',
+                    body: "Your salary for {$period} has been transferred.",
+                    data: [
+                        'type' => 'payslip_paid',
+                        'id'   => (string) $payslip->id,
+                    ],
+                );
+            }
+        } catch (\Throwable) {}
 
         // If all payslips paid, mark run as paid
         $run = $payslip->run;

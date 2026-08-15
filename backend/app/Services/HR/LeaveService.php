@@ -10,6 +10,7 @@ use App\Models\HR\HrLeaveRequest;
 use App\Models\HR\HrLeaveType;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
+use App\Services\FcmService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -150,6 +151,9 @@ class LeaveService
 
             AuditService::log('leave.approved', $request);
         });
+
+        // FCM — after transaction
+        static::pushLeaveDecision($request, 'approved');
     }
 
     /**
@@ -177,6 +181,44 @@ class LeaveService
 
             AuditService::log('leave.rejected', $request);
         });
+
+        // FCM — after transaction
+        static::pushLeaveDecision($request, 'rejected');
+    }
+
+    // ── Private helpers ────────────────────────────────────────────────────
+
+    private static function pushLeaveDecision(HrLeaveRequest $request, string $status): void
+    {
+        try {
+            $request->loadMissing('employee.user', 'leaveType');
+            $token = $request->employee?->user?->fcm_token;
+            if (!$token) return;
+
+            $typeName = $request->leaveType?->name ?? 'Leave';
+            $period   = $request->start_date->format('d M') . ' – ' . $request->end_date->format('d M Y');
+
+            if ($status === 'approved') {
+                $title = '✅ Leave Approved';
+                $body  = "{$typeName} leave ({$period}) has been approved.";
+            } else {
+                $title = '❌ Leave Rejected';
+                $body  = "{$typeName} leave ({$period}) was not approved.";
+            }
+
+            FcmService::sendToToken(
+                fcmToken: $token,
+                title: $title,
+                body: $body,
+                data: [
+                    'type'   => 'leave_decision',
+                    'id'     => (string) $request->id,
+                    'status' => $status,
+                ],
+            );
+        } catch (\Throwable) {
+            // Non-fatal — never block a leave decision because of FCM
+        }
     }
 
     /**
