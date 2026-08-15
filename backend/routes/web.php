@@ -1066,6 +1066,12 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             });
         });
 
+        // ─── HR Oversight (read-only) ─────────────────────────────────────────────
+        Route::prefix('hr')->name('hr.')->group(function () {
+            Route::get('attendance', [\App\Http\Controllers\Admin\AdminHrController::class, 'attendance'])->name('attendance');
+            Route::get('leaves',     [\App\Http\Controllers\Admin\AdminHrController::class, 'leaves'])->name('leaves');
+        });
+
         // ─── Legal Pages ──────────────────────────────────────────────────────────
         Route::prefix('legal-pages')->name('legal-pages.')->group(function () {
             Route::get('/', [\App\Http\Controllers\Admin\AdminLegalPagesController::class, 'index'])->name('index');
