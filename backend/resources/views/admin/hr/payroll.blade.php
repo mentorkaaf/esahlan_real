@@ -50,8 +50,13 @@
                             <td class="px-4 py-3 text-muted" style="font-size:.85rem;">{{ $run->generator?->name ?? '—' }}</td>
                             <td class="px-4 py-3 text-muted" style="font-size:.85rem;">{{ $run->approver?->name ?? '—' }}</td>
                             <td class="px-4 py-3 text-end">
-                                {{-- Drill-down to payslips via HrPayslip drill --}}
                                 <span class="text-muted" style="font-size:.8rem;">{{ $run->payslips()->count() }} slips</span>
+                                @if(Auth::user()?->role === 'super_admin' && $run->status === 'paid')
+                                <button class="btn btn-xs btn-outline-warning ms-2"
+                                        onclick="openUnlock({{ $run->id }}, '{{ $run->period }}')">
+                                    Unlock
+                                </button>
+                                @endif
                             </td>
                         </tr>
                         @empty
@@ -91,4 +96,40 @@
     @endif
 
 </div>
+
+@if(Auth::user()?->role === 'super_admin')
+{{-- Unlock payroll modal --}}
+<div class="modal fade" id="unlockModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">⚠ Unlock Paid Payroll Run</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="unlockForm" method="POST">
+                @csrf
+                <div class="modal-body">
+                    <p class="text-warning-emphasis">This will revert a paid payroll run back to <strong>approved</strong> status, allowing re-marking of payslips. This action is audited.</p>
+                    <p id="unlockRunLabel" class="fw-semibold"></p>
+                    <div class="mb-3">
+                        <label class="form-label">Reason <span class="text-danger">*</span></label>
+                        <textarea name="reason" required rows="3" maxlength="500" class="form-control" placeholder="State the reason for this override…"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-warning">Confirm Unlock</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+function openUnlock(id, period) {
+    document.getElementById('unlockForm').action = '/admin/hr/payroll/' + id + '/unlock';
+    document.getElementById('unlockRunLabel').textContent = 'Run: ' + period;
+    new bootstrap.Modal(document.getElementById('unlockModal')).show();
+}
+</script>
+@endif
 @endsection

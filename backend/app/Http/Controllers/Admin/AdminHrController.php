@@ -5,16 +5,46 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\HR\HrAttendance;
 use App\Models\HR\HrAuditLog;
+use App\Models\HR\HrDisciplinaryCase;
 use App\Models\HR\HrEmployee;
 use App\Models\HR\HrJobPosting;
 use App\Models\HR\HrApplicant;
 use App\Models\HR\HrLeaveRequest;
 use App\Models\HR\HrPayrollRun;
 use App\Models\HR\HrPerformanceCycle;
+use App\Services\HR\AuditService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class AdminHrController extends Controller
 {
+    /** Admin HR Dashboard v2 — KPI + activity feed */
+    public function dashboard()
+    {
+        $activeCount   = HrEmployee::whereIn('status',['active','probation'])->count();
+        $openCases     = HrDisciplinaryCase::where('status','!=','closed')->count();
+        $openPositions = \App\Models\HR\HrJobPosting::where('status','open')->sum('openings');
+
+        // Monthly payroll cost (latest approved/paid run)
+        $latestRun = HrPayrollRun::whereIn('status',['approved','paid'])
+            ->orderByDesc('period')->first();
+        $payrollCost = $latestRun?->total_net ?? 0;
+
+        // Attendance % today
+        $todayTotal   = HrEmployee::whereIn('status',['active','probation'])->count();
+        $todayPresent = \App\Models\HR\HrAttendance::where('date', today())
+            ->whereIn('status',['present','late'])->count();
+        $attendancePct = $todayTotal > 0 ? round($todayPresent / $todayTotal * 100) : 0;
+
+        // Recent audit events (activity feed)
+        $feed = HrAuditLog::orderByDesc('created_at')->limit(25)->get();
+
+        return view('admin.hr.dashboard', compact(
+            'activeCount','openCases','openPositions',
+            'payrollCost','attendancePct','latestRun','feed'
+        ));
+    }
+
     /** Today's attendance summary — read-only */
     public function attendance(Request $request)
     {
@@ -126,5 +156,117 @@ class AdminHrController extends Controller
         $payslip->load(['employee.department', 'employee.position', 'items', 'run']);
 
         return view('admin.hr.payslip', compact('payslip'));
+    }
+
+    /** Discipline overview — all cases */
+    public function discipline(Request $request)
+    {
+        $cases = HrDisciplinaryCase::with(['employee.department','openedBy'])
+            ->when($request->status, fn($q,$v) => $q->where('status',$v))
+            ->orderByRaw("FIELD(status,'open','investigating','closed')")
+            ->orderByDesc('created_at')
+            ->paginate(30);
+
+        $stats = [
+            'open'         => HrDisciplinaryCase::where('status','open')->count(),
+            'investigating'=> HrDisciplinaryCase::where('status','investigating')->count(),
+            'closed'       => HrDisciplinaryCase::where('status','closed')->count(),
+        ];
+
+        return view('admin.hr.discipline', compact('cases','stats'));
+    }
+
+    /** Full audit explorer */
+    public function audit(Request $request)
+    {
+        $q = HrAuditLog::with(['actor'])->orderByDesc('created_at');
+
+        if ($request->filled('action')) {
+            $q->where('action', 'like', $request->action . '%');
+        }
+        if ($request->filled('actor_id')) {
+            $q->where('actor_id', $request->actor_id);
+        }
+        if ($request->filled('subject')) {
+            $q->where('subject_type', 'like', '%' . $request->subject . '%');
+        }
+        if ($request->filled('from')) {
+            $q->whereDate('created_at', '>=', $request->from);
+        }
+        if ($request->filled('to')) {
+            $q->whereDate('created_at', '<=', $request->to);
+        }
+
+        $logs    = $q->paginate(50)->withQueryString();
+        $actors  = \App\Models\HR\HrStaff::orderBy('first_name')->get();
+        $actions = HrAuditLog::selectRaw("SUBSTRING_INDEX(action, '.', 1) as module")
+            ->distinct()->pluck('module');
+
+        return view('admin.hr.audit', compact('logs','actors','actions'));
+    }
+
+    // ── Override actions (super_admin only) ───────────────────────────────
+
+    /** Unlock a paid payroll run back to approved so payslips can be re-marked */
+    public function unlockPayroll(Request $request, HrPayrollRun $payroll)
+    {
+        $this->requireSuperAdmin();
+        $request->validate(['reason' => 'required|string|max:500']);
+
+        $before = ['status' => $payroll->status];
+        $payroll->update(['status' => 'approved']);
+
+        AuditService::logAdmin('payroll.unlocked', $payroll, $before, [
+            'status' => 'approved', 'reason' => $request->reason,
+        ]);
+
+        return back()->with('success', "Payroll run {$payroll->period} unlocked.");
+    }
+
+    /** Reactivate a terminated employee */
+    public function reactivateEmployee(Request $request, HrEmployee $employee)
+    {
+        $this->requireSuperAdmin();
+        $request->validate(['reason' => 'required|string|max:500']);
+
+        $before = ['status' => $employee->status];
+        $employee->update(['status' => 'active', 'end_date' => null]);
+
+        AuditService::logAdmin('employee.reactivated', $employee, $before, [
+            'status' => 'active', 'reason' => $request->reason,
+        ]);
+
+        return back()->with('success', "{$employee->full_name} reactivated.");
+    }
+
+    /** Force-close a disciplinary case */
+    public function forceCloseCase(Request $request, HrDisciplinaryCase $case)
+    {
+        $this->requireSuperAdmin();
+        $request->validate([
+            'outcome' => 'required|in:verbal_warning,written_warning,suspension,termination,dismissed',
+            'reason'  => 'required|string|max:500',
+        ]);
+
+        $before = ['status' => $case->status, 'outcome' => $case->outcome];
+        $case->update([
+            'status'     => 'closed',
+            'outcome'    => $request->outcome,
+            'closed_by'  => null,
+            'closed_at'  => now(),
+        ]);
+
+        AuditService::logAdmin('discipline.force_closed', $case, $before, [
+            'outcome' => $request->outcome, 'reason' => $request->reason,
+        ]);
+
+        return back()->with('success', 'Case force-closed.');
+    }
+
+    private function requireSuperAdmin(): void
+    {
+        if (Auth::user()?->role !== 'super_admin') {
+            abort(403, 'Super admin only.');
+        }
     }
 }

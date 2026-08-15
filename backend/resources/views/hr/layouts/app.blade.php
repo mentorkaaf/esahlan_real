@@ -92,6 +92,30 @@
                 Performance
             </a>
 
+            <a href="{{ route('hr.discipline.index') }}"
+               class="sidebar-link {{ str_starts_with($route, 'hr.discipline') ? 'active' : '' }}">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+                Discipline
+            </a>
+
+            <a href="{{ route('hr.announcements.index') }}"
+               class="sidebar-link {{ str_starts_with($route, 'hr.announcements') ? 'active' : '' }}">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/>
+                </svg>
+                Announcements
+            </a>
+
+            <a href="{{ route('hr.reports.index') }}"
+               class="sidebar-link {{ str_starts_with($route, 'hr.reports') ? 'active' : '' }}">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                Reports
+            </a>
+
             @if(Auth::guard('hr')->user()->isPayroll())
             <a href="{{ route('hr.payroll.index') }}"
                class="sidebar-link {{ str_starts_with($route, 'hr.payroll') ? 'active' : '' }}">

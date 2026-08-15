@@ -1068,12 +1068,20 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
 
         // ─── HR Oversight (read-only) ─────────────────────────────────────────────
         Route::prefix('hr')->name('hr.')->group(function () {
+            Route::get('/',               [\App\Http\Controllers\Admin\AdminHrController::class, 'dashboard'])->name('dashboard');
             Route::get('attendance',          [\App\Http\Controllers\Admin\AdminHrController::class, 'attendance'])->name('attendance');
             Route::get('leaves',              [\App\Http\Controllers\Admin\AdminHrController::class, 'leaves'])->name('leaves');
             Route::get('payroll',             [\App\Http\Controllers\Admin\AdminHrController::class, 'payroll'])->name('payroll');
             Route::get('payroll/{payslip}',   [\App\Http\Controllers\Admin\AdminHrController::class, 'payslip'])->name('payslip');
             Route::get('recruitment',         [\App\Http\Controllers\Admin\AdminHrController::class, 'recruitment'])->name('recruitment');
             Route::get('performance',         [\App\Http\Controllers\Admin\AdminHrController::class, 'performance'])->name('performance');
+            Route::get('discipline',          [\App\Http\Controllers\Admin\AdminHrController::class, 'discipline'])->name('discipline');
+            Route::get('audit',               [\App\Http\Controllers\Admin\AdminHrController::class, 'audit'])->name('audit');
+
+            // Admin override actions (super_admin only)
+            Route::post('payroll/{payroll}/unlock',    [\App\Http\Controllers\Admin\AdminHrController::class, 'unlockPayroll'])->name('payroll.unlock');
+            Route::post('employees/{employee}/reactivate', [\App\Http\Controllers\Admin\AdminHrController::class, 'reactivateEmployee'])->name('employees.reactivate');
+            Route::post('discipline/{case}/force-close', [\App\Http\Controllers\Admin\AdminHrController::class, 'forceCloseCase'])->name('discipline.force_close');
         });
 
         // ─── Legal Pages ──────────────────────────────────────────────────────────

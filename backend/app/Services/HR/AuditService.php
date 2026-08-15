@@ -66,6 +66,23 @@ class AuditService
     }
 
     /**
+     * Log an override action taken by a web/admin user (super_admin).
+     */
+    public static function logAdmin(
+        string $action,
+        ?Model $subject = null,
+        ?array $before  = null,
+        ?array $after   = null,
+    ): HrAuditLog {
+        $admin = Auth::guard('web')->user();
+        return static::log($action, $subject, $before, $after, [
+            'actor_type' => 'admin',
+            'actor_id'   => $admin?->id,
+            'actor_name' => $admin ? $admin->name . ' [ADMIN OVERRIDE]' : 'Admin',
+        ]);
+    }
+
+    /**
      * Build a before/after diff array from model dirty attributes.
      */
     public static function diffModel(Model $model): array

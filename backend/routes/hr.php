@@ -16,6 +16,9 @@ use App\Http\Controllers\HR\HrCommissionController;
 use App\Http\Controllers\HR\HrJobPostingController;
 use App\Http\Controllers\HR\HrApplicantController;
 use App\Http\Controllers\HR\HrPerformanceCycleController;
+use App\Http\Controllers\HR\HrDisciplinaryController;
+use App\Http\Controllers\HR\HrAnnouncementController;
+use App\Http\Controllers\HR\HrReportController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -151,6 +154,33 @@ Route::middleware('auth.hr')->group(function () {
         Route::get('{cycle}/report',   [HrPerformanceCycleController::class, 'report'])->name('report');
         Route::post('{cycle}/import-commissions', [HrPerformanceCycleController::class, 'importCommissions'])->name('import_commissions');
     });
+
+    // ── Discipline ────────────────────────────────────────────────────────
+    Route::prefix('discipline')->name('discipline.')->group(function () {
+        Route::get('/',             [HrDisciplinaryController::class, 'index'])->name('index');
+        Route::get('create',        [HrDisciplinaryController::class, 'create'])->name('create');
+        Route::post('/',            [HrDisciplinaryController::class, 'store'])->name('store');
+        Route::get('{case}',        [HrDisciplinaryController::class, 'show'])->name('show');
+        Route::post('{case}/investigate', [HrDisciplinaryController::class, 'investigate'])->name('investigate');
+        Route::post('{case}/close', [HrDisciplinaryController::class, 'close'])->name('close')
+             ->middleware('hr.role:hr_manager,hr_officer');
+        Route::post('warnings/{warning}/acknowledge', [HrDisciplinaryController::class, 'acknowledge'])->name('warning.acknowledge');
+        Route::get('warnings/{warning}/pdf', [HrDisciplinaryController::class, 'warningPdf'])->name('warning.pdf');
+    });
+
+    // ── Announcements ─────────────────────────────────────────────────────
+    Route::prefix('announcements')->name('announcements.')->group(function () {
+        Route::get('/',             [HrAnnouncementController::class, 'index'])->name('index');
+        Route::get('create',        [HrAnnouncementController::class, 'create'])->name('create');
+        Route::post('/',            [HrAnnouncementController::class, 'store'])->name('store');
+        Route::post('{announcement}/publish', [HrAnnouncementController::class, 'publish'])->name('publish')
+             ->middleware('hr.role:hr_manager,hr_officer');
+        Route::delete('{announcement}', [HrAnnouncementController::class, 'destroy'])->name('destroy')
+             ->middleware('hr.role:hr_manager');
+    });
+
+    // ── Reports ───────────────────────────────────────────────────────────
+    Route::get('reports', [HrReportController::class, 'index'])->name('reports.index');
 
     // ── Leave ─────────────────────────────────────────────────────────────
     Route::prefix('leaves')->name('leaves.')->group(function () {
