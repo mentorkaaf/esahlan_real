@@ -116,6 +116,11 @@ class DisciplineService
         $pdf  = Pdf::loadView('hr.discipline.warning_pdf', compact('warning'));
         $path = "hr/warnings/warning-{$warning->id}.pdf";
 
+        $dir = dirname(Storage::disk('public')->path($path));
+        if (!is_dir($dir)) {
+            mkdir($dir, 0775, true);
+        }
+
         Storage::disk('public')->put($path, $pdf->output());
         $warning->update(['pdf_path' => $path]);
 

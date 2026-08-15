@@ -391,6 +391,12 @@ class PayrollService
 
         $path = 'hr/payslips/payslip-' . $payslip->run->period . '-' . $payslip->employee->employee_no . '.pdf';
 
+        // Ensure directory exists before writing
+        $dir = dirname(Storage::disk('public')->path($path));
+        if (!is_dir($dir)) {
+            mkdir($dir, 0775, true);
+        }
+
         Storage::disk('public')->put($path, $pdf->output());
 
         $payslip->update(['pdf_path' => $path]);

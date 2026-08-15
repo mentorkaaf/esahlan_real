@@ -362,9 +362,13 @@ class HrSelfServiceController extends Controller
             ], 403);
         }
 
-        $payslip->load(['employee.department', 'employee.position', 'items', 'run']);
-        $pdf     = PayrollService::generatePdf($payslip);
-        $content = $pdf->output();
+        // generatePdf() stores to disk and returns path
+        if (!$payslip->pdf_path || !\Illuminate\Support\Facades\Storage::disk('public')->exists($payslip->pdf_path)) {
+            PayrollService::generatePdf($payslip);
+            $payslip->refresh();
+        }
+
+        $content = \Illuminate\Support\Facades\Storage::disk('public')->get($payslip->pdf_path);
 
         return response($content, 200, [
             'Content-Type'        => 'application/pdf',
