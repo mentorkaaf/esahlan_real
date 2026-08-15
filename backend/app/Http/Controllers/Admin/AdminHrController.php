@@ -6,8 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\HR\HrAttendance;
 use App\Models\HR\HrAuditLog;
 use App\Models\HR\HrEmployee;
+use App\Models\HR\HrJobPosting;
+use App\Models\HR\HrApplicant;
 use App\Models\HR\HrLeaveRequest;
 use App\Models\HR\HrPayrollRun;
+use App\Models\HR\HrPerformanceCycle;
 use Illuminate\Http\Request;
 
 class AdminHrController extends Controller
@@ -70,6 +73,51 @@ class AdminHrController extends Controller
             ->get();
 
         return view('admin.hr.payroll', compact('runs', 'timeline'));
+    }
+
+    /** Recruitment overview */
+    public function recruitment()
+    {
+        $postings = HrJobPosting::with('department')
+            ->withCount('applicants')
+            ->orderByDesc('created_at')
+            ->get();
+
+        // Pipeline funnel per posting
+        $stages = \App\Models\HR\HrApplicant::STAGES;
+        $funnelData = HrApplicant::selectRaw('job_posting_id, stage, count(*) as cnt')
+            ->groupBy('job_posting_id', 'stage')
+            ->get()
+            ->groupBy('job_posting_id');
+
+        // Time-in-stage averages (days since stage_changed_at for non-final)
+        $avgTimeInStage = HrApplicant::whereNotIn('stage', ['hired', 'rejected'])
+            ->whereNotNull('stage_changed_at')
+            ->selectRaw('stage, ROUND(AVG(DATEDIFF(NOW(), stage_changed_at)), 1) as avg_days')
+            ->groupBy('stage')
+            ->pluck('avg_days', 'stage');
+
+        return view('admin.hr.recruitment', compact('postings', 'funnelData', 'stages', 'avgTimeInStage'));
+    }
+
+    /** Performance overview */
+    public function performance()
+    {
+        $cycles = HrPerformanceCycle::withCount(['goals', 'reviews'])
+            ->orderByDesc('period_start')
+            ->get();
+
+        $deptAverages = [];
+        foreach ($cycles->where('status', 'closed') as $cycle) {
+            $deptAverages[$cycle->id] = \App\Models\HR\HrReview::where('cycle_id', $cycle->id)
+                ->where('status', 'submitted')
+                ->with('employee.department')
+                ->get()
+                ->groupBy('employee.department.name')
+                ->map(fn($g) => round($g->avg('overall_score'), 2));
+        }
+
+        return view('admin.hr.performance', compact('cycles', 'deptAverages'));
     }
 
     /** Payslip drill-down — super admin sees amounts */

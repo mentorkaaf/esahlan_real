@@ -74,6 +74,24 @@
                 Leaves
             </a>
 
+            @if(Auth::guard('hr')->user()->isRecruiter())
+            <a href="{{ route('hr.recruitment.postings.index') }}"
+               class="sidebar-link {{ str_starts_with($route, 'hr.recruitment') ? 'active' : '' }}">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
+                </svg>
+                Recruitment
+            </a>
+            @endif
+
+            <a href="{{ route('hr.performance.index') }}"
+               class="sidebar-link {{ str_starts_with($route, 'hr.performance') ? 'active' : '' }}">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                </svg>
+                Performance
+            </a>
+
             @if(Auth::guard('hr')->user()->isPayroll())
             <a href="{{ route('hr.payroll.index') }}"
                class="sidebar-link {{ str_starts_with($route, 'hr.payroll') ? 'active' : '' }}">

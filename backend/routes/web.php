@@ -1072,6 +1072,8 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::get('leaves',              [\App\Http\Controllers\Admin\AdminHrController::class, 'leaves'])->name('leaves');
             Route::get('payroll',             [\App\Http\Controllers\Admin\AdminHrController::class, 'payroll'])->name('payroll');
             Route::get('payroll/{payslip}',   [\App\Http\Controllers\Admin\AdminHrController::class, 'payslip'])->name('payslip');
+            Route::get('recruitment',         [\App\Http\Controllers\Admin\AdminHrController::class, 'recruitment'])->name('recruitment');
+            Route::get('performance',         [\App\Http\Controllers\Admin\AdminHrController::class, 'performance'])->name('performance');
         });
 
         // ─── Legal Pages ──────────────────────────────────────────────────────────
@@ -1081,6 +1083,13 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::put('/{page}', [\App\Http\Controllers\Admin\AdminLegalPagesController::class, 'update'])->name('update');
         });
     });
+});
+
+// ─── Public Careers ──────────────────────────────────────────────────────────
+Route::middleware(['throttle:30,1'])->prefix('careers')->name('careers.')->group(function () {
+    Route::get('/',              [\App\Http\Controllers\CareersController::class, 'index'])->name('index');
+    Route::get('/{posting}',     [\App\Http\Controllers\CareersController::class, 'show'])->name('show');
+    Route::post('/{posting}/apply', [\App\Http\Controllers\CareersController::class, 'apply'])->name('apply');
 });
 
 // ─── Public Legal Pages ───────────────────────────────────────────────────────

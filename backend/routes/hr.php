@@ -13,6 +13,9 @@ use App\Http\Controllers\HR\HrAuditController;
 use App\Http\Controllers\HR\HrPayrollController;
 use App\Http\Controllers\HR\HrComponentController;
 use App\Http\Controllers\HR\HrCommissionController;
+use App\Http\Controllers\HR\HrJobPostingController;
+use App\Http\Controllers\HR\HrApplicantController;
+use App\Http\Controllers\HR\HrPerformanceCycleController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -112,6 +115,41 @@ Route::middleware('auth.hr')->group(function () {
         Route::post('{commission}/reject',   [HrCommissionController::class, 'reject'])->name('reject')
              ->middleware('hr.role:hr_manager');
         Route::delete('{commission}',        [HrCommissionController::class, 'destroy'])->name('destroy');
+    });
+
+    // ── Recruitment ───────────────────────────────────────────────────────
+    Route::prefix('recruitment')->name('recruitment.')->group(function () {
+        // Job postings
+        Route::get('postings',            [HrJobPostingController::class, 'index'])->name('postings.index');
+        Route::get('postings/create',     [HrJobPostingController::class, 'create'])->name('postings.create');
+        Route::post('postings',           [HrJobPostingController::class, 'store'])->name('postings.store');
+        Route::get('postings/{posting}',  [HrJobPostingController::class, 'show'])->name('postings.show');
+        Route::get('postings/{posting}/edit', [HrJobPostingController::class, 'edit'])->name('postings.edit');
+        Route::put('postings/{posting}',  [HrJobPostingController::class, 'update'])->name('postings.update');
+        Route::delete('postings/{posting}',[HrJobPostingController::class, 'destroy'])->name('postings.destroy');
+
+        // Applicants
+        Route::get('applicants/{applicant}',        [HrApplicantController::class, 'show'])->name('applicants.show');
+        Route::patch('applicants/{applicant}',      [HrApplicantController::class, 'update'])->name('applicants.update');
+        Route::post('applicants/{applicant}/stage', [HrApplicantController::class, 'moveStage'])->name('applicants.stage');
+        Route::get('applicants/{applicant}/cv',     [HrApplicantController::class, 'downloadCv'])->name('applicants.cv');
+        Route::post('applicants/{applicant}/interview',           [HrApplicantController::class, 'scheduleInterview'])->name('applicants.interview');
+        Route::post('interviews/{interview}/feedback',            [HrApplicantController::class, 'interviewFeedback'])->name('interviews.feedback');
+    });
+
+    // ── Performance ───────────────────────────────────────────────────────
+    Route::prefix('performance')->name('performance.')->group(function () {
+        Route::get('/',                [HrPerformanceCycleController::class, 'index'])->name('index');
+        Route::post('/',               [HrPerformanceCycleController::class, 'store'])->name('store');
+        Route::patch('{cycle}',        [HrPerformanceCycleController::class, 'update'])->name('update');
+        Route::delete('{cycle}',       [HrPerformanceCycleController::class, 'destroy'])->name('destroy');
+        Route::get('{cycle}/goals',    [HrPerformanceCycleController::class, 'goals'])->name('goals');
+        Route::post('{cycle}/goals',   [HrPerformanceCycleController::class, 'storeGoal'])->name('goals.store');
+        Route::delete('goals/{goal}',  [HrPerformanceCycleController::class, 'destroyGoal'])->name('goals.destroy');
+        Route::get('{cycle}/reviews',  [HrPerformanceCycleController::class, 'reviews'])->name('reviews');
+        Route::post('{cycle}/reviews/{employee}', [HrPerformanceCycleController::class, 'storeReview'])->name('reviews.store');
+        Route::get('{cycle}/report',   [HrPerformanceCycleController::class, 'report'])->name('report');
+        Route::post('{cycle}/import-commissions', [HrPerformanceCycleController::class, 'importCommissions'])->name('import_commissions');
     });
 
     // ── Leave ─────────────────────────────────────────────────────────────
