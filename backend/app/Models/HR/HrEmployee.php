@@ -80,6 +80,31 @@ class HrEmployee extends Model
         return $this->hasMany(\App\Models\HR\HrLeaveRequest::class, 'employee_id');
     }
 
+    public function goals()
+    {
+        return $this->hasMany(\App\Models\HR\HrGoal::class, 'employee_id');
+    }
+
+    public function reviews()
+    {
+        return $this->hasMany(\App\Models\HR\HrReview::class, 'employee_id');
+    }
+
+    public function payslips()
+    {
+        return $this->hasMany(\App\Models\HR\HrPayslip::class, 'employee_id');
+    }
+
+    public function commissions()
+    {
+        return $this->hasMany(\App\Models\HR\HrCommission::class, 'employee_id');
+    }
+
+    public function disciplinaryCases()
+    {
+        return $this->hasMany(\App\Models\HR\HrDisciplinaryCase::class, 'employee_id');
+    }
+
     public function auditLogs()
     {
         return HrAuditLog::where('subject_type', self::class)
