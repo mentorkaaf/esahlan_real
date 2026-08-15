@@ -3,7 +3,7 @@
 @section('heading', 'Add Contract — ' . $employee->full_name)
 @section('content')
 <div class="max-w-xl">
-    <form method="POST" action="{{ route('hr.contracts.store', $employee) }}" enctype="multipart/form-data" class="space-y-5">
+    <form method="POST" action="{{ route('hr.employees.contracts.store', $employee) }}" enctype="multipart/form-data" class="space-y-5">
         @csrf
         @if($errors->any())<div class="bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-lg">@foreach($errors->all() as $e)<p>{{ $e }}</p>@endforeach</div>@endif
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">

@@ -71,7 +71,7 @@
     <div class="bg-white rounded-xl shadow-sm border border-gray-100">
         <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
             <h3 class="font-semibold text-gray-800">Contracts</h3>
-            <a href="{{ route('hr.contracts.create', $employee) }}"
+            <a href="{{ route('hr.employees.contracts.create', $employee) }}"
                class="text-xs bg-[#F7941D] text-white px-3 py-1.5 rounded-lg hover:bg-[#E07800] transition-colors">+ Add</a>
         </div>
         <div class="divide-y divide-gray-50">
@@ -98,7 +98,7 @@
     <div class="bg-white rounded-xl shadow-sm border border-gray-100">
         <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
             <h3 class="font-semibold text-gray-800">Documents</h3>
-            <a href="{{ route('hr.documents.create', $employee) }}"
+            <a href="{{ route('hr.employees.documents.create', $employee) }}"
                class="text-xs bg-[#F7941D] text-white px-3 py-1.5 rounded-lg hover:bg-[#E07800] transition-colors">+ Upload</a>
         </div>
         <div class="divide-y divide-gray-50">
