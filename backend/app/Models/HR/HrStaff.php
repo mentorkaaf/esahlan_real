@@ -34,7 +34,7 @@ class HrStaff extends Authenticatable
     {
         return match($permission) {
             'payroll.approve', 'salary.edit', 'employee.terminate' => $this->isManager(),
-            'payroll.view', 'payroll.run'                          => $this->isPayroll(),
+            'payroll.view', 'payroll.run', 'generate_payroll'     => $this->isPayroll(),
             'recruitment.manage'                                   => $this->isRecruiter(),
             'employee.view', 'employee.edit'                       => true, // all roles
             default                                                => $this->isManager(),

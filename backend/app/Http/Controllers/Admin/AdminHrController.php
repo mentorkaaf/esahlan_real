@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\HR\HrAttendance;
+use App\Models\HR\HrAuditLog;
 use App\Models\HR\HrEmployee;
 use App\Models\HR\HrLeaveRequest;
+use App\Models\HR\HrPayrollRun;
 use Illuminate\Http\Request;
 
 class AdminHrController extends Controller
@@ -52,5 +54,29 @@ class AdminHrController extends Controller
             ->get();
 
         return view('admin.hr.leaves', compact('pending', 'recent'));
+    }
+
+    /** Payroll runs — read-only with approvals timeline */
+    public function payroll(Request $request)
+    {
+        $runs = HrPayrollRun::with(['generator', 'submitter', 'approver'])
+            ->orderByDesc('period')
+            ->get();
+
+        // Approvals timeline from audit log
+        $timeline = HrAuditLog::where('subject_type', HrPayrollRun::class)
+            ->orderByDesc('created_at')
+            ->limit(50)
+            ->get();
+
+        return view('admin.hr.payroll', compact('runs', 'timeline'));
+    }
+
+    /** Payslip drill-down — super admin sees amounts */
+    public function payslip(\App\Models\HR\HrPayslip $payslip)
+    {
+        $payslip->load(['employee.department', 'employee.position', 'items', 'run']);
+
+        return view('admin.hr.payslip', compact('payslip'));
     }
 }

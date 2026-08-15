@@ -10,6 +10,9 @@ use App\Http\Controllers\HR\HrDocumentController;
 use App\Http\Controllers\HR\HrAttendanceController;
 use App\Http\Controllers\HR\HrLeaveController;
 use App\Http\Controllers\HR\HrAuditController;
+use App\Http\Controllers\HR\HrPayrollController;
+use App\Http\Controllers\HR\HrComponentController;
+use App\Http\Controllers\HR\HrCommissionController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -71,6 +74,44 @@ Route::middleware('auth.hr')->group(function () {
         Route::post('{attendance}/correct', [HrAttendanceController::class, 'correct'])
              ->name('correct')
              ->middleware('hr.role:hr_manager');
+    });
+
+    // ── Payroll ───────────────────────────────────────────────────────────
+    Route::prefix('payroll')->name('payroll.')->group(function () {
+        Route::get('/',                 [HrPayrollController::class, 'index'])->name('index');
+        Route::post('generate',         [HrPayrollController::class, 'generate'])->name('generate');
+        Route::get('{payroll}',         [HrPayrollController::class, 'show'])->name('show');
+        Route::post('{payroll}/submit', [HrPayrollController::class, 'submit'])->name('submit');
+        Route::post('{payroll}/approve',[HrPayrollController::class, 'approve'])->name('approve')
+             ->middleware('hr.role:hr_manager');
+        Route::post('{payroll}/reject', [HrPayrollController::class, 'reject'])->name('reject')
+             ->middleware('hr.role:hr_manager');
+        Route::delete('{payroll}',      [HrPayrollController::class, 'destroy'])->name('destroy')
+             ->middleware('hr.role:hr_manager');
+        Route::post('{payroll}/bulk-paid', [HrPayrollController::class, 'bulkMarkPaid'])->name('bulk_paid')
+             ->middleware('hr.role:hr_manager');
+
+        // Payslip
+        Route::get('payslip/{payslip}',      [HrPayrollController::class, 'payslip'])->name('payslip');
+        Route::get('payslip/{payslip}/pdf',  [HrPayrollController::class, 'payslipPdf'])->name('payslip.pdf');
+        Route::post('payslip/{payslip}/paid',[HrPayrollController::class, 'markPaid'])->name('payslip.paid')
+             ->middleware('hr.role:hr_manager');
+    });
+
+    // ── Salary Components (manager only) ──────────────────────────────────
+    Route::resource('components', HrComponentController::class)
+         ->middleware('hr.role:hr_manager');
+
+    // ── Commissions ───────────────────────────────────────────────────────
+    Route::prefix('commissions')->name('commissions.')->group(function () {
+        Route::get('/',                      [HrCommissionController::class, 'index'])->name('index');
+        Route::get('create',                 [HrCommissionController::class, 'create'])->name('create');
+        Route::post('/',                     [HrCommissionController::class, 'store'])->name('store');
+        Route::post('{commission}/approve',  [HrCommissionController::class, 'approve'])->name('approve')
+             ->middleware('hr.role:hr_manager');
+        Route::post('{commission}/reject',   [HrCommissionController::class, 'reject'])->name('reject')
+             ->middleware('hr.role:hr_manager');
+        Route::delete('{commission}',        [HrCommissionController::class, 'destroy'])->name('destroy');
     });
 
     // ── Leave ─────────────────────────────────────────────────────────────
