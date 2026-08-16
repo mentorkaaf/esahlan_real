@@ -57,6 +57,17 @@ Route::middleware('auth.hr')->group(function () {
          ->name('employees.terminate')
          ->middleware('hr.role:hr_manager');
 
+    // Employee Portal Credential Management (Phase 2)
+    Route::post('employees/{employee}/portal-credentials', [HrEmployeeController::class, 'setPortalCredentials'])
+         ->name('employees.portal.credentials')
+         ->middleware('hr.role:hr_manager');
+    Route::post('employees/{employee}/portal-pin-generate', [HrEmployeeController::class, 'generatePin'])
+         ->name('employees.portal.pin.generate')
+         ->middleware('hr.role:hr_manager');
+    Route::post('employees/{employee}/portal-revoke', [HrEmployeeController::class, 'revokePortalAccess'])
+         ->name('employees.portal.revoke')
+         ->middleware('hr.role:hr_manager');
+
     // Departments (manager only)
     Route::resource('departments', HrDepartmentController::class)
          ->middleware('hr.role:hr_manager');

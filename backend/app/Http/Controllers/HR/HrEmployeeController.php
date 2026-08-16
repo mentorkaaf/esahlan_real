@@ -196,6 +196,73 @@ class HrEmployeeController extends Controller
             ->with('success', 'Employee has been terminated. All module access revoked.');
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // Employee Portal Credential Management (Phase 2)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /** Set / reset employee portal password or PIN. */
+    public function setPortalCredentials(Request $request, HrEmployee $employee)
+    {
+        $this->authorize_manager();
+
+        $data = $request->validate([
+            'credential_type' => 'required|in:password,pin,both',
+            'password'        => 'nullable|string|min:6|required_if:credential_type,password,both',
+            'pin'             => 'nullable|digits_between:4,6|required_if:credential_type,pin,both',
+        ]);
+
+        $update = [];
+
+        if (in_array($data['credential_type'], ['password', 'both']) && $request->filled('password')) {
+            $update['password'] = bcrypt($request->password);
+        }
+        if (in_array($data['credential_type'], ['pin', 'both']) && $request->filled('pin')) {
+            $update['pin'] = $request->pin;
+        }
+
+        if (empty($update)) {
+            return back()->withErrors(['credential_type' => 'Wax geli.']);
+        }
+
+        $employee->update($update);
+
+        AuditService::log('employee.portal_credentials_set', $employee, null, [
+            'types_set' => array_keys($update),
+            'set_by'    => Auth::guard('hr')->user()?->full_name,
+        ]);
+
+        return back()->with('success', "Portal credentials for {$employee->full_name} updated successfully.");
+    }
+
+    /** Generate a random 6-digit PIN and show it once to HR. */
+    public function generatePin(HrEmployee $employee)
+    {
+        $this->authorize_manager();
+
+        $pin = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $employee->update(['pin' => $pin]);
+
+        AuditService::log('employee.portal_pin_generated', $employee, null, [
+            'generated_by' => Auth::guard('hr')->user()?->full_name,
+        ]);
+
+        return back()->with('generated_pin', $pin)->with('pin_employee', $employee->full_name);
+    }
+
+    /** Toggle portal access (clear password + pin to lock, or signal access). */
+    public function revokePortalAccess(HrEmployee $employee)
+    {
+        $this->authorize_manager();
+
+        $employee->update(['password' => null, 'pin' => null]);
+
+        AuditService::log('employee.portal_access_revoked', $employee, null, [
+            'revoked_by' => Auth::guard('hr')->user()?->full_name,
+        ]);
+
+        return back()->with('success', "{$employee->full_name} portal access revoked (credentials cleared).");
+    }
+
     // ──────────────────────────────────────────────────────────────
     private function validateEmployee(Request $request, ?int $ignoreId = null): array
     {

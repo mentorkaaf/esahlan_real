@@ -735,6 +735,183 @@ $controls = [
     </div>
 </div>
 
+{{-- ══════════════════════════════════════════════════════════════════════════
+     EMPLOYEE PORTAL ACCESS (Phase 2)
+     ══════════════════════════════════════════════════════════════════════════ --}}
+@if(Auth::guard('hr')->user()->isManager())
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mt-6">
+    <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center">
+                <i class="fas fa-id-badge text-indigo-600 text-sm"></i>
+            </div>
+            <div>
+                <h3 class="text-sm font-semibold text-gray-800">Employee Portal Access</h3>
+                <p class="text-xs text-gray-400 mt-0.5">{{ route('employee.login') }}</p>
+            </div>
+        </div>
+        {{-- Portal status indicator --}}
+        @php $hasAccess = $employee->password || $employee->pin; @endphp
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold
+            {{ $hasAccess ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500' }}">
+            <span class="w-1.5 h-1.5 rounded-full {{ $hasAccess ? 'bg-green-500' : 'bg-gray-400' }}"></span>
+            {{ $hasAccess ? 'Active' : 'No credentials set' }}
+        </span>
+    </div>
+
+    {{-- Generated PIN flash (shown once) --}}
+    @if(session('generated_pin') && session('pin_employee') === $employee->full_name)
+    <div class="mx-6 mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
+        <i class="fas fa-key text-amber-500 mt-0.5"></i>
+        <div>
+            <div class="text-sm font-semibold text-amber-800">PIN Generated — Muuji Hal Jeer Oo Keliya</div>
+            <div class="text-2xl font-black text-amber-700 tracking-widest mt-1 font-mono">
+                {{ session('generated_pin') }}
+            </div>
+            <div class="text-xs text-amber-600 mt-1">
+                Shaqaalaha u dir PIN-kan. Page-ka mar dambe la cusbooneysiiso ma muuqanayso.
+            </div>
+        </div>
+    </div>
+    @endif
+
+    <div class="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        {{-- LEFT: Status + Login Info --}}
+        <div class="space-y-4">
+            <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Xaalad Gelitaanka</h4>
+
+            <div class="space-y-3 text-sm">
+                <div class="flex items-center justify-between py-2 border-b border-gray-50">
+                    <span class="text-gray-500">Login Methods</span>
+                    <div class="flex gap-1.5">
+                        <span class="badge {{ $employee->password ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400' }} px-2 py-0.5 rounded text-xs font-medium">
+                            Password {{ $employee->password ? '✓' : '✗' }}
+                        </span>
+                        <span class="badge {{ $employee->pin ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-400' }} px-2 py-0.5 rounded text-xs font-medium">
+                            PIN {{ $employee->pin ? '✓' : '✗' }}
+                        </span>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between py-2 border-b border-gray-50">
+                    <span class="text-gray-500">Telefon / Employee No</span>
+                    <span class="font-medium text-gray-700 font-mono text-xs">
+                        {{ $employee->phone }} / {{ $employee->employee_no }}
+                    </span>
+                </div>
+                <div class="flex items-center justify-between py-2 border-b border-gray-50">
+                    <span class="text-gray-500">Gelitaankii u dambeeyay</span>
+                    <span class="text-gray-700 text-xs">
+                        {{ $employee->login_at ? $employee->login_at->format('d M Y H:i') : '—' }}
+                    </span>
+                </div>
+                <div class="flex items-center justify-between py-2 border-b border-gray-50">
+                    <span class="text-gray-500">IP Address</span>
+                    <span class="text-gray-700 font-mono text-xs">{{ $employee->last_login_ip ?? '—' }}</span>
+                </div>
+                <div class="flex items-center justify-between py-2">
+                    <span class="text-gray-500">Portal URL</span>
+                    <a href="{{ route('employee.login') }}" target="_blank"
+                       class="text-[#F7941D] text-xs hover:underline font-mono">
+                        /employee/login <i class="fas fa-external-link-alt text-xs"></i>
+                    </a>
+                </div>
+            </div>
+
+            {{-- Revoke access --}}
+            @if($hasAccess)
+            <form action="{{ route('hr.employees.portal.revoke', $employee) }}" method="POST"
+                  onsubmit="return confirm('Credentials-ka delete gareeysaa. Employee ma gali karo portal-ka. Xaqiiji?')">
+                @csrf
+                <button type="submit"
+                    class="w-full text-xs text-red-600 border border-red-200 rounded-lg py-2 px-3 hover:bg-red-50 transition-colors font-semibold">
+                    <i class="fas fa-ban mr-1"></i> Revoke Portal Access (Delete Credentials)
+                </button>
+            </form>
+            @endif
+        </div>
+
+        {{-- RIGHT: Set Credentials form --}}
+        <div>
+            <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">
+                {{ $hasAccess ? 'Beddel / Reset' : 'Credentials Dhig' }}
+            </h4>
+
+            <form action="{{ route('hr.employees.portal.credentials', $employee) }}" method="POST"
+                  class="space-y-4" x-data="{ type: 'pin' }">
+                @csrf
+
+                {{-- Type selector --}}
+                <div class="grid grid-cols-3 gap-2">
+                    @foreach(['pin' => 'PIN Only', 'password' => 'Password Only', 'both' => 'Both'] as $val => $label)
+                    <label class="flex items-center justify-center gap-1.5 p-2.5 rounded-lg border-2 cursor-pointer text-xs font-semibold transition-all"
+                        :class="type === '{{ $val }}'
+                            ? 'border-[#F7941D] bg-orange-50 text-[#F7941D]'
+                            : 'border-gray-200 text-gray-500 hover:border-gray-300'">
+                        <input type="radio" name="credential_type" value="{{ $val }}"
+                            x-model="type" class="sr-only">
+                        {{ $label }}
+                    </label>
+                    @endforeach
+                </div>
+
+                {{-- PIN field --}}
+                <div x-show="type === 'pin' || type === 'both'">
+                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                        PIN (4–6 digits)
+                    </label>
+                    <div class="relative">
+                        <i class="fas fa-key absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                        <input type="text" name="pin" maxlength="6"
+                            placeholder="e.g. 1234  or  123456"
+                            class="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-lg font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-[#F7941D] focus:border-transparent">
+                    </div>
+                </div>
+
+                {{-- Password field --}}
+                <div x-show="type === 'password' || type === 'both'">
+                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                        Password (ugu yaraan 6 xaraf)
+                    </label>
+                    <div class="relative">
+                        <i class="fas fa-lock absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                        <input type="text" name="password" minlength="6"
+                            placeholder="New password..."
+                            class="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F7941D] focus:border-transparent">
+                    </div>
+                </div>
+
+                @error('pin')      <p class="text-xs text-red-500">{{ $message }}</p> @enderror
+                @error('password') <p class="text-xs text-red-500">{{ $message }}</p> @enderror
+
+                <div class="flex gap-2">
+                    <button type="submit"
+                        class="flex-1 bg-[#F7941D] text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-orange-600 transition-colors flex items-center justify-center gap-2">
+                        <i class="fas fa-save text-xs"></i>
+                        Keydi Credentials
+                    </button>
+
+                    {{-- Generate random PIN --}}
+                    <form action="{{ route('hr.employees.portal.pin.generate', $employee) }}" method="POST">
+                        @csrf
+                        <button type="submit"
+                            class="px-4 py-2.5 border-2 border-[#F7941D] text-[#F7941D] rounded-lg text-sm font-semibold hover:bg-orange-50 transition-colors"
+                            title="Auto-generate 6-digit PIN">
+                            <i class="fas fa-dice"></i>
+                        </button>
+                    </form>
+                </div>
+
+                <p class="text-xs text-gray-400">
+                    <i class="fas fa-info-circle mr-0.5"></i>
+                    Employee waxay ku gali karaan telefonkooda, email-kooda, ama employee number-kooda + PIN/password-ka aad dhigtay.
+                </p>
+            </form>
+        </div>
+    </div>
+</div>
+@endif
+
 </div>{{-- end max-w-5xl --}}
 
 {{-- ── Terminate modal ─────────────────────────────────────────────────────── --}}
