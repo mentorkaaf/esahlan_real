@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\HR\HrEmployee;
 use App\Models\HR\WorkforceAssignment;
 use App\Models\Module;
+use App\Models\ModuleRole;
 use App\Services\HR\WorkforceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class HrWorkforceController extends Controller
 {
@@ -50,7 +52,41 @@ class HrWorkforceController extends Controller
     }
 
     /**
-     * Show assign form.
+     * Show the 10-step assignment wizard.
+     */
+    public function wizard(Request $request)
+    {
+        $employees = HrEmployee::whereIn('status', ['active', 'probation'])
+            ->with('department', 'position')
+            ->orderBy('first_name')
+            ->get();
+
+        $modules = Module::where('is_active', true)->orderBy('sort_order')->get();
+
+        $selectedEmployee = $request->employee_id
+            ? HrEmployee::with('department', 'position')->find($request->employee_id)
+            : null;
+
+        $selectedModule = $request->module_id
+            ? Module::find($request->module_id)
+            : null;
+
+        $assignmentTypes = WorkforceAssignment::assignmentTypes();
+        $accessLevels    = WorkforceAssignment::accessLevels();
+
+        // Employees eligible to be reporting managers (active employees)
+        $managers = HrEmployee::whereIn('status', ['active'])
+            ->orderBy('first_name')
+            ->get();
+
+        return view('hr.workforce.wizard', compact(
+            'employees', 'modules', 'selectedEmployee', 'selectedModule',
+            'assignmentTypes', 'accessLevels', 'managers'
+        ));
+    }
+
+    /**
+     * Show assign form (legacy — kept for backwards compat).
      */
     public function create(Request $request)
     {
@@ -89,20 +125,30 @@ class HrWorkforceController extends Controller
             'module_position_id'   => ['nullable', 'exists:module_positions,id'],
             'module_role_id'       => ['nullable', 'exists:module_roles,id'],
             'role_in_module'       => ['nullable', 'string', 'max:60'],
-            'notes'                => ['nullable', 'string', 'max:500'],
+            'assignment_type'      => ['nullable', 'in:primary,secondary,temporary,acting,project_based'],
+            'access_level'         => ['nullable', 'in:read_only,standard,elevated,admin'],
+            'start_date'           => ['nullable', 'date'],
+            'planned_end_date'     => ['nullable', 'date', 'after_or_equal:start_date'],
+            'reporting_manager_id' => ['nullable', 'exists:hr_employees,id', 'different:employee_id'],
+            'notes'                => ['nullable', 'string', 'max:1000'],
         ]);
 
         $employee = HrEmployee::findOrFail($data['employee_id']);
         $module   = Module::findOrFail($data['module_id']);
 
         $result = WorkforceService::assign(
-            $employee,
-            $module,
-            $data['role_in_module'] ?? 'staff',
-            $data['notes'] ?? null,
-            !empty($data['module_department_id']) ? (int) $data['module_department_id'] : null,
-            !empty($data['module_position_id'])   ? (int) $data['module_position_id']   : null,
-            !empty($data['module_role_id'])        ? (int) $data['module_role_id']        : null,
+            employee:            $employee,
+            module:              $module,
+            roleInModule:        $data['role_in_module'] ?? 'staff',
+            notes:               $data['notes'] ?? null,
+            moduleDepartmentId:  !empty($data['module_department_id']) ? (int) $data['module_department_id'] : null,
+            modulePositionId:    !empty($data['module_position_id'])   ? (int) $data['module_position_id']   : null,
+            moduleRoleId:        !empty($data['module_role_id'])        ? (int) $data['module_role_id']        : null,
+            assignmentType:      $data['assignment_type']      ?? 'primary',
+            accessLevel:         $data['access_level']          ?? 'standard',
+            startDate:           $data['start_date']            ?? null,
+            plannedEndDate:      $data['planned_end_date']      ?? null,
+            reportingManagerId:  !empty($data['reporting_manager_id']) ? (int) $data['reporting_manager_id'] : null,
         );
 
         if ($result['error']) {

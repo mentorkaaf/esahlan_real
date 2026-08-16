@@ -219,6 +219,9 @@ Route::middleware('auth.hr')->group(function () {
     Route::prefix('workforce')->name('workforce.')->middleware('hr.role:hr_manager,hr_officer')->group(function () {
         Route::get('/',                              [HrWorkforceController::class, 'index'])->name('index');
         Route::get('/module/{module}',               [HrWorkforceController::class, 'module'])->name('module');
+        // Phase 6 wizard
+        Route::get('/wizard',                        [HrWorkforceController::class, 'wizard'])->name('wizard');
+        // Legacy simple form
         Route::get('/assign',                        [HrWorkforceController::class, 'create'])->name('create');
         Route::post('/assign',                       [HrWorkforceController::class, 'store'])->name('store');
         Route::get('/employee/{employee}',           [HrWorkforceController::class, 'employee'])->name('employee');
@@ -228,6 +231,16 @@ Route::middleware('auth.hr')->group(function () {
         Route::post('/{assignment}/reactivate',      [HrWorkforceController::class, 'reactivate'])->name('reactivate')
              ->middleware('hr.role:hr_manager');
     });
+
+    // JSON: permissions slugs for a given module role (permission preview in wizard step 5)
+    Route::get('module-roles/{moduleRole}/permissions-preview', function (\App\Models\ModuleRole $moduleRole) {
+        $slugs = \Illuminate\Support\Facades\DB::table('module_role_permissions')
+            ->join('permissions', 'permissions.id', '=', 'module_role_permissions.permission_id')
+            ->where('module_role_permissions.module_role_id', $moduleRole->id)
+            ->pluck('permissions.slug')
+            ->all();
+        return response()->json($slugs);
+    })->name('module-roles.permissions-preview')->middleware('hr.role:hr_manager,hr_officer');
 
     // ── Module Roles & Permissions ────────────────────────────────────────
     Route::prefix('module-roles')->name('module-roles.')->middleware('hr.role:hr_manager,hr_officer')->group(function () {

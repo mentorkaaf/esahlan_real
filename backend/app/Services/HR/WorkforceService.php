@@ -26,6 +26,11 @@ class WorkforceService
         ?int $moduleDepartmentId = null,
         ?int $modulePositionId = null,
         ?int $moduleRoleId = null,
+        string $assignmentType = 'primary',
+        string $accessLevel = 'standard',
+        ?string $startDate = null,
+        ?string $plannedEndDate = null,
+        ?int $reportingManagerId = null,
     ): array {
         // Employee must be hirable
         if (!in_array($employee->status, ['active', 'probation'])) {
@@ -46,11 +51,30 @@ class WorkforceService
         if ($existing) {
             return [
                 'assignment' => null,
-                'error'      => "{$employee->full_name} is already assigned to {$module->name}.",
+                'error'      => "{$employee->full_name} is already actively assigned to {$module->name}.",
             ];
         }
 
-        return DB::transaction(function () use ($employee, $module, $roleInModule, $notes, $moduleDepartmentId, $modulePositionId, $moduleRoleId) {
+        // Guard: only one PRIMARY assignment allowed globally per employee
+        if ($assignmentType === 'primary') {
+            $primaryExists = WorkforceAssignment::where('employee_id', $employee->id)
+                ->where('status', 'active')
+                ->where('assignment_type', 'primary')
+                ->exists();
+
+            if ($primaryExists) {
+                return [
+                    'assignment' => null,
+                    'error'      => "{$employee->full_name} already has a primary assignment. Use Secondary, Temporary, Acting, or Project Based instead.",
+                ];
+            }
+        }
+
+        return DB::transaction(function () use (
+            $employee, $module, $roleInModule, $notes,
+            $moduleDepartmentId, $modulePositionId, $moduleRoleId,
+            $assignmentType, $accessLevel, $startDate, $plannedEndDate, $reportingManagerId
+        ) {
             $assignment = WorkforceAssignment::create([
                 'employee_id'          => $employee->id,
                 'module_id'            => $module->id,
@@ -58,6 +82,11 @@ class WorkforceService
                 'module_position_id'   => $modulePositionId,
                 'module_role_id'       => $moduleRoleId,
                 'role_in_module'       => $roleInModule ?: null,
+                'assignment_type'      => $assignmentType,
+                'access_level'         => $accessLevel,
+                'start_date'           => $startDate,
+                'planned_end_date'     => $plannedEndDate,
+                'reporting_manager_id' => $reportingManagerId,
                 'status'               => 'active',
                 'assigned_at'          => now(),
                 'assigned_by'          => Auth::guard('hr')->id(),
@@ -199,9 +228,12 @@ class WorkforceService
      */
     public static function listByModule(int $moduleId)
     {
-        return WorkforceAssignment::with(['employee.department', 'employee.position'])
+        return WorkforceAssignment::with([
+                'employee.department', 'employee.position',
+                'moduleDepartment', 'modulePosition', 'moduleRole', 'reportingManager',
+            ])
             ->where('module_id', $moduleId)
-            ->orderBy('status') // active first
+            ->orderByRaw("FIELD(status, 'active', 'suspended', 'ended')")
             ->orderBy('assigned_at')
             ->get();
     }

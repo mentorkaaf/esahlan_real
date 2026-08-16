@@ -19,6 +19,11 @@ class WorkforceAssignment extends Model
         'module_position_id',
         'module_role_id',
         'role_in_module',
+        'assignment_type',
+        'access_level',
+        'start_date',
+        'planned_end_date',
+        'reporting_manager_id',
         'status',
         'assigned_at',
         'assigned_by',
@@ -27,8 +32,10 @@ class WorkforceAssignment extends Model
     ];
 
     protected $casts = [
-        'assigned_at' => 'datetime',
-        'ended_at'    => 'datetime',
+        'assigned_at'      => 'datetime',
+        'ended_at'         => 'datetime',
+        'start_date'       => 'date',
+        'planned_end_date' => 'date',
     ];
 
     // ── Relations ────────────────────────────────────────────────────────────
@@ -59,6 +66,12 @@ class WorkforceAssignment extends Model
         return $this->belongsTo(\App\Models\ModuleRole::class, 'module_role_id');
     }
 
+    /** The employee this person reports to within this module assignment. */
+    public function reportingManager()
+    {
+        return $this->belongsTo(HrEmployee::class, 'reporting_manager_id');
+    }
+
     /** HR staff member who created the assignment */
     public function assignedBy()
     {
@@ -84,6 +97,11 @@ class WorkforceAssignment extends Model
         return $this->status === 'active';
     }
 
+    public function isExpired(): bool
+    {
+        return $this->planned_end_date && $this->planned_end_date->isPast() && $this->status === 'active';
+    }
+
     public function getStatusColorAttribute(): string
     {
         return match ($this->status) {
@@ -92,5 +110,72 @@ class WorkforceAssignment extends Model
             'ended'     => 'gray',
             default     => 'gray',
         };
+    }
+
+    public function getAssignmentTypeLabelAttribute(): string
+    {
+        return match ($this->assignment_type) {
+            'primary'       => 'Primary',
+            'secondary'     => 'Secondary',
+            'temporary'     => 'Temporary',
+            'acting'        => 'Acting',
+            'project_based' => 'Project',
+            default         => ucfirst($this->assignment_type ?? 'primary'),
+        };
+    }
+
+    public function getAssignmentTypeColorAttribute(): string
+    {
+        return match ($this->assignment_type) {
+            'primary'       => 'indigo',
+            'secondary'     => 'blue',
+            'temporary'     => 'orange',
+            'acting'        => 'purple',
+            'project_based' => 'teal',
+            default         => 'gray',
+        };
+    }
+
+    public function getAccessLevelLabelAttribute(): string
+    {
+        return match ($this->access_level) {
+            'read_only' => 'Read Only',
+            'standard'  => 'Standard',
+            'elevated'  => 'Elevated',
+            'admin'     => 'Admin',
+            default     => ucfirst($this->access_level ?? 'standard'),
+        };
+    }
+
+    public function getAccessLevelColorAttribute(): string
+    {
+        return match ($this->access_level) {
+            'read_only' => 'gray',
+            'standard'  => 'blue',
+            'elevated'  => 'orange',
+            'admin'     => 'red',
+            default     => 'gray',
+        };
+    }
+
+    public static function assignmentTypes(): array
+    {
+        return [
+            'primary'       => 'Primary',
+            'secondary'     => 'Secondary',
+            'temporary'     => 'Temporary',
+            'acting'        => 'Acting',
+            'project_based' => 'Project Based',
+        ];
+    }
+
+    public static function accessLevels(): array
+    {
+        return [
+            'read_only' => 'Read Only',
+            'standard'  => 'Standard',
+            'elevated'  => 'Elevated',
+            'admin'     => 'Admin',
+        ];
     }
 }
