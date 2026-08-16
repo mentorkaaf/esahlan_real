@@ -13,6 +13,7 @@ $tabDefs = [
     'assignments' => ['icon'=>'fas fa-clipboard-list', 'label'=>'Assignments'],
     'org-chart'   => ['icon'=>'fas fa-sitemap',        'label'=>'Org Chart'],
     'reports'     => ['icon'=>'fas fa-chart-bar',      'label'=>'Reports'],
+    'performance' => ['icon'=>'fas fa-trophy',         'label'=>'Performance'],
 ];
 $mc = $module->color ?? '#1B1444';
 $typeColors = [
@@ -73,10 +74,12 @@ $typeColors = [
     <div class="bg-white border-t border-gray-100 flex overflow-x-auto">
         @foreach($tabDefs as $key => $tdef)
         @php
-        $route = 'hr.workforce.hub.' . $key;
         $active = $tab === $key;
+        $tabHref = $key === 'performance'
+            ? route('hr.performance.module', $module->slug)
+            : route('hr.workforce.hub.' . $key, $module->slug);
         @endphp
-        <a href="{{ route($route, $module->slug) }}"
+        <a href="{{ $tabHref }}"
            class="flex items-center gap-1.5 px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex-shrink-0
                   {{ $active
                      ? 'border-[#1B1444] text-[#1B1444]'
@@ -210,6 +213,7 @@ $typeColors = [
     @foreach([
         [route('hr.workforce.hub.org-chart',   $module->slug), 'fas fa-sitemap',        'View Org Chart',     'text-blue-500'],
         [route('hr.workforce.hub.reports',     $module->slug), 'fas fa-chart-bar',      'View Reports',       'text-green-500'],
+        [route('hr.performance.module',        $module->slug), 'fas fa-trophy',          'Performance',        'text-yellow-500'],
         [route('hr.module-departments.index'), 'fas fa-building',       'All Departments',    'text-orange-500'],
         [route('hr.module-roles.index'),       'fas fa-shield-alt',     'Module Roles',       'text-indigo-500'],
     ] as [$href,$ico,$lbl,$cls])

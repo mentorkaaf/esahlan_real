@@ -605,6 +605,48 @@ $controls = [
 @endif
 
 {{-- ══════════════════════════════════════════════════════════════════════════
+     MODULE PERFORMANCE WIDGET (Phase 10)
+     ══════════════════════════════════════════════════════════════════════════ --}}
+@php
+  $perfPeriod = now()->format('Y-m');
+  $moduleScores = \App\Models\HR\EmployeeModuleMetric::scoresByModule($employee->id, $perfPeriod);
+@endphp
+@if(count($moduleScores))
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+  <div class="flex items-center justify-between mb-4">
+    <h3 class="font-semibold text-gray-700 text-sm uppercase tracking-wider">
+      <i class="fas fa-trophy text-[#F7941D] mr-1"></i> Module Performance — {{ now()->format('F Y') }}
+    </h3>
+    <a href="{{ route('hr.performance.analytics') }}" class="text-xs text-[#F7941D] hover:underline">
+      Full Analytics →
+    </a>
+  </div>
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+    @php $modules = \App\Models\Module::whereIn('slug', array_keys($moduleScores))->get()->keyBy('slug'); @endphp
+    @foreach($moduleScores as $slug => $score)
+    @php
+      $mod = $modules->get($slug);
+      $color = $score >= 90 ? '#16a34a' : ($score >= 75 ? '#2563eb' : ($score >= 60 ? '#d97706' : '#dc2626'));
+      $grade = $score >= 95 ? 'A+' : ($score >= 90 ? 'A' : ($score >= 85 ? 'B+' : ($score >= 80 ? 'B' : ($score >= 75 ? 'C+' : ($score >= 70 ? 'C' : ($score >= 60 ? 'D' : 'F'))))));
+    @endphp
+    <a href="{{ route('hr.performance.employee', [$slug, $employee]) }}"
+      class="block p-3 rounded-lg border hover:shadow-md transition-shadow"
+      style="border-color:{{ $mod?->color ?? '#e5e7eb' }}30; background:{{ $mod?->color ?? '#e5e7eb' }}08">
+      <div class="text-xs text-gray-500 mb-1 truncate">{{ $mod?->name ?? Str::upper($slug) }}</div>
+      <div class="flex items-end gap-1">
+        <span class="text-xl font-black" style="color:{{ $color }}">{{ $score }}%</span>
+        <span class="text-xs font-bold pb-0.5" style="color:{{ $color }}">{{ $grade }}</span>
+      </div>
+      <div class="mt-1.5 h-1 bg-gray-100 rounded-full overflow-hidden">
+        <div class="h-1 rounded-full" style="width:{{ $score }}%; background:{{ $color }}"></div>
+      </div>
+    </a>
+    @endforeach
+  </div>
+</div>
+@endif
+
+{{-- ══════════════════════════════════════════════════════════════════════════
      PERSONAL & EMPLOYMENT DETAILS
      ══════════════════════════════════════════════════════════════════════════ --}}
 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">

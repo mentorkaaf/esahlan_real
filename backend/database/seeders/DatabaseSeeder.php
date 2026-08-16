@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
             ParcelTypeSeeder::class,
             MovingExtraServiceSeeder::class,
             ExchangeRateSeeder::class,
+            ModulePerformanceMetricSeeder::class,
         ]);
     }
 }

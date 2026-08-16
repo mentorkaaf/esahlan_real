@@ -26,6 +26,7 @@ use App\Http\Controllers\HR\HrModuleRoleController;
 use App\Http\Controllers\HR\HrWorkspaceController;
 use App\Http\Controllers\HR\HrWorkforceDashboardController;
 use App\Http\Controllers\HR\HrModuleWorkforceController;
+use App\Http\Controllers\HR\HrModulePerformanceController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -149,6 +150,15 @@ Route::middleware('auth.hr')->group(function () {
 
     // ── Performance ───────────────────────────────────────────────────────
     Route::prefix('performance')->name('performance.')->group(function () {
+
+        // Phase 10 — Module performance analytics
+        Route::get('/analytics',                           [HrModulePerformanceController::class, 'analytics'])->name('analytics');
+        Route::get('/module/{slug}',                       [HrModulePerformanceController::class, 'moduleView'])->name('module');
+        Route::get('/module/{slug}/employee/{employee}',   [HrModulePerformanceController::class, 'employeeView'])->name('employee');
+        Route::post('/module/{slug}/employee/{employee}',  [HrModulePerformanceController::class, 'record'])->name('record');
+        Route::get('/employee/{employee}/scores',          [HrModulePerformanceController::class, 'employeeScores'])->name('employee.scores');
+
+        // Existing HR performance cycles
         Route::get('/',                [HrPerformanceCycleController::class, 'index'])->name('index');
         Route::post('/',               [HrPerformanceCycleController::class, 'store'])->name('store');
         Route::patch('{cycle}',        [HrPerformanceCycleController::class, 'update'])->name('update');
