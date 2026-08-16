@@ -12,7 +12,7 @@ use App\Models\HR\HrAttendance;
 use App\Models\HR\HrCommission;
 use App\Models\HR\HrDocument;
 use App\Models\HR\HrGoal;
-use App\Models\HR\HrLeave;
+use App\Models\HR\HrLeaveRequest as HrLeave;
 use App\Models\HR\HrPayslip;
 use App\Models\HR\HrPerformanceCycle;
 use App\Models\HR\HrReview;

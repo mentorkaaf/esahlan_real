@@ -321,7 +321,7 @@
       <a href="{{ route('employee.leaves') }}"
          class="nav-link {{ request()->routeIs('employee.leaves*') ? 'active' : '' }}">
         <i class="fas fa-umbrella-beach"></i> Leave
-        @php $pending = \App\Models\HR\HrLeave::where('employee_id',$emp->id)->where('status','pending')->count(); @endphp
+        @php $pending = \App\Models\HR\HrLeaveRequest::where('employee_id',$emp->id)->where('status','pending')->count(); @endphp
         @if($pending > 0)
           <span style="margin-left:auto;background:#fee2e2;color:#991b1b;font-size:10px;font-weight:700;padding:1px 7px;border-radius:20px;">{{ $pending }}</span>
         @endif
