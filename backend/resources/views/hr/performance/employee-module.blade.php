@@ -26,7 +26,7 @@
         <div class="flex items-start justify-between">
           <div>
             <h1 class="text-xl font-bold text-gray-900">{{ $employee->full_name }}</h1>
-            <p class="text-sm text-gray-500 mt-0.5">{{ $employee->employee_id }} · {{ $employee->position ?? 'N/A' }}</p>
+            <p class="text-sm text-gray-500 mt-0.5">{{ $employee->employee_no }} · {{ $employee->position ?? 'N/A' }}</p>
           </div>
           <a href="{{ route('hr.employees.show', $employee) }}"
             class="text-sm text-gray-400 hover:text-[#F7941D] border border-gray-200 rounded-lg px-3 py-1.5">

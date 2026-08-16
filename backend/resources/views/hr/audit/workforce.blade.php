@@ -44,7 +44,7 @@
           <option value="">All employees</option>
           @foreach($employees as $emp)
           <option value="{{ $emp->id }}" {{ request('employee_id') == $emp->id ? 'selected' : '' }}>
-            {{ $emp->full_name }} ({{ $emp->employee_id }})
+            {{ $emp->full_name }} ({{ $emp->employee_no }})
           </option>
           @endforeach
         </select>
@@ -149,7 +149,7 @@
                   class="hover:text-[#F7941D] font-medium">
                   {{ $log->employee->full_name }}
                 </a>
-                <span class="text-gray-300 ml-1">{{ $log->employee->employee_id }}</span>
+                <span class="text-gray-300 ml-1">{{ $log->employee->employee_no }}</span>
               </span>
               @endif
               @if($log->module)

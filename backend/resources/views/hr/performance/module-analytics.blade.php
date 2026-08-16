@@ -110,7 +110,7 @@
                 <div>
                   <a href="{{ route('hr.employees.show', $emp) }}"
                     class="font-medium text-gray-800 hover:text-[#F7941D]">{{ $emp->full_name }}</a>
-                  <div class="text-xs text-gray-400">{{ $emp->employee_id }}</div>
+                  <div class="text-xs text-gray-400">{{ $emp->employee_no }}</div>
                 </div>
               </div>
             </td>

@@ -59,7 +59,7 @@ class HrWorkforceAuditController extends Controller
         $logs = $query->paginate(50)->withQueryString();
 
         // Sidebar filter data
-        $employees = HrEmployee::orderBy('first_name')->get(['id', 'first_name', 'last_name', 'employee_id']);
+        $employees = HrEmployee::orderBy('first_name')->get(['id', 'first_name', 'last_name', 'employee_no']);
         $modules   = Module::orderBy('sort_order')->get(['id', 'name', 'slug']);
         $actions   = HrAuditLog::where('category', 'workforce')
             ->distinct('action')->pluck('action')->sort()->values();

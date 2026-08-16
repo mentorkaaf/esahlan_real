@@ -115,7 +115,7 @@
               </div>
               <div>
                 <div class="font-medium text-gray-800">{{ $emp->full_name }}</div>
-                <div class="text-xs text-gray-400">{{ $emp->employee_id }}</div>
+                <div class="text-xs text-gray-400">{{ $emp->employee_no }}</div>
               </div>
             </div>
           </td>
