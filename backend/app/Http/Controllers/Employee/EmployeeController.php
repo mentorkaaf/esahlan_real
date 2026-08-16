@@ -64,14 +64,19 @@ class EmployeeController extends Controller
             ->where('status', 'pending')
             ->count();
 
-        // Recent announcements (from hr_announcements if exists)
-        $announcements = [];
-        if (class_exists(\App\Models\HR\HrAnnouncement::class)) {
-            $announcements = \App\Models\HR\HrAnnouncement::where('is_active', true)
-                ->latest()
-                ->limit(3)
-                ->get();
-        }
+        // Recent published announcements for this employee's dept or all
+        $announcements = HrAnnouncement::where(fn($q) =>
+                $q->where('audience', 'all')
+                  ->orWhere(fn($q2) =>
+                      $q2->where('audience', 'department')
+                         ->where('department_id', $employee->department_id)
+                  )
+            )
+            ->whereNotNull('published_at')
+            ->where('published_at', '<=', now())
+            ->latest('published_at')
+            ->limit(3)
+            ->get();
 
         return view('employee.dashboard', compact(
             'employee', 'activeAssignments', 'primaryAssignment',
