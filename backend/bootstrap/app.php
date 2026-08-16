@@ -38,6 +38,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'hr.role'          => \App\Http\Middleware\HrRole::class,
             'module.permission'=> \App\Http\Middleware\CheckModulePermission::class,
             'module.access'    => \App\Http\Middleware\CheckModuleAccess::class,
+            'auth.employee'    => \App\Http\Middleware\AuthenticateEmployee::class,
         ]);
 
         // Sanitize text input on every API request (strip null bytes + control chars)
@@ -70,6 +71,10 @@ return Application::configure(basePath: dirname(__DIR__))
             // HR routes → redirect to HR login
             if ($request->is('hr/*') || $request->is('hr')) {
                 return redirect()->route('hr.login');
+            }
+            // Employee portal → redirect to employee login
+            if ($request->is('employee/*') || $request->is('employee')) {
+                return redirect()->route('employee.login');
             }
         });
 

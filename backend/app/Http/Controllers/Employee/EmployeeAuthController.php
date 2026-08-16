@@ -3,15 +3,16 @@
 namespace App\Http\Controllers\Employee;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
+use App\Models\HR\HrEmployee;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 
 class EmployeeAuthController extends Controller
 {
     public function showLogin()
     {
-        if (Auth::check() && Auth::user()->isEmployee()) {
+        if (Auth::guard('employee')->check()) {
             return redirect()->route('employee.dashboard');
         }
         return view('employee.auth.login');
@@ -20,51 +21,54 @@ class EmployeeAuthController extends Controller
     public function login(Request $request)
     {
         $request->validate([
-            'login'    => 'required|string',   // phone OR email
-            'password' => 'required|string',   // PIN OR password
+            'login'    => 'required|string',
+            'password' => 'required|string',
         ]);
 
         $login = trim($request->input('login'));
-        $field = filter_var($login, FILTER_VALIDATE_EMAIL) ? 'email' : 'phone';
 
-        // Resolve phone typed with/without +252 or a leading 0 to the stored value.
-        if ($field === 'phone') {
-            $digits     = preg_replace('/\D/', '', $login);
-            $candidates = array_values(array_unique(array_filter([
-                $login,
-                '+' . $digits,
-                $digits,
-                ltrim($digits, '0'),
-                '+252' . ltrim($digits, '0'),
-                '+252' . preg_replace('/^252/', '', $digits),
-            ])));
-            $match = User::whereIn('phone', $candidates)->first();
-            if ($match) {
-                $login = $match->phone;
-            }
+        // Find employee by phone, email, or employee_no
+        $employee = HrEmployee::where('phone', $login)
+            ->orWhere('email', $login)
+            ->orWhere('employee_no', $login)
+            ->first();
+
+        if (! $employee) {
+            return back()->withErrors(['login' => 'Macluumaadku saxna maahan.'])->withInput();
         }
 
-        if (!Auth::attempt([$field => $login, 'password' => $request->password], $request->boolean('remember'))) {
-            return back()->withErrors(['login' => 'Invalid credentials.'])->withInput();
+        // Check terminated / resigned before even verifying password
+        if (in_array($employee->status, ['terminated', 'resigned'])) {
+            return back()->withErrors(['login' => 'Akoon-kaagu xidnaa. Xiriir HR.']);
         }
 
-        $user = Auth::user();
+        $password = $request->input('password');
 
-        // Must be an employee with at least one assigned module.
-        if (!$user->isEmployee() || !$user->managedModules()->exists()) {
-            Auth::logout();
-            return back()->withErrors([
-                'login' => 'This account is not an employee, or no module has been assigned to you yet.',
-            ]);
+        // Try password first, then PIN fallback
+        $valid = ($employee->password && Hash::check($password, $employee->password))
+               || ($employee->pin && $password === $employee->pin);
+
+        if (! $valid) {
+            return back()->withErrors(['login' => 'Macluumaadku saxna maahan.'])->withInput();
         }
+
+        // Login via employee guard
+        Auth::guard('employee')->login($employee, $request->boolean('remember'));
+
+        // Track login time + IP
+        $employee->update([
+            'login_at'       => now(),
+            'last_login_ip'  => $request->ip(),
+        ]);
 
         $request->session()->regenerate();
-        return redirect()->route('employee.dashboard');
+
+        return redirect()->intended(route('employee.dashboard'));
     }
 
     public function logout(Request $request)
     {
-        Auth::logout();
+        Auth::guard('employee')->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
         return redirect()->route('employee.login');

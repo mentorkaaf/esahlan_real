@@ -22,6 +22,11 @@ return [
             'driver'   => 'session',
             'provider' => 'hr_staff',
         ],
+        // Employee Self-Service Portal — authenticated against hr_employees table
+        'employee' => [
+            'driver'   => 'session',
+            'provider' => 'hr_employees',
+        ],
     ],
 
     'providers' => [
@@ -36,6 +41,10 @@ return [
         'hr_staff' => [
             'driver' => 'eloquent',
             'model'  => App\Models\HR\HrStaff::class,
+        ],
+        'hr_employees' => [
+            'driver' => 'eloquent',
+            'model'  => App\Models\HR\HrEmployee::class,
         ],
     ],
 

@@ -6,12 +6,13 @@ use App\Models\User;
 use App\Traits\HR\HrAuditable;
 // WorkforceAssignment used in type hints below (same namespace)
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
 
-class HrEmployee extends Model
+class HrEmployee extends Authenticatable
 {
-    use HasFactory, SoftDeletes, HrAuditable;
+    use HasFactory, SoftDeletes, HrAuditable, Notifiable;
 
     protected $table = 'hr_employees';
 
@@ -25,7 +26,10 @@ class HrEmployee extends Model
         'employment_type', 'status', 'hire_date', 'probation_end',
         'base_salary', 'bank_account', 'mobile_money_number', 'emergency_contact',
         'active_workspace_id', 'workspace_switched_at',
+        'password', 'pin', 'login_at', 'last_login_ip',
     ];
+
+    protected $hidden = ['password', 'pin', 'remember_token'];
 
     protected $casts = [
         'dob'                    => 'date',
@@ -34,6 +38,7 @@ class HrEmployee extends Model
         'base_salary'            => 'decimal:2',
         'emergency_contact'      => 'array',
         'workspace_switched_at'  => 'datetime',
+        'login_at'               => 'datetime',
     ];
 
     // ── Relations ─────────────────────────────────────────────────────────────

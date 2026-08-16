@@ -1,114 +1,203 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>eSahlan Staff — Dashboard</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <style>
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        body { min-height: 100vh; background: #f0f2f5; font-family: 'Segoe UI', system-ui, sans-serif; color: #1a1a2e; }
-        .topbar {
-            background: #0c0148; color: #fff; padding: 0 24px; height: 64px;
-            display: flex; align-items: center; justify-content: space-between;
-        }
-        .topbar .brand { display: flex; align-items: center; gap: 12px; font-weight: 800; font-size: 18px; }
-        .topbar .brand .logo {
-            width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg,#FF8A00,#ff6200);
-            display: flex; align-items: center; justify-content: center; color:#fff;
-        }
-        .topbar .brand span b { color: #FF8A00; }
-        .topbar .user { display: flex; align-items: center; gap: 14px; font-size: 13px; }
-        .topbar .avatar {
-            width: 34px; height: 34px; border-radius: 50%; background: #FF8A00; color:#fff;
-            display:flex; align-items:center; justify-content:center; font-weight:700;
-        }
-        .logout-btn {
-            background: rgba(255,255,255,0.08); color: #fff; border: 1px solid rgba(255,255,255,0.18);
-            padding: 8px 16px; border-radius: 9px; font-size: 13px; font-weight: 600; cursor: pointer;
-            display: inline-flex; align-items: center; gap: 7px;
-        }
-        .logout-btn:hover { background: rgba(239,68,68,0.25); border-color: transparent; }
-        .container { max-width: 1080px; margin: 0 auto; padding: 32px 24px; }
-        .welcome h2 { font-size: 22px; font-weight: 800; color: #07003B; }
-        .welcome p { color: #6b7280; margin-top: 4px; font-size: 14px; }
-        .section-label { margin: 28px 0 14px; font-size: 13px; font-weight: 800; color: #8a8da3; text-transform: uppercase; letter-spacing: .5px; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 18px; }
-        .mod-card {
-            background: #fff; border-radius: 16px; padding: 24px; text-decoration: none; color: inherit;
-            box-shadow: 0 4px 18px rgba(7,0,59,0.06); border: 2px solid transparent; transition: all .25s;
-            display: flex; flex-direction: column; gap: 14px;
-        }
-        .mod-card:hover { border-color: #FF8A00; box-shadow: 0 14px 34px rgba(7,0,59,0.12); }
-        .mod-icon {
-            width: 58px; height: 58px; border-radius: 15px;
-            background: linear-gradient(135deg,#140465,#0c0148); color: #fff;
-            display: flex; align-items: center; justify-content: center; font-size: 24px;
-        }
-        .mod-card:hover .mod-icon { background: linear-gradient(135deg,#FF8A00,#ff6200); }
-        .mod-name { font-size: 17px; font-weight: 800; color: #07003B; }
-        .mod-go { font-size: 12.5px; color: #FF8A00; font-weight: 700; display:flex; align-items:center; gap:6px; }
-        .mod-actions { display:flex; gap:8px; margin-top:4px; flex-wrap:wrap; }
-        .mod-btn {
-            flex:1; padding:8px 10px; border-radius:9px; font-size:12px; font-weight:700; cursor:pointer;
-            border:none; display:inline-flex; align-items:center; justify-content:center; gap:6px;
-            text-decoration:none; transition:all .2s;
-        }
-        .mod-btn-primary { background:linear-gradient(135deg,#140465,#0c0148); color:#fff; }
-        .mod-btn-primary:hover { background:linear-gradient(135deg,#FF8A00,#ff6200); color:#fff; }
-        .mod-btn-outline { background:#fff; color:#140465; border:2px solid #e5e7eb; }
-        .mod-btn-outline:hover { border-color:#FF8A00; color:#FF8A00; }
-        .empty { background:#fff; border-radius:16px; padding:40px; text-align:center; color:#9ca3af; }
-    </style>
-</head>
-<body>
-    <div class="topbar">
-        <div class="brand">
-            <div class="logo"><i class="fas fa-user-tie"></i></div>
-            <span>e<b>Sahlan</b> Staff</span>
+@extends('employee.layouts.app')
+@section('title', 'Dashboard')
+
+@section('content')
+<div class="space" style="display:flex;flex-direction:column;gap:24px;">
+
+  {{-- Header --}}
+  <div>
+    <h1 style="font-size:22px;font-weight:800;color:#111827;">
+      Salaam, {{ $employee->first_name }}! 👋
+    </h1>
+    <p style="color:#6b7280;font-size:14px;margin-top:4px;">
+      {{ now()->format('l, d F Y') }} ·
+      @if($workspace)
+        Active: <strong style="color:var(--brand)">{{ $workspace->name }}</strong>
+      @else
+        Wali workspace la'aad — HR la xiriir
+      @endif
+    </p>
+  </div>
+
+  {{-- KPI row --}}
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;">
+
+    {{-- Active workspaces --}}
+    <div class="card" style="padding:20px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <div style="width:36px;height:36px;border-radius:10px;background:#fff5e6;display:flex;align-items:center;justify-content:center;">
+          <i class="fas fa-th-large" style="color:var(--brand)"></i>
         </div>
-        <div class="user">
-            <div class="avatar">{{ strtoupper(substr($user->name ?? 'E', 0, 1)) }}</div>
-            <div>
-                <div style="font-weight:700;">{{ $user->name }}</div>
-                <div style="font-size:11px;opacity:.6;">Employee</div>
-            </div>
-            <form method="POST" action="{{ route('employee.logout') }}">
-                @csrf
-                <button class="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</button>
-            </form>
-        </div>
+        <span style="font-size:12px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:.06em;">Workspaces</span>
+      </div>
+      <div style="font-size:32px;font-weight:900;color:#111827;">{{ $activeAssignments->count() }}</div>
+      <div style="font-size:12px;color:#6b7280;margin-top:4px;">Module xilsaaran</div>
     </div>
 
-    <div class="container">
-        <div class="welcome">
-            <h2>Welcome, {{ $user->name }} 👋</h2>
-            <p>Manage the modules assigned to you below.</p>
+    {{-- Today attendance --}}
+    <div class="card" style="padding:20px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <div style="width:36px;height:36px;border-radius:10px;background:{{ $todayAttendance?->status === 'present' ? '#dcfce7' : '#fef9c3' }};display:flex;align-items:center;justify-content:center;">
+          <i class="fas fa-clock" style="color:{{ $todayAttendance?->status === 'present' ? 'var(--green)' : '#d97706' }}"></i>
         </div>
+        <span style="font-size:12px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:.06em;">Maanta</span>
+      </div>
+      @if($todayAttendance)
+        <div style="font-size:20px;font-weight:800;color:#111827;text-transform:capitalize;">{{ $todayAttendance->status }}</div>
+        <div style="font-size:12px;color:#6b7280;margin-top:4px;">
+          {{ $todayAttendance->check_in ? 'Galay: '.date('H:i', strtotime($todayAttendance->check_in)) : '—' }}
+        </div>
+      @else
+        <div style="font-size:20px;font-weight:800;color:#9ca3af;">—</div>
+        <div style="font-size:12px;color:#6b7280;margin-top:4px;">La diiwaangelinyin</div>
+      @endif
+    </div>
 
-        <div class="section-label">Your Modules</div>
-
-        @if($modules->isEmpty())
-            <div class="empty">
-                <i class="fas fa-folder-open" style="font-size:38px;color:#d1d5db;"></i>
-                <p style="margin-top:12px;">No modules have been assigned to you yet.</p>
-            </div>
+    {{-- Leave pending --}}
+    <div class="card" style="padding:20px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <div style="width:36px;height:36px;border-radius:10px;background:#fef2f2;display:flex;align-items:center;justify-content:center;">
+          <i class="fas fa-umbrella-beach" style="color:#dc2626"></i>
+        </div>
+        <span style="font-size:12px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:.06em;">Leave Pending</span>
+      </div>
+      <div style="font-size:32px;font-weight:900;color:#111827;">{{ $pendingLeaves }}</div>
+      <div style="font-size:12px;margin-top:4px;">
+        @if($pendingLeaves > 0)
+          <a href="{{ route('employee.leaves') }}" style="color:var(--brand);text-decoration:none;font-weight:600;">Arag →</a>
         @else
-            <div class="grid">
-                @foreach($modules as $m)
-                <div class="mod-card">
-                    <div class="mod-icon"><i class="fas {{ $m['icon'] }}"></i></div>
-                    <div class="mod-name">{{ $m['name'] }}</div>
-                    <div class="mod-actions">
-                        <a class="mod-btn mod-btn-primary" href="{{ route('admin.orders.index', ['module' => $m['slug']]) }}">
-                            <i class="fas fa-receipt"></i> View Orders
-                        </a>
-                    </div>
-                </div>
-                @endforeach
-            </div>
+          <span style="color:#6b7280;">Codsiyaan la'aan</span>
         @endif
+      </div>
     </div>
-@include('partials.order-notifier')
-</body>
-</html>
+
+    {{-- Overall performance --}}
+    @php
+      $overallScore = count($perfScores) ? round(array_sum($perfScores) / count($perfScores)) : 0;
+      $scoreColor   = $overallScore >= 90 ? '#16a34a' : ($overallScore >= 75 ? '#2563eb' : ($overallScore >= 60 ? '#d97706' : '#dc2626'));
+    @endphp
+    <div class="card" style="padding:20px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <div style="width:36px;height:36px;border-radius:10px;background:#f0fdf4;display:flex;align-items:center;justify-content:center;">
+          <i class="fas fa-chart-line" style="color:var(--green)"></i>
+        </div>
+        <span style="font-size:12px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:.06em;">Performance</span>
+      </div>
+      <div style="font-size:32px;font-weight:900;color:{{ $overallScore > 0 ? $scoreColor : '#9ca3af' }};">
+        {{ $overallScore > 0 ? $overallScore.'%' : '—' }}
+      </div>
+      <div style="font-size:12px;color:#6b7280;margin-top:4px;">{{ now()->format('M Y') }}</div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;align-items:start;">
+
+    {{-- My Workspaces --}}
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="fas fa-th-large" style="color:var(--brand);margin-right:6px"></i> Workspaces-kayga</span>
+        <span style="font-size:12px;color:#6b7280;">{{ $activeAssignments->count() }} active</span>
+      </div>
+      <div class="card-body" style="display:flex;flex-direction:column;gap:12px;">
+        @forelse($activeAssignments as $a)
+        @php $mod = $a->module; @endphp
+        <div style="display:flex;align-items:center;gap:14px;padding:14px;border-radius:12px;border:1.5px solid #e5e7eb;transition:all .15s;background:#fafafa;">
+          <div style="width:44px;height:44px;border-radius:12px;background:{{ $mod?->color ?? '#1B1444' }};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <i class="fas fa-layer-group" style="color:#fff;font-size:18px;"></i>
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:700;font-size:14px;color:#111827;">{{ $mod?->name ?? 'Unknown' }}</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px;">
+              {{ $a->modulePosition?->name ?? $a->moduleDepartment?->name ?? 'No position' }}
+              · <span class="badge badge-{{ match($a->assignment_type){ 'primary'=>'orange','secondary'=>'blue','temporary'=>'yellow',default=>'gray' } }}">{{ $a->assignment_type_label }}</span>
+            </div>
+          </div>
+          @if(count($perfScores) && isset($perfScores[$mod?->slug]))
+          @php $sc = $perfScores[$mod->slug]; $c = $sc>=90?'var(--green)':($sc>=75?'var(--blue)':($sc>=60?'var(--yellow)':'var(--red)')); @endphp
+          <div style="text-align:right;flex-shrink:0;">
+            <div style="font-size:20px;font-weight:900;color:{{ $c }}">{{ $sc }}%</div>
+            <div style="font-size:10px;color:#9ca3af;">{{ now()->format('M') }}</div>
+          </div>
+          @endif
+          <a href="{{ route('employee.workspace', $mod?->slug) }}"
+            class="btn btn-primary btn-sm" style="flex-shrink:0;">
+            <i class="fas fa-arrow-right"></i>
+          </a>
+        </div>
+        @empty
+        <div style="text-align:center;padding:32px;color:#9ca3af;">
+          <i class="fas fa-inbox" style="font-size:28px;display:block;margin-bottom:10px;"></i>
+          Wali module lagugu xilsaarin. HR la xiriir.
+        </div>
+        @endforelse
+      </div>
+    </div>
+
+    {{-- Sidebar: Announcements + Quick links --}}
+    <div style="display:flex;flex-direction:column;gap:16px;">
+
+      {{-- Announcements --}}
+      @if(count($announcements))
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title"><i class="fas fa-bullhorn" style="color:var(--brand);margin-right:6px"></i> Xayeysiisyada</span>
+        </div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:10px;">
+          @foreach($announcements as $ann)
+          <div style="padding:10px;background:#fafafa;border-radius:8px;border-left:3px solid var(--brand);">
+            <div style="font-size:13px;font-weight:600;color:#111827;">{{ $ann->title }}</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:3px;">{{ Str::limit($ann->content ?? $ann->body ?? '', 80) }}</div>
+            <div style="font-size:11px;color:#9ca3af;margin-top:4px;">{{ $ann->created_at->diffForHumans() }}</div>
+          </div>
+          @endforeach
+        </div>
+      </div>
+      @endif
+
+      {{-- Quick actions --}}
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Xididdada Degdega ah</span>
+        </div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:8px;">
+          <a href="{{ route('employee.leaves.create') }}" class="btn btn-outline" style="justify-content:flex-start;">
+            <i class="fas fa-plus" style="color:var(--brand)"></i> Codso Leave
+          </a>
+          <a href="{{ route('employee.attendance') }}" class="btn btn-outline" style="justify-content:flex-start;">
+            <i class="fas fa-calendar-check" style="color:var(--green)"></i> Attendance-kayga
+          </a>
+          <a href="{{ route('employee.performance') }}" class="btn btn-outline" style="justify-content:flex-start;">
+            <i class="fas fa-chart-bar" style="color:var(--blue)"></i> Performance-kayga
+          </a>
+          <a href="{{ route('employee.profile') }}" class="btn btn-outline" style="justify-content:flex-start;">
+            <i class="fas fa-user-edit" style="color:var(--muted)"></i> Naftayda Wax ka beddel
+          </a>
+        </div>
+      </div>
+
+      {{-- Employment info --}}
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Macluumaad Shaqada</span>
+        </div>
+        <div class="card-body" style="font-size:13px;display:flex;flex-direction:column;gap:8px;">
+          @php
+            $infoRows = [
+              ['Nooca Shaqada', ucfirst(str_replace('_',' ',$employee->employment_type ?? '—'))],
+              ['Taariikhda Shaqada', $employee->hire_date?->format('d M Y') ?? '—'],
+              ['Qaybta', $employee->department?->name ?? '—'],
+              ['Xilka', $employee->position?->title ?? '—'],
+            ];
+          @endphp
+          @foreach($infoRows as [$label, $val])
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f3f4f6;">
+            <span style="color:#6b7280;">{{ $label }}</span>
+            <span style="font-weight:600;color:#111827;">{{ $val }}</span>
+          </div>
+          @endforeach
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+@endsection

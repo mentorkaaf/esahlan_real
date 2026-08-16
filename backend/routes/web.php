@@ -156,14 +156,37 @@ Route::get('/', function () {
 // Admin root redirect
 Route::get('/admin', fn() => redirect('/admin/dashboard'));
 
-// ─── Employee Panel (module staff) ───────────────────────────────────────────
+// ─── Employee Self-Service Portal ─────────────────────────────────────────────
+// Guard: 'employee' — authenticates against hr_employees table (NOT users/hr_staff)
 Route::prefix('employee')->name('employee.')->group(function () {
-    Route::get('/login',  [EmployeeAuthController::class, 'showLogin'])->name('login');
-    Route::post('/login', [EmployeeAuthController::class, 'login'])->name('login.post');
+    // Public: login
+    Route::get('/login',  [\App\Http\Controllers\Employee\EmployeeAuthController::class, 'showLogin'])->name('login');
+    Route::post('/login', [\App\Http\Controllers\Employee\EmployeeAuthController::class, 'login'])->name('login.post');
 
-    Route::middleware(['auth', 'role:employee'])->group(function () {
-        Route::get('/',       [EmployeeController::class, 'dashboard'])->name('dashboard');
-        Route::post('/logout', [EmployeeAuthController::class, 'logout'])->name('logout');
+    // Protected: requires employee guard session
+    Route::middleware(['auth.employee'])->group(function () {
+        Route::get('/',                    [\App\Http\Controllers\Employee\EmployeeController::class, 'dashboard'])->name('dashboard');
+        Route::post('/logout',             [\App\Http\Controllers\Employee\EmployeeAuthController::class, 'logout'])->name('logout');
+
+        // Workspace
+        Route::get('/workspace/{slug}',    [\App\Http\Controllers\Employee\EmployeeController::class, 'workspace'])->name('workspace');
+        Route::post('/workspace/switch',   [\App\Http\Controllers\Employee\EmployeeController::class, 'switchWorkspace'])->name('workspace.switch');
+
+        // Performance
+        Route::get('/performance',         [\App\Http\Controllers\Employee\EmployeeController::class, 'performance'])->name('performance');
+
+        // Attendance
+        Route::get('/attendance',          [\App\Http\Controllers\Employee\EmployeeController::class, 'attendance'])->name('attendance');
+
+        // Leaves
+        Route::get('/leaves',              [\App\Http\Controllers\Employee\EmployeeController::class, 'leaves'])->name('leaves');
+        Route::get('/leaves/create',       [\App\Http\Controllers\Employee\EmployeeController::class, 'leaveCreate'])->name('leaves.create');
+        Route::post('/leaves',             [\App\Http\Controllers\Employee\EmployeeController::class, 'leaveStore'])->name('leaves.store');
+
+        // Profile
+        Route::get('/profile',             [\App\Http\Controllers\Employee\EmployeeController::class, 'profile'])->name('profile');
+        Route::patch('/profile',           [\App\Http\Controllers\Employee\EmployeeController::class, 'profileUpdate'])->name('profile.update');
+        Route::patch('/profile/password',  [\App\Http\Controllers\Employee\EmployeeController::class, 'passwordUpdate'])->name('profile.password');
     });
 });
 
