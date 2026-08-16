@@ -664,7 +664,7 @@
                 <td style="color:#8A8A9A;font-size:12px;">{{ \Carbon\Carbon::parse($row->updated_at)->diffForHumans() }}</td>
                 <td>
                     @if($row->user_email)
-                    <form method="POST" action="{{ route('admin.edata.phone.email', $row->id) }}" style="display:inline;">
+                    <form method="POST" action="{{ route('admin.module-data.edata.phone.email', $row->id) }}" style="display:inline;">
                         @csrf
                         <button type="submit" class="btn-email" onclick="return confirm('Send email to {{ addslashes($row->user_name ?? $row->user_email) }}?')">
                             <i class="fas fa-envelope"></i> Email
