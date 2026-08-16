@@ -315,7 +315,7 @@
       {{-- Order items --}}
       @if(!empty($item['items']) && count($item['items']))
       <div class="item-pills">
-        @foreach(array_slice($item['items'], 0, 4) as $oi)
+        @foreach(array_slice(is_array($item['items']) ? $item['items'] : $item['items']->toArray(), 0, 4) as $oi)
         <span class="item-pill"><strong>{{ $oi['qty'] }}×</strong> {{ $oi['name'] }}</span>
         @endforeach
         @if(count($item['items']) > 4)

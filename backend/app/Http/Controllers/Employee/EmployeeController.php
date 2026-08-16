@@ -217,7 +217,7 @@ class EmployeeController extends Controller
         // Per-module detail with team averages for comparison
         $assignments = WorkforceAssignment::where('employee_id', $employee->id)
             ->where('status', 'active')
-            ->with(['module', 'module.performanceMetrics'])
+            ->with(['module'])
             ->get();
 
         $moduleDetails = [];
