@@ -24,6 +24,7 @@ use App\Http\Controllers\HR\HrModuleDepartmentController;
 use App\Http\Controllers\HR\HrModulePositionController;
 use App\Http\Controllers\HR\HrModuleRoleController;
 use App\Http\Controllers\HR\HrWorkspaceController;
+use App\Http\Controllers\HR\HrWorkforceDashboardController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -219,6 +220,12 @@ Route::middleware('auth.hr')->group(function () {
     // ── Workforce Assignments ─────────────────────────────────────────────
     Route::prefix('workforce')->name('workforce.')->middleware('hr.role:hr_manager,hr_officer')->group(function () {
         Route::get('/',                              [HrWorkforceController::class, 'index'])->name('index');
+
+        // Phase 8 — Dashboard & Org Chart
+        Route::get('/dashboard',                     [HrWorkforceDashboardController::class, 'index'])->name('dashboard');
+        Route::get('/org-chart',                     [HrWorkforceDashboardController::class, 'orgChart'])->name('org-chart');
+        Route::get('/org-chart-data',                [HrWorkforceDashboardController::class, 'orgChartData'])->name('org-chart-data');
+
         Route::get('/module/{module}',               [HrWorkforceController::class, 'module'])->name('module');
         // Phase 6 wizard
         Route::get('/wizard',                        [HrWorkforceController::class, 'wizard'])->name('wizard');

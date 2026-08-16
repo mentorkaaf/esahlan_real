@@ -10,18 +10,22 @@
         <div>
             <p class="text-sm text-gray-500">Assign employees to business modules and manage their access.</p>
         </div>
-        @if(Auth::guard('hr')->user()->isManager() || Auth::guard('hr')->user()->canDo('workforce_assign'))
         <div class="flex items-center gap-2 flex-shrink-0">
+            <a href="{{ route('hr.workforce.dashboard') }}"
+               class="border border-gray-200 text-gray-600 hover:border-[#1B1444] hover:text-[#1B1444] text-sm font-medium px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5">
+                <i class="fas fa-chart-bar text-xs text-indigo-400"></i> Dashboard
+            </a>
+            <a href="{{ route('hr.workforce.org-chart') }}"
+               class="border border-gray-200 text-gray-600 hover:border-[#1B1444] hover:text-[#1B1444] text-sm font-medium px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5">
+                <i class="fas fa-sitemap text-xs text-blue-400"></i> Org Chart
+            </a>
+            @if(Auth::guard('hr')->user()->isManager() || Auth::guard('hr')->user()->canDo('workforce_assign'))
             <a href="{{ route('hr.workforce.wizard') }}"
                class="bg-[#F7941D] hover:bg-[#E07800] text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors flex items-center gap-2">
                 <i class="fas fa-magic text-xs"></i> New Assignment Wizard
             </a>
-            <a href="{{ route('hr.module-roles.index') }}"
-               class="border border-gray-200 text-gray-600 hover:border-gray-300 text-sm font-medium px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5">
-                <i class="fas fa-shield-alt text-xs text-indigo-400"></i> Module Roles
-            </a>
+            @endif
         </div>
-        @endif
     </div>
 
     {{-- Module grid --}}
