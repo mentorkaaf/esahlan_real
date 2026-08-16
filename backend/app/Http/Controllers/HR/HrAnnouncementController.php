@@ -5,7 +5,9 @@ namespace App\Http\Controllers\HR;
 use App\Http\Controllers\Controller;
 use App\Models\HR\HrAnnouncement;
 use App\Models\HR\HrDepartment;
+use App\Models\HR\HrEmployee;
 use App\Services\HR\AnnouncementService;
+use App\Services\HR\EmployeeNotifier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -63,6 +65,20 @@ class HrAnnouncementController extends Controller
         }
 
         $sent = AnnouncementService::publish($announcement);
+
+        // Create employee portal notifications for all active employees in target audience
+        $empQuery = HrEmployee::where('status', 'active');
+        if ($announcement->audience === 'department' && $announcement->department_id) {
+            $empQuery->where('department_id', $announcement->department_id);
+        }
+        EmployeeNotifier::sendToAll(
+            $empQuery->get(),
+            'announcement',
+            $announcement->title,
+            \Illuminate\Support\Str::limit(strip_tags($announcement->body), 120),
+            ['announcement_id' => $announcement->id],
+            route('employee.announcements'),
+        );
 
         return back()->with('success', "Published — {$sent} push notification(s) sent.");
     }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\HR\HrAuditLog;
 use App\Models\HR\HrPayrollRun;
 use App\Models\HR\HrPayslip;
+use App\Services\HR\EmployeeNotifier;
 use App\Services\HR\PayrollService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -147,6 +148,17 @@ class HrPayrollController extends Controller
         ]);
 
         PayrollService::markPayslipPaid($payslip, $data['payment_method'], $data['payment_ref'] ?? null);
+
+        // Notify the employee
+        EmployeeNotifier::send(
+            $payslip->employee,
+            'payslip_paid',
+            'Mushaharka la Bixiyay 💰',
+            "Mushaharka {$payslip->run?->period} (Net: \$" . number_format($payslip->net_pay, 2) .
+                ") si " . $data['payment_method'] . " ah ayaa lagugu bixiyay.",
+            ['payslip_id' => $payslip->id],
+            route('employee.payslips.show', $payslip),
+        );
 
         return back()->with('success', 'Payslip marked as paid.');
     }

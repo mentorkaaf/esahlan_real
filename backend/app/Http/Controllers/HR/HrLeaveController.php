@@ -7,6 +7,7 @@ use App\Models\HR\HrEmployee;
 use App\Models\HR\HrLeaveBalance;
 use App\Models\HR\HrLeaveRequest;
 use App\Models\HR\HrLeaveType;
+use App\Services\HR\EmployeeNotifier;
 use App\Services\HR\LeaveService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -91,6 +92,19 @@ class HrLeaveController extends Controller
 
         LeaveService::approve($leave, $request->decision_note);
 
+        // Notify employee in real-time
+        EmployeeNotifier::send(
+            $leave->employee,
+            'leave_approved',
+            'Fasaхa la Ansixiyay ✓',
+            "Codsigaaga fasaxa ({$leave->leaveType?->name}) ee " .
+                \Carbon\Carbon::parse($leave->start_date)->format('d M') . ' — ' .
+                \Carbon\Carbon::parse($leave->end_date)->format('d M Y') .
+                ' la ansixiyay.',
+            ['leave_id' => $leave->id],
+            route('employee.leaves'),
+        );
+
         return back()->with('success', 'Leave request approved.');
     }
 
@@ -104,6 +118,17 @@ class HrLeaveController extends Controller
         $request->validate(['decision_note' => 'required|string|max:1000']);
 
         LeaveService::reject($leave, $request->decision_note);
+
+        // Notify employee in real-time
+        EmployeeNotifier::send(
+            $leave->employee,
+            'leave_rejected',
+            'Fasaхa la Diidday ✗',
+            "Codsigaaga fasaxa ({$leave->leaveType?->name}) la diidday." .
+                ($request->decision_note ? " Sababta: {$request->decision_note}" : ''),
+            ['leave_id' => $leave->id],
+            route('employee.leaves'),
+        );
 
         return back()->with('success', 'Leave request rejected.');
     }

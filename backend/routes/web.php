@@ -184,6 +184,30 @@ Route::prefix('employee')->name('employee.')->group(function () {
         Route::get('/leaves/create',       [\App\Http\Controllers\Employee\EmployeeController::class, 'leaveCreate'])->name('leaves.create');
         Route::post('/leaves',             [\App\Http\Controllers\Employee\EmployeeController::class, 'leaveStore'])->name('leaves.store');
 
+        // Notifications (JSON API)
+        Route::get('/notifications/count', [\App\Http\Controllers\Employee\EmployeeNotificationController::class, 'unreadCount'])->name('notifications.count');
+        Route::get('/notifications',       [\App\Http\Controllers\Employee\EmployeeNotificationController::class, 'index'])->name('notifications');
+        Route::post('/notifications/read-all', [\App\Http\Controllers\Employee\EmployeeNotificationController::class, 'markAllRead'])->name('notifications.read-all');
+        Route::post('/notifications/{notification}/read', [\App\Http\Controllers\Employee\EmployeeNotificationController::class, 'markRead'])->name('notifications.read');
+
+        // Custom Reverb broadcasting auth for the employee guard
+        Route::post('/broadcasting/auth', function (\Illuminate\Http\Request $request) {
+            $employee = \Illuminate\Support\Facades\Auth::guard('employee')->user();
+            if (! $employee) abort(403);
+
+            $channel  = $request->input('channel_name', '');
+            $socketId = $request->input('socket_id', '');
+
+            // Only allow subscription to own channel
+            if ($channel !== "private-employee.{$employee->id}") abort(403);
+
+            $appKey    = config('broadcasting.connections.reverb.key');
+            $appSecret = config('broadcasting.connections.reverb.secret');
+            $signature = hash_hmac('sha256', "{$socketId}:{$channel}", $appSecret);
+
+            return response()->json(['auth' => "{$appKey}:{$signature}"]);
+        })->name('employee.broadcasting.auth');
+
         // Payslips
         Route::get('/payslips',            [\App\Http\Controllers\Employee\EmployeeController::class, 'payslips'])->name('payslips');
         Route::get('/payslips/{payslip}',  [\App\Http\Controllers\Employee\EmployeeController::class, 'payslipShow'])->name('payslips.show');

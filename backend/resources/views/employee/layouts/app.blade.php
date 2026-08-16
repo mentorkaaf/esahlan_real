@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>@yield('title', 'My Portal') — eSahlan Staff</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/pusher-js@8.4.0/dist/web/pusher.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/laravel-echo@1.15.3/dist/echo.iife.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -59,6 +61,84 @@
       transition: background .15s;
     }
     .logout-btn:hover { background: rgba(255,255,255,.15); color: #fff; }
+
+    /* ── Bell / Notifications ── */
+    .bell-wrap { position: relative; }
+    .bell-btn {
+      background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.18);
+      color: #e5e7eb; width: 36px; height: 36px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; position: relative; transition: background .15s;
+    }
+    .bell-btn:hover { background: rgba(255,255,255,.2); }
+    .bell-badge {
+      position: absolute; top: -4px; right: -4px;
+      background: #dc2626; color: #fff;
+      font-size: 9px; font-weight: 800; min-width: 16px; height: 16px;
+      border-radius: 99px; display: none; align-items: center; justify-content: center;
+      padding: 0 4px; border: 2px solid var(--navy);
+    }
+    .bell-badge.show { display: flex; }
+
+    .notif-dropdown {
+      position: absolute; right: 0; top: calc(100% + 10px);
+      width: 340px; background: #fff; border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.25); border: 1px solid #e5e7eb;
+      z-index: 999; display: none; overflow: hidden;
+    }
+    .notif-dropdown.open { display: block; }
+    .notif-header {
+      padding: 14px 16px; border-bottom: 1px solid #f3f4f6;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .notif-header-title { font-size: 13px; font-weight: 800; color: #111827; }
+    .notif-read-all {
+      font-size: 11px; font-weight: 700; color: var(--brand);
+      background: none; border: none; cursor: pointer; padding: 0;
+    }
+    .notif-read-all:hover { text-decoration: underline; }
+    .notif-list { max-height: 340px; overflow-y: auto; }
+    .notif-item {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 12px 16px; border-bottom: 1px solid #f9fafb;
+      text-decoration: none; cursor: pointer; transition: background .1s;
+    }
+    .notif-item:hover { background: #f9fafb; }
+    .notif-item.unread { background: #fefce8; }
+    .notif-item.unread:hover { background: #fef9c3; }
+    .notif-icon {
+      width: 32px; height: 32px; border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; flex-shrink: 0;
+    }
+    .notif-title  { font-size: 12px; font-weight: 700; color: #111827; line-height: 1.3; }
+    .notif-body   { font-size: 11px; color: #6b7280; margin-top: 2px; line-height: 1.4; }
+    .notif-time   { font-size: 10px; color: #9ca3af; margin-top: 3px; }
+    .notif-empty  { padding: 28px; text-align: center; font-size: 12px; color: #9ca3af; }
+
+    /* ── Toast ── */
+    .toast-stack {
+      position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+      display: flex; flex-direction: column; gap: 10px; pointer-events: none;
+    }
+    .toast {
+      background: #fff; border-radius: 14px; box-shadow: 0 8px 32px rgba(0,0,0,.18);
+      border: 1px solid #e5e7eb; padding: 14px 16px;
+      display: flex; align-items: flex-start; gap: 12px;
+      min-width: 280px; max-width: 340px; pointer-events: all;
+      animation: toastIn .25s ease;
+    }
+    .toast-icon {
+      width: 32px; height: 32px; border-radius: 9px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center; font-size: 14px;
+    }
+    .toast-title { font-size: 12px; font-weight: 800; color: #111827; }
+    .toast-body  { font-size: 11px; color: #6b7280; margin-top: 2px; line-height: 1.4; }
+    .toast-close {
+      margin-left: auto; background: none; border: none; cursor: pointer;
+      color: #9ca3af; font-size: 12px; padding: 0 0 0 8px; flex-shrink: 0;
+    }
+    @keyframes toastIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:none; } }
 
     /* ── Layout ── */
     .layout { display: flex; flex: 1; overflow: hidden; }
@@ -153,6 +233,23 @@
     <span>e<b>Sahlan</b> Staff</span>
   </a>
   <div class="topbar-right">
+    {{-- Bell notification button --}}
+    <div class="bell-wrap" id="bellWrap">
+      <button class="bell-btn" id="bellBtn" onclick="toggleNotifDropdown()" aria-label="Notifications">
+        <i class="fas fa-bell" style="font-size:14px;"></i>
+        <span class="bell-badge" id="bellBadge"></span>
+      </button>
+      <div class="notif-dropdown" id="notifDropdown">
+        <div class="notif-header">
+          <span class="notif-header-title">Notifications</span>
+          <button class="notif-read-all" onclick="markAllRead()">Dhammaan akhri</button>
+        </div>
+        <div class="notif-list" id="notifList">
+          <div class="notif-empty"><i class="fas fa-bell-slash" style="display:block;font-size:24px;opacity:.3;margin-bottom:8px;"></i>Weli wax la'aan</div>
+        </div>
+      </div>
+    </div>
+
     <div class="topbar-emp">
       <div class="topbar-avatar">
         {{ strtoupper(substr($emp->first_name,0,1).substr($emp->last_name,0,1)) }}
@@ -298,6 +395,177 @@
   </main>
 </div>
 
+{{-- Toast stack --}}
+<div class="toast-stack" id="toastStack"></div>
+
 @yield('scripts')
+@stack('scripts')
+
+<script>
+// ── Notification helpers ──────────────────────────────────────────────
+const NOTIF_URL      = '{{ route("employee.notifications") }}';
+const MARK_READ_URL  = '{{ route("employee.notifications.read-all") }}';
+const CSRF           = '{{ csrf_token() }}';
+
+let notifOpen = false;
+let notifLoaded = false;
+
+function toggleNotifDropdown() {
+  const drop = document.getElementById('notifDropdown');
+  notifOpen = !notifOpen;
+  drop.classList.toggle('open', notifOpen);
+  if (notifOpen && !notifLoaded) { fetchNotifications(); notifLoaded = true; }
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', function(e) {
+  if (notifOpen && !document.getElementById('bellWrap').contains(e.target)) {
+    notifOpen = false;
+    document.getElementById('notifDropdown').classList.remove('open');
+  }
+});
+
+function fetchNotifications() {
+  fetch(NOTIF_URL, { headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF } })
+    .then(r => r.json())
+    .then(data => {
+      renderNotifications(data.notifications, data.unread);
+      setBadge(data.unread);
+    })
+    .catch(() => {});
+}
+
+function renderNotifications(items, unread) {
+  const list = document.getElementById('notifList');
+  if (!items || !items.length) {
+    list.innerHTML = '<div class="notif-empty"><i class="fas fa-bell-slash" style="display:block;font-size:24px;opacity:.3;margin-bottom:8px;"></i>Weli wax la\'aan</div>';
+    return;
+  }
+  list.innerHTML = items.map(n => `
+    <div class="notif-item ${n.read ? '' : 'unread'}"
+         onclick="onNotifClick(${n.id}, '${escapeJs(n.url || '')}')">
+      <div class="notif-icon" style="background:${lighten(n.color)};color:${n.color};">
+        <i class="${escapeJs(n.icon || 'fas fa-bell')}"></i>
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div class="notif-title">${escapeHtml(n.title)}</div>
+        ${n.body ? `<div class="notif-body">${escapeHtml(n.body)}</div>` : ''}
+        <div class="notif-time">${escapeHtml(n.time)}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function onNotifClick(id, url) {
+  fetch(`/employee/notifications/${id}/read`, {
+    method: 'POST', headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' }
+  }).catch(() => {});
+  if (url) { window.location.href = url; }
+}
+
+function markAllRead() {
+  fetch(MARK_READ_URL, {
+    method: 'POST', headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' }
+  }).then(() => {
+    setBadge(0);
+    document.querySelectorAll('.notif-item.unread').forEach(el => el.classList.remove('unread'));
+  }).catch(() => {});
+}
+
+function setBadge(count) {
+  const badge = document.getElementById('bellBadge');
+  if (count > 0) {
+    badge.textContent = count > 99 ? '99+' : count;
+    badge.classList.add('show');
+  } else {
+    badge.classList.remove('show');
+  }
+}
+
+// Poll unread count every 60s (fallback for when WS isn't connected)
+function pollBadge() {
+  fetch('{{ route("employee.notifications.count") }}', { headers: { 'Accept': 'application/json' } })
+    .then(r => r.json()).then(d => setBadge(d.count)).catch(() => {});
+}
+pollBadge();
+setInterval(pollBadge, 60000);
+
+// ── Toast system ──────────────────────────────────────────────────────
+function showToast(notif) {
+  const stack  = document.getElementById('toastStack');
+  const id     = 'toast-' + Date.now();
+  const div    = document.createElement('div');
+  div.className = 'toast';
+  div.id        = id;
+  div.innerHTML = `
+    <div class="toast-icon" style="background:${lighten(notif.color)};color:${notif.color};">
+      <i class="${escapeJs(notif.icon || 'fas fa-bell')}"></i>
+    </div>
+    <div style="flex:1;">
+      <div class="toast-title">${escapeHtml(notif.title)}</div>
+      ${notif.body ? `<div class="toast-body">${escapeHtml(notif.body)}</div>` : ''}
+    </div>
+    <button class="toast-close" onclick="removeToast('${id}')">&times;</button>
+  `;
+  if (notif.url) { div.style.cursor = 'pointer'; div.onclick = (e) => { if (!e.target.classList.contains('toast-close')) window.location.href = notif.url; }; }
+  stack.appendChild(div);
+  setTimeout(() => removeToast(id), 6000);
+
+  // Also refresh the badge + dropdown list
+  setBadge((parseInt(document.getElementById('bellBadge').textContent) || 0) + 1);
+  notifLoaded = false; // force reload next time dropdown opens
+}
+
+function removeToast(id) {
+  const el = document.getElementById(id);
+  if (el) el.remove();
+}
+
+// ── Reverb / Echo setup ───────────────────────────────────────────────
+@php
+  $reverbKey    = config('broadcasting.connections.reverb.key');
+  $reverbHost   = config('broadcasting.connections.reverb.options.host', '127.0.0.1');
+  $reverbPort   = config('broadcasting.connections.reverb.options.port', 8080);
+  $reverbScheme = config('broadcasting.connections.reverb.options.scheme', 'http');
+  $empId        = auth('employee')->id();
+@endphp
+
+if (typeof Echo !== 'undefined' && {{ $empId ?? 0 }} > 0) {
+  try {
+    const echo = new Echo({
+      broadcaster:     'reverb',
+      key:             '{{ $reverbKey }}',
+      wsHost:          '{{ $reverbHost }}',
+      wsPort:           {{ $reverbPort }},
+      wssPort:          {{ $reverbPort }},
+      forceTLS:         {{ $reverbScheme === 'https' ? 'true' : 'false' }},
+      enabledTransports: ['ws', 'wss'],
+      authEndpoint:    '/employee/broadcasting/auth',
+      auth: {
+        headers: { 'X-CSRF-TOKEN': CSRF },
+      },
+    });
+
+    echo.private('employee.{{ $empId }}')
+      .listen('.employee.notification', function(data) {
+        showToast(data);
+      });
+  } catch(e) {
+    // Reverb may not be available in all environments — fail silently
+    console.warn('[eSahlan] Realtime connect failed:', e.message);
+  }
+}
+
+// ── Utilities ─────────────────────────────────────────────────────────
+function escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escapeJs(s) { return String(s).replace(/'/g,"\\'").replace(/\n/g,''); }
+function lighten(hex) {
+  // Produce a 15%-opacity tint of the hex color as rgba
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},.15)`;
+}
+</script>
 </body>
 </html>

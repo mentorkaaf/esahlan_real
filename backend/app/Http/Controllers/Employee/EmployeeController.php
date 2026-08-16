@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Employee;
 
 use App\Http\Controllers\Controller;
 use App\Models\HR\EmployeeModuleMetric;
+use App\Models\HR\EmployeeNotification;
 use App\Models\HR\HrAnnouncement;
+use App\Services\HR\EmployeeNotifier;
 use App\Models\HR\HrAuditLog;
 use App\Models\HR\HrAttendance;
 use App\Models\HR\HrCommission;
@@ -144,6 +146,18 @@ class EmployeeController extends Controller
 
         // Determine table + update
         $updated = $this->applyStatusChange($slug, $itemId, $newStatus, $note, $employee);
+
+        if ($updated) {
+            // Self-confirmation notification
+            EmployeeNotifier::send(
+                $employee,
+                'order_status',
+                ucfirst($slug) . ': #' . $itemId . ' → ' . ucwords(str_replace('_', ' ', $newStatus)),
+                $note ?: 'Xaaladda si guul leh loo beddelay.',
+                ['slug' => $slug, 'item_id' => $itemId, 'status' => $newStatus],
+                route('employee.workspace', $slug),
+            );
+        }
 
         if ($request->expectsJson()) {
             return response()->json(['success' => $updated, 'status' => $newStatus]);
