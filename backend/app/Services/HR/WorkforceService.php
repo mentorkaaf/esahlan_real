@@ -21,6 +21,7 @@ class WorkforceService
         Module $module,
         string $roleInModule,
         ?string $notes = null,
+        ?int $moduleDepartmentId = null,
     ): array {
         // Employee must be hirable
         if (!in_array($employee->status, ['active', 'probation'])) {
@@ -45,15 +46,16 @@ class WorkforceService
             ];
         }
 
-        return DB::transaction(function () use ($employee, $module, $roleInModule, $notes) {
+        return DB::transaction(function () use ($employee, $module, $roleInModule, $notes, $moduleDepartmentId) {
             $assignment = WorkforceAssignment::create([
-                'employee_id'    => $employee->id,
-                'module_id'      => $module->id,
-                'role_in_module' => $roleInModule ?: null,
-                'status'         => 'active',
-                'assigned_at'    => now(),
-                'assigned_by'    => Auth::guard('hr')->id(),
-                'notes'          => $notes,
+                'employee_id'          => $employee->id,
+                'module_id'            => $module->id,
+                'module_department_id' => $moduleDepartmentId,
+                'role_in_module'       => $roleInModule ?: null,
+                'status'               => 'active',
+                'assigned_at'          => now(),
+                'assigned_by'          => Auth::guard('hr')->id(),
+                'notes'                => $notes,
             ]);
 
             // Sync to user_modules so canManageModule() works

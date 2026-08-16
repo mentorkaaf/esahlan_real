@@ -50,6 +50,21 @@
                 </select>
             </div>
 
+            {{-- Department --}}
+            <div id="dept-picker" class="{{ $moduleDepartments->isEmpty() ? 'hidden' : '' }}">
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">Department</label>
+                <select name="module_department_id" id="dept-select"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1B1444]">
+                    <option value="">— No specific department —</option>
+                    @foreach($moduleDepartments as $dept)
+                    <option value="{{ $dept->id }}" {{ old('module_department_id') == $dept->id ? 'selected' : '' }}>
+                        {{ $dept->name }}
+                    </option>
+                    @endforeach
+                </select>
+                <p class="text-xs text-gray-400 mt-1">Which department within this module will this employee join?</p>
+            </div>
+
             {{-- Role in module --}}
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1.5">Role in Module</label>
@@ -86,4 +101,31 @@
         </div>
     </form>
 </div>
+@push('scripts')
+<script>
+// When module changes, fetch its departments via a simple JSON endpoint
+document.querySelector('[name="module_id"]').addEventListener('change', function() {
+    const moduleId = this.value;
+    const deptPicker = document.getElementById('dept-picker');
+    const deptSelect = document.getElementById('dept-select');
+
+    if (!moduleId) {
+        deptPicker.classList.add('hidden');
+        deptSelect.innerHTML = '<option value="">— No specific department —</option>';
+        return;
+    }
+
+    fetch(`/hr/module-departments/by-module/${moduleId}`)
+        .then(r => r.json())
+        .then(data => {
+            deptSelect.innerHTML = '<option value="">— No specific department —</option>';
+            data.forEach(d => {
+                deptSelect.innerHTML += `<option value="${d.id}">${d.name}</option>`;
+            });
+            deptPicker.classList.toggle('hidden', data.length === 0);
+        })
+        .catch(() => deptPicker.classList.add('hidden'));
+});
+</script>
+@endpush
 @endsection

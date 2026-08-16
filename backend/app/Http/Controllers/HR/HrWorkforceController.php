@@ -67,7 +67,14 @@ class HrWorkforceController extends Controller
             ? Module::find($request->module_id)
             : null;
 
-        return view('hr.workforce.assign', compact('employees', 'modules', 'selectedEmployee', 'selectedModule'));
+        // Departments for the selected module (for the department picker)
+        $moduleDepartments = $selectedModule
+            ? \App\Models\ModuleDepartment::where('module_id', $selectedModule->id)
+                ->where('status', 'active')
+                ->orderBy('sort_order')->get()
+            : collect();
+
+        return view('hr.workforce.assign', compact('employees', 'modules', 'selectedEmployee', 'selectedModule', 'moduleDepartments'));
     }
 
     /**
@@ -76,10 +83,11 @@ class HrWorkforceController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'employee_id'    => ['required', 'exists:hr_employees,id'],
-            'module_id'      => ['required', 'exists:modules,id'],
-            'role_in_module' => ['nullable', 'string', 'max:60'],
-            'notes'          => ['nullable', 'string', 'max:500'],
+            'employee_id'          => ['required', 'exists:hr_employees,id'],
+            'module_id'            => ['required', 'exists:modules,id'],
+            'module_department_id' => ['nullable', 'exists:module_departments,id'],
+            'role_in_module'       => ['nullable', 'string', 'max:60'],
+            'notes'                => ['nullable', 'string', 'max:500'],
         ]);
 
         $employee = HrEmployee::findOrFail($data['employee_id']);
@@ -90,6 +98,7 @@ class HrWorkforceController extends Controller
             $module,
             $data['role_in_module'] ?? 'staff',
             $data['notes'] ?? null,
+            !empty($data['module_department_id']) ? (int) $data['module_department_id'] : null,
         );
 
         if ($result['error']) {

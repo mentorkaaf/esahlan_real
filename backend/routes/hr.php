@@ -20,6 +20,7 @@ use App\Http\Controllers\HR\HrDisciplinaryController;
 use App\Http\Controllers\HR\HrAnnouncementController;
 use App\Http\Controllers\HR\HrReportController;
 use App\Http\Controllers\HR\HrWorkforceController;
+use App\Http\Controllers\HR\HrModuleDepartmentController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -178,6 +179,24 @@ Route::middleware('auth.hr')->group(function () {
              ->middleware('hr.role:hr_manager,hr_officer');
         Route::delete('{announcement}', [HrAnnouncementController::class, 'destroy'])->name('destroy')
              ->middleware('hr.role:hr_manager');
+    });
+
+    // ── Module Departments ────────────────────────────────────────────────
+    Route::prefix('module-departments')->name('module-departments.')->middleware('hr.role:hr_manager,hr_officer')->group(function () {
+        Route::get('/',                                          [HrModuleDepartmentController::class, 'index'])->name('index');
+        Route::get('/create',                                    [HrModuleDepartmentController::class, 'create'])->name('create');
+        Route::post('/',                                         [HrModuleDepartmentController::class, 'store'])->name('store');
+        Route::get('/{moduleDepartment}',                        [HrModuleDepartmentController::class, 'show'])->name('show');
+        Route::get('/{moduleDepartment}/edit',                   [HrModuleDepartmentController::class, 'edit'])->name('edit');
+        Route::put('/{moduleDepartment}',                        [HrModuleDepartmentController::class, 'update'])->name('update');
+        Route::post('/{moduleDepartment}/status',                [HrModuleDepartmentController::class, 'status'])->name('status')
+             ->middleware('hr.role:hr_manager');
+        Route::post('/{moduleDepartment}/assign-manager',        [HrModuleDepartmentController::class, 'assignManager'])->name('assign-manager')
+             ->middleware('hr.role:hr_manager');
+        Route::post('/{moduleDepartment}/add-employee',          [HrModuleDepartmentController::class, 'addEmployee'])->name('add-employee');
+        Route::delete('/assignment/{assignment}/remove-employee', [HrModuleDepartmentController::class, 'removeEmployee'])->name('remove-employee');
+        // JSON helper for dynamic department picker
+        Route::get('/by-module/{module}', [HrModuleDepartmentController::class, 'byModule'])->name('by-module');
     });
 
     // ── Workforce Assignments ─────────────────────────────────────────────

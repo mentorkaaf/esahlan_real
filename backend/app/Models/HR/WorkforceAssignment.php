@@ -15,6 +15,7 @@ class WorkforceAssignment extends Model
     protected $fillable = [
         'employee_id',
         'module_id',
+        'module_department_id',
         'role_in_module',
         'status',
         'assigned_at',
@@ -37,7 +38,12 @@ class WorkforceAssignment extends Model
 
     public function module()
     {
-        return $this->belongsTo(Module::class, 'module_id');
+        return $this->belongsTo(\App\Models\Module::class, 'module_id');
+    }
+
+    public function moduleDepartment()
+    {
+        return $this->belongsTo(\App\Models\ModuleDepartment::class, 'module_department_id');
     }
 
     /** HR staff member who created the assignment */
