@@ -169,8 +169,9 @@ Route::prefix('employee')->name('employee.')->group(function () {
         Route::post('/logout',             [\App\Http\Controllers\Employee\EmployeeAuthController::class, 'logout'])->name('logout');
 
         // Workspace
-        Route::get('/workspace/{slug}',    [\App\Http\Controllers\Employee\EmployeeController::class, 'workspace'])->name('workspace');
-        Route::post('/workspace/switch',   [\App\Http\Controllers\Employee\EmployeeController::class, 'switchWorkspace'])->name('workspace.switch');
+        Route::get('/workspace/{slug}',               [\App\Http\Controllers\Employee\EmployeeController::class, 'workspace'])->name('workspace');
+        Route::post('/workspace/switch',              [\App\Http\Controllers\Employee\EmployeeController::class, 'switchWorkspace'])->name('workspace.switch');
+        Route::post('/workspace/{slug}/status/{id}',  [\App\Http\Controllers\Employee\EmployeeController::class, 'updateStatus'])->name('workspace.status');
 
         // Performance
         Route::get('/performance',         [\App\Http\Controllers\Employee\EmployeeController::class, 'performance'])->name('performance');

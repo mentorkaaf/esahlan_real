@@ -72,13 +72,13 @@ class EmployeeController extends Controller
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // My Workspace (module work interface)
+    // My Workspace (module work interface) — Phase 3
     // ─────────────────────────────────────────────────────────────────────────
-    public function workspace(string $slug)
+    public function workspace(Request $request, string $slug)
     {
         $employee = $this->me();
 
-        // Verify employee is actually assigned to this module
+        // Verify assignment
         $assignment = WorkforceAssignment::where('employee_id', $employee->id)
             ->where('status', 'active')
             ->whereHas('module', fn($q) => $q->where('slug', $slug))
@@ -86,21 +86,64 @@ class EmployeeController extends Controller
             ->first();
 
         if (! $assignment) {
-            abort(403, 'Tani module-kan lagugu xilsaari waayo.');
+            abort(403, 'Tani module-kan lagugu xilsaarnayn.');
         }
 
-        $module = $assignment->module;
+        $module     = $assignment->module;
+        $statusFilter = $request->get('status', 'active'); // active|all|done
+        $search       = $request->get('search', '');
 
-        // Pull module-specific work data
-        $workData = $this->getModuleWorkData($slug, $employee);
+        // Pull work items for this module
+        $workData  = $this->fetchModuleWork($slug, $statusFilter, $search);
 
-        // Performance for this module
-        $period = now()->format('Y-m');
+        // Stats (always unfiltered counts)
+        $stats = $this->moduleStats($slug);
+
+        // Status transitions available per module
+        $transitions = $this->moduleTransitions($slug);
+
+        // Performance
+        $period    = now()->format('Y-m');
         $composite = EmployeeModuleMetric::compositeScore($employee->id, $module->id, $period);
 
         return view('employee.workspace', compact(
-            'employee', 'assignment', 'module', 'workData', 'composite', 'period'
+            'employee', 'assignment', 'module',
+            'workData', 'stats', 'transitions',
+            'composite', 'period', 'statusFilter', 'search'
         ));
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Update work item status (AJAX + form POST)
+    // ─────────────────────────────────────────────────────────────────────────
+    public function updateStatus(Request $request, string $slug, int $itemId)
+    {
+        $employee = $this->me();
+
+        // Re-verify assignment
+        $hasAccess = WorkforceAssignment::where('employee_id', $employee->id)
+            ->where('status', 'active')
+            ->whereHas('module', fn($q) => $q->where('slug', $slug))
+            ->exists();
+
+        if (! $hasAccess) {
+            return $request->expectsJson()
+                ? response()->json(['error' => 'Access denied'], 403)
+                : back()->withErrors(['error' => 'Access denied']);
+        }
+
+        $newStatus = $request->input('status');
+        $note      = $request->input('note', '');
+
+        // Determine table + update
+        $updated = $this->applyStatusChange($slug, $itemId, $newStatus, $note, $employee);
+
+        if ($request->expectsJson()) {
+            return response()->json(['success' => $updated, 'status' => $newStatus]);
+        }
+
+        return back()->with($updated ? 'success' : 'error',
+            $updated ? 'Xaaladda si guul leh loo beddelay: ' . $newStatus : 'Wax khalad ah dhacay.');
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -306,186 +349,323 @@ class EmployeeController extends Controller
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Module work data builder
+    // Module work data fetchers — Phase 3
     // ─────────────────────────────────────────────────────────────────────────
-    private function getModuleWorkData(string $slug, $employee): array
+
+    /**
+     * Modules that use the unified `orders` table (module_slug filter).
+     * All others have dedicated tables.
+     */
+    private const ORDERS_TABLE_MODULES = [
+        'efood','egrocery','eshop','eparcel','emoving','erent',
+        'ewholesale','elaundry','elearning','edata',
+    ];
+
+    /** Active statuses per module (shown by default) */
+    private const ACTIVE_STATUSES = [
+        'efood'      => ['pending','confirmed','preparing','ready','dispatched'],
+        'egrocery'   => ['pending','confirmed','picking','packed','dispatched'],
+        'eshop'      => ['pending','confirmed','processing','packed'],
+        'eparcel'    => ['pending','confirmed','picked_up','in_transit'],
+        'emoving'    => ['pending','confirmed','in_progress'],
+        'erent'      => ['pending','confirmed','active'],
+        'ewholesale' => ['pending','confirmed','processing','packing'],
+        'elaundry'   => ['pending','collected','washing','drying','ready'],
+        'elearning'  => ['pending','active','in_progress'],
+        'edata'      => ['pending','processing'],
+        'ehealth'    => ['pending','confirmed','in_progress'],
+        'eexchange'  => ['pending','processing'],
+        'eticket'    => ['open','in_progress','pending'],
+    ];
+
+    /** Done statuses per module */
+    private const DONE_STATUSES = [
+        'efood'      => ['delivered','cancelled'],
+        'egrocery'   => ['delivered','cancelled'],
+        'eshop'      => ['delivered','cancelled','refunded'],
+        'eparcel'    => ['delivered','failed','returned'],
+        'emoving'    => ['completed','cancelled'],
+        'erent'      => ['completed','cancelled'],
+        'ewholesale' => ['delivered','cancelled'],
+        'elaundry'   => ['delivered','cancelled'],
+        'elearning'  => ['completed','cancelled'],
+        'edata'      => ['completed','failed'],
+        'ehealth'    => ['completed','cancelled'],
+        'eexchange'  => ['completed','failed','cancelled'],
+        'eticket'    => ['resolved','closed'],
+    ];
+
+    private function fetchModuleWork(string $slug, string $filter, string $search): \Illuminate\Support\Collection
     {
-        // Each module pulls relevant pending/active work items for this employee
-        // All data comes from real DB tables — no fake numbers
+        $statuses = match($filter) {
+            'active' => self::ACTIVE_STATUSES[$slug]  ?? [],
+            'done'   => self::DONE_STATUSES[$slug]    ?? [],
+            default  => [], // all
+        };
+
         try {
-            return match($slug) {
-                'efood'      => $this->efoodData($employee),
-                'egrocery'   => $this->egroceryData($employee),
-                'eshop'      => $this->eshopData($employee),
-                'eparcel'    => $this->eparcelData($employee),
-                'emoving'    => $this->emovingData($employee),
-                'erent'      => $this->erentData($employee),
-                'ehealth'    => $this->ehealthData($employee),
-                'elearning'  => $this->elearningData($employee),
-                'eticket'    => $this->eticketData($employee),
-                'ewholesale' => $this->ewholesaleData($employee),
-                'edata'      => $this->edataData($employee),
-                'elaundry'   => $this->elaundryData($employee),
-                'eexchange'  => $this->eexchangeData($employee),
-                default      => ['orders' => collect(), 'stats' => []],
-            };
+            if ($slug === 'ehealth') {
+                return $this->fetchAppointments($statuses, $search);
+            }
+            if ($slug === 'eexchange') {
+                return $this->fetchExchangeOrders($statuses, $search);
+            }
+            if ($slug === 'eticket') {
+                return $this->fetchTickets($statuses, $search);
+            }
+            // All others: unified orders table
+            return $this->fetchOrders($slug, $statuses, $search);
+
         } catch (\Throwable $e) {
-            // Module table may not have employee-scoped columns yet
-            return ['orders' => collect(), 'stats' => [], 'notice' => $e->getMessage()];
+            return collect();
         }
     }
 
-    // ── Per-module data pullers ───────────────────────────────────────────────
-
-    private function efoodData($employee): array
+    private function fetchOrders(string $slug, array $statuses, string $search): \Illuminate\Support\Collection
     {
-        $orders = \App\Models\Order::with('items')
-            ->where('module', 'efood')
-            ->whereIn('status', ['pending', 'confirmed', 'preparing', 'ready'])
-            ->orderByDesc('created_at')->limit(20)->get();
-        return [
-            'orders' => $orders,
-            'stats'  => [
-                'pending'    => $orders->whereIn('status', ['pending'])->count(),
-                'preparing'  => $orders->where('status', 'preparing')->count(),
-                'ready'      => $orders->where('status', 'ready')->count(),
-                'today_done' => \App\Models\Order::where('module','efood')
-                    ->where('status','delivered')->whereDate('updated_at', today())->count(),
+        $q = \App\Models\Order::with(['items','vendor','user'])
+            ->where('module_slug', $slug)
+            ->orderByDesc('created_at')
+            ->limit(50);
+
+        if ($statuses) $q->whereIn('status', $statuses);
+        if ($search)   $q->where(fn($sq) =>
+            $sq->where('order_number', 'like', "%$search%")
+               ->orWhereHas('user', fn($uq) => $uq->where('name', 'like', "%$search%"))
+               ->orWhereHas('vendor', fn($vq) => $vq->where('name', 'like', "%$search%"))
+        );
+
+        return $q->get()->map(fn($o) => [
+            'id'           => $o->id,
+            'ref'          => $o->order_number,
+            'customer'     => $o->user?->name ?? '—',
+            'vendor'       => $o->vendor?->name ?? '—',
+            'status'       => $o->status,
+            'payment'      => $o->payment_status,
+            'amount'       => $o->total_amount,
+            'items_count'  => $o->items->count(),
+            'items'        => $o->items->map(fn($i) => ['name' => $i->name, 'qty' => $i->quantity, 'price' => $i->price]),
+            'address'      => is_string($o->delivery_address) ? $o->delivery_address : ($o->delivery_address['address'] ?? null),
+            'notes'        => $o->notes ?? $o->note,
+            'placed_at'    => $o->placed_at ?? $o->created_at,
+            'type'         => 'order',
+            'slug'         => $slug,
+        ]);
+    }
+
+    private function fetchAppointments(array $statuses, string $search): \Illuminate\Support\Collection
+    {
+        $q = \DB::table('appointments')
+            ->join('users', 'users.id', '=', 'appointments.user_id')
+            ->select('appointments.*', 'users.name as customer_name')
+            ->orderByDesc('appointments.scheduled_at')
+            ->limit(50);
+
+        if ($statuses) $q->whereIn('appointments.status', $statuses);
+        if ($search)   $q->where('users.name', 'like', "%$search%");
+
+        return collect($q->get())->map(fn($a) => [
+            'id'        => $a->id,
+            'ref'       => 'APT-' . str_pad($a->id, 5, '0', STR_PAD_LEFT),
+            'customer'  => $a->customer_name ?? '—',
+            'vendor'    => 'eHealth',
+            'status'    => $a->status ?: 'pending',
+            'amount'    => null,
+            'notes'     => $a->notes,
+            'placed_at' => $a->scheduled_at,
+            'type'      => 'appointment',
+            'slug'      => 'ehealth',
+            'extra'     => ['type' => $a->type, 'scheduled' => $a->scheduled_at],
+        ]);
+    }
+
+    private function fetchExchangeOrders(array $statuses, string $search): \Illuminate\Support\Collection
+    {
+        $q = \DB::table('exchange_orders')
+            ->orderByDesc('created_at')
+            ->limit(50);
+
+        if ($statuses) $q->whereIn('status', $statuses);
+        if ($search)   $q->where('reference', 'like', "%$search%")
+                          ->orWhere('recipient_phone', 'like', "%$search%");
+
+        return collect($q->get())->map(fn($e) => [
+            'id'        => $e->id,
+            'ref'       => $e->reference,
+            'customer'  => $e->recipient_phone ?? '—',
+            'vendor'    => $e->from_wallet . ' → ' . $e->to_wallet,
+            'status'    => $e->status ?: 'pending',
+            'amount'    => $e->sent_amount,
+            'notes'     => $e->note,
+            'placed_at' => $e->created_at,
+            'type'      => 'exchange',
+            'slug'      => 'eexchange',
+            'extra'     => ['rate' => $e->rate, 'converted' => $e->converted_amount, 'fee' => $e->fee_amount],
+        ]);
+    }
+
+    private function fetchTickets(array $statuses, string $search): \Illuminate\Support\Collection
+    {
+        $q = \DB::table('global_support_tickets')
+            ->orderByDesc('created_at')
+            ->limit(50);
+
+        if ($statuses) $q->whereIn('status', $statuses);
+        if ($search)   $q->where(fn($sq) =>
+            $sq->where('ticket_number', 'like', "%$search%")
+               ->orWhere('subject', 'like', "%$search%")
+               ->orWhere('name', 'like', "%$search%")
+        );
+
+        return collect($q->get())->map(fn($t) => [
+            'id'        => $t->id,
+            'ref'       => $t->ticket_number,
+            'customer'  => $t->name ?? $t->email ?? '—',
+            'vendor'    => ucfirst($t->category ?? 'General'),
+            'status'    => $t->status ?: 'open',
+            'amount'    => null,
+            'notes'     => $t->message,
+            'placed_at' => $t->created_at,
+            'type'      => 'ticket',
+            'slug'      => 'eticket',
+            'extra'     => ['priority' => $t->priority, 'subject' => $t->subject],
+        ]);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Stats (always live counts from DB)
+    // ─────────────────────────────────────────────────────────────────────────
+    private function moduleStats(string $slug): array
+    {
+        try {
+            if ($slug === 'ehealth') {
+                return [
+                    'today'   => \DB::table('appointments')->whereDate('scheduled_at', today())->count(),
+                    'active'  => \DB::table('appointments')->whereIn('status', self::ACTIVE_STATUSES['ehealth'] ?? [])->count(),
+                    'done'    => \DB::table('appointments')->whereIn('status', self::DONE_STATUSES['ehealth'] ?? [])->count(),
+                    'total'   => \DB::table('appointments')->count(),
+                ];
+            }
+            if ($slug === 'eexchange') {
+                return [
+                    'active'  => \DB::table('exchange_orders')->whereIn('status', self::ACTIVE_STATUSES['eexchange'] ?? [])->count(),
+                    'done'    => \DB::table('exchange_orders')->whereIn('status', self::DONE_STATUSES['eexchange'] ?? [])->count(),
+                    'today'   => \DB::table('exchange_orders')->whereDate('created_at', today())->count(),
+                    'total'   => \DB::table('exchange_orders')->count(),
+                ];
+            }
+            if ($slug === 'eticket') {
+                return [
+                    'open'    => \DB::table('global_support_tickets')->whereIn('status', ['open','pending'])->count(),
+                    'active'  => \DB::table('global_support_tickets')->where('status','in_progress')->count(),
+                    'done'    => \DB::table('global_support_tickets')->whereIn('status', ['resolved','closed'])->count(),
+                    'total'   => \DB::table('global_support_tickets')->count(),
+                ];
+            }
+            // Orders table modules
+            $active = \App\Models\Order::where('module_slug', $slug)
+                ->whereIn('status', self::ACTIVE_STATUSES[$slug] ?? [])->count();
+            $done   = \App\Models\Order::where('module_slug', $slug)
+                ->whereIn('status', self::DONE_STATUSES[$slug] ?? [])->count();
+            $today  = \App\Models\Order::where('module_slug', $slug)
+                ->whereDate('created_at', today())->count();
+            $total  = \App\Models\Order::where('module_slug', $slug)->count();
+
+            return compact('active', 'done', 'today', 'total');
+
+        } catch (\Throwable) {
+            return ['active' => 0, 'done' => 0, 'today' => 0, 'total' => 0];
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Status transition map
+    // ─────────────────────────────────────────────────────────────────────────
+    private function moduleTransitions(string $slug): array
+    {
+        return match($slug) {
+            'efood' => [
+                'pending'    => [['status'=>'confirmed',  'label'=>'Confirm',    'color'=>'blue'],   ['status'=>'cancelled','label'=>'Cancel','color'=>'red']],
+                'confirmed'  => [['status'=>'preparing',  'label'=>'Preparing',  'color'=>'yellow'], ['status'=>'cancelled','label'=>'Cancel','color'=>'red']],
+                'preparing'  => [['status'=>'ready',      'label'=>'Ready',      'color'=>'green']],
+                'ready'      => [['status'=>'dispatched', 'label'=>'Dispatch',   'color'=>'indigo']],
+                'dispatched' => [['status'=>'delivered',  'label'=>'Delivered',  'color'=>'green']],
             ],
-        ];
-    }
-
-    private function egroceryData($employee): array
-    {
-        $orders = \App\Models\Order::with('items')
-            ->where('module', 'egrocery')
-            ->whereIn('status', ['pending', 'confirmed', 'picking', 'packed'])
-            ->orderByDesc('created_at')->limit(20)->get();
-        return [
-            'orders' => $orders,
-            'stats'  => [
-                'pending'  => $orders->where('status', 'pending')->count(),
-                'picking'  => $orders->where('status', 'picking')->count(),
-                'packed'   => $orders->where('status', 'packed')->count(),
-                'today'    => \App\Models\Order::where('module','egrocery')
-                    ->whereDate('created_at', today())->count(),
+            'egrocery','eshop','ewholesale' => [
+                'pending'   => [['status'=>'confirmed', 'label'=>'Confirm',  'color'=>'blue'],  ['status'=>'cancelled','label'=>'Cancel','color'=>'red']],
+                'confirmed' => [['status'=>'picking',   'label'=>'Picking',  'color'=>'yellow']],
+                'picking'   => [['status'=>'packed',    'label'=>'Packed',   'color'=>'green']],
+                'packed'    => [['status'=>'dispatched','label'=>'Dispatch', 'color'=>'indigo']],
+                'dispatched'=> [['status'=>'delivered', 'label'=>'Delivered','color'=>'green']],
             ],
-        ];
-    }
-
-    private function eshopData($employee): array
-    {
-        $orders = \App\Models\Order::with('items')
-            ->where('module', 'eshop')
-            ->whereIn('status', ['pending', 'confirmed', 'processing'])
-            ->orderByDesc('created_at')->limit(20)->get();
-        return ['orders' => $orders, 'stats' => ['pending' => $orders->count()]];
-    }
-
-    private function eparcelData($employee): array
-    {
-        $deliveries = \DB::table('eparcel_orders')
-            ->whereIn('status', ['pending', 'picked_up', 'in_transit'])
-            ->orderByDesc('created_at')->limit(20)->get();
-        return [
-            'orders' => $deliveries,
-            'stats'  => [
-                'pending'    => collect($deliveries)->where('status','pending')->count(),
-                'in_transit' => collect($deliveries)->where('status','in_transit')->count(),
-                'today'      => \DB::table('eparcel_orders')->whereDate('created_at',today())->count(),
+            'eparcel' => [
+                'pending'    => [['status'=>'confirmed',  'label'=>'Accept',     'color'=>'blue'],  ['status'=>'failed','label'=>'Reject','color'=>'red']],
+                'confirmed'  => [['status'=>'picked_up',  'label'=>'Picked Up',  'color'=>'yellow']],
+                'picked_up'  => [['status'=>'in_transit', 'label'=>'In Transit', 'color'=>'indigo']],
+                'in_transit' => [['status'=>'delivered',  'label'=>'Delivered',  'color'=>'green'], ['status'=>'failed','label'=>'Failed','color'=>'red']],
             ],
-        ];
-    }
-
-    private function emovingData($employee): array
-    {
-        $jobs = \DB::table('emoving_bookings')
-            ->whereIn('status', ['pending', 'confirmed', 'in_progress'])
-            ->orderByDesc('created_at')->limit(20)->get();
-        return ['orders' => $jobs, 'stats' => ['pending' => collect($jobs)->where('status','pending')->count()]];
-    }
-
-    private function erentData($employee): array
-    {
-        $requests = \DB::table('erent_bookings')
-            ->whereIn('status', ['pending', 'confirmed'])
-            ->orderByDesc('created_at')->limit(20)->get();
-        return ['orders' => $requests, 'stats' => ['pending' => collect($requests)->where('status','pending')->count()]];
-    }
-
-    private function ehealthData($employee): array
-    {
-        $appointments = \DB::table('ehealth_appointments')
-            ->whereIn('status', ['pending', 'confirmed', 'in_progress'])
-            ->orderByDesc('appointment_date')->limit(20)->get();
-        return [
-            'orders' => $appointments,
-            'stats'  => [
-                'today'    => \DB::table('ehealth_appointments')->whereDate('appointment_date', today())->count(),
-                'pending'  => collect($appointments)->where('status','pending')->count(),
-                'confirmed'=> collect($appointments)->where('status','confirmed')->count(),
+            'elaundry' => [
+                'pending'   => [['status'=>'collected', 'label'=>'Collected',  'color'=>'blue']],
+                'collected' => [['status'=>'washing',   'label'=>'Washing',    'color'=>'yellow']],
+                'washing'   => [['status'=>'drying',    'label'=>'Drying',     'color'=>'indigo']],
+                'drying'    => [['status'=>'ready',     'label'=>'Ready',      'color'=>'green']],
+                'ready'     => [['status'=>'delivered', 'label'=>'Delivered',  'color'=>'green']],
             ],
-        ];
-    }
-
-    private function elearningData($employee): array
-    {
-        $enrollments = \DB::table('elearning_enrollments')
-            ->whereIn('status', ['active', 'pending'])
-            ->orderByDesc('created_at')->limit(20)->get();
-        return ['orders' => $enrollments, 'stats' => ['active' => collect($enrollments)->where('status','active')->count()]];
-    }
-
-    private function eticketData($employee): array
-    {
-        $tickets = \DB::table('support_tickets')
-            ->whereIn('status', ['open', 'in_progress'])
-            ->orderByDesc('created_at')->limit(20)->get();
-        return [
-            'orders' => $tickets,
-            'stats'  => [
-                'open'       => collect($tickets)->where('status','open')->count(),
-                'in_progress'=> collect($tickets)->where('status','in_progress')->count(),
+            'emoving','erent' => [
+                'pending'   => [['status'=>'confirmed',  'label'=>'Confirm',   'color'=>'blue'], ['status'=>'cancelled','label'=>'Cancel','color'=>'red']],
+                'confirmed' => [['status'=>'in_progress','label'=>'Start Job', 'color'=>'yellow']],
+                'in_progress'=>[['status'=>'completed',  'label'=>'Complete',  'color'=>'green']],
             ],
-        ];
-    }
-
-    private function ewholesaleData($employee): array
-    {
-        $orders = \DB::table('ewholesale_orders')
-            ->whereIn('status', ['pending', 'confirmed', 'processing'])
-            ->orderByDesc('created_at')->limit(20)->get();
-        return ['orders' => $orders, 'stats' => ['pending' => collect($orders)->where('status','pending')->count()]];
-    }
-
-    private function edataData($employee): array
-    {
-        $orders = \DB::table('edata_orders')
-            ->whereIn('status', ['pending', 'processing'])
-            ->orderByDesc('created_at')->limit(20)->get();
-        return ['orders' => $orders, 'stats' => ['pending' => collect($orders)->count()]];
-    }
-
-    private function elaundryData($employee): array
-    {
-        $orders = \DB::table('elaundry_orders')
-            ->whereIn('status', ['pending', 'collected', 'washing', 'ready'])
-            ->orderByDesc('created_at')->limit(20)->get();
-        return [
-            'orders' => $orders,
-            'stats'  => [
-                'pending'  => collect($orders)->where('status','pending')->count(),
-                'washing'  => collect($orders)->where('status','washing')->count(),
-                'ready'    => collect($orders)->where('status','ready')->count(),
+            'ehealth' => [
+                'pending'    => [['status'=>'confirmed', 'label'=>'Confirm',  'color'=>'blue'],  ['status'=>'cancelled','label'=>'Cancel','color'=>'red']],
+                'confirmed'  => [['status'=>'in_progress','label'=>'Start',   'color'=>'yellow']],
+                'in_progress'=> [['status'=>'completed', 'label'=>'Complete', 'color'=>'green']],
             ],
-        ];
+            'eexchange' => [
+                'pending'    => [['status'=>'processing','label'=>'Process',  'color'=>'blue'],  ['status'=>'cancelled','label'=>'Reject','color'=>'red']],
+                'processing' => [['status'=>'completed', 'label'=>'Complete', 'color'=>'green'], ['status'=>'failed','label'=>'Failed','color'=>'red']],
+            ],
+            'eticket' => [
+                'open'       => [['status'=>'in_progress','label'=>'Take Over','color'=>'blue']],
+                'in_progress'=> [['status'=>'resolved',   'label'=>'Resolve',  'color'=>'green'], ['status'=>'closed','label'=>'Close','color'=>'gray']],
+            ],
+            default => [],
+        };
     }
 
-    private function eexchangeData($employee): array
+    // ─────────────────────────────────────────────────────────────────────────
+    // Apply status change to the correct table
+    // ─────────────────────────────────────────────────────────────────────────
+    private function applyStatusChange(string $slug, int $itemId, string $newStatus, string $note, $employee): bool
     {
-        $transactions = \DB::table('eexchange_transactions')
-            ->whereIn('status', ['pending', 'processing'])
-            ->orderByDesc('created_at')->limit(20)->get();
-        return ['orders' => $transactions, 'stats' => ['pending' => collect($transactions)->where('status','pending')->count()]];
+        try {
+            if ($slug === 'ehealth') {
+                return (bool) \DB::table('appointments')->where('id', $itemId)
+                    ->update(['status' => $newStatus, 'notes' => $note ?: \DB::raw('notes')]);
+            }
+            if ($slug === 'eexchange') {
+                return (bool) \DB::table('exchange_orders')->where('id', $itemId)
+                    ->update(['status' => $newStatus]);
+            }
+            if ($slug === 'eticket') {
+                $update = ['status' => $newStatus];
+                if ($newStatus === 'resolved') $update['resolved_at'] = now();
+                if ($newStatus === 'in_progress') $update['assigned_to'] = $employee->full_name;
+                return (bool) \DB::table('global_support_tickets')->where('id', $itemId)->update($update);
+            }
+            // Orders table
+            $timestamps = [
+                'confirmed'   => ['confirmed_at'  => now()],
+                'ready'       => ['ready_at'       => now()],
+                'dispatched'  => ['dispatched_at'  => now()],
+                'picked_up'   => ['picked_up_at'   => now()],
+                'delivered'   => ['delivered_at'   => now()],
+                'cancelled'   => ['cancelled_at'   => now(), 'cancellation_reason' => $note],
+            ];
+            $update = array_merge(['status' => $newStatus], $timestamps[$newStatus] ?? []);
+            return (bool) \DB::table('orders')->where('id', $itemId)->where('module_slug', $slug)->update($update);
+        } catch (\Throwable) {
+            return false;
+        }
     }
 }
