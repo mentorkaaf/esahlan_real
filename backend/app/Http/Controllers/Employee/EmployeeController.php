@@ -4,9 +4,12 @@ namespace App\Http\Controllers\Employee;
 
 use App\Http\Controllers\Controller;
 use App\Models\HR\EmployeeModuleMetric;
+use App\Models\HR\HrAnnouncement;
 use App\Models\HR\HrAuditLog;
 use App\Models\HR\HrAttendance;
+use App\Models\HR\HrDocument;
 use App\Models\HR\HrLeave;
+use App\Models\HR\HrPayslip;
 use App\Models\HR\WorkforceAssignment;
 use App\Models\Module;
 use Illuminate\Http\Request;
@@ -346,6 +349,73 @@ class EmployeeController extends Controller
         $employee->update(['password' => Hash::make($request->password)]);
 
         return back()->with('success', 'Password-kaaga la beddelay.');
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Phase 4 — Self-Service: Payslips, Documents, Announcements
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public function payslips()
+    {
+        $employee = $this->me();
+        $payslips = HrPayslip::where('employee_id', $employee->id)
+            ->with('run')
+            ->orderByDesc('created_at')
+            ->paginate(12);
+
+        $latestPaid = HrPayslip::where('employee_id', $employee->id)
+            ->where('payment_status', 'paid')
+            ->with('run')
+            ->latest('paid_at')
+            ->first();
+
+        return view('employee.payslips.index', compact('employee', 'payslips', 'latestPaid'));
+    }
+
+    public function payslipShow(HrPayslip $payslip)
+    {
+        $employee = $this->me();
+
+        // Security: only own payslips
+        if ($payslip->employee_id !== $employee->id) {
+            abort(403);
+        }
+
+        $payslip->load(['run', 'items', 'employee.department', 'employee.position']);
+
+        return view('employee.payslips.show', compact('employee', 'payslip'));
+    }
+
+    public function documents()
+    {
+        $employee  = $this->me();
+        $documents = HrDocument::where('employee_id', $employee->id)
+            ->orderByDesc('created_at')
+            ->get()
+            ->groupBy('type');
+
+        return view('employee.documents', compact('employee', 'documents'));
+    }
+
+    public function announcements()
+    {
+        $employee = $this->me();
+
+        $announcements = HrAnnouncement::query()
+            ->where(fn($q) =>
+                $q->where('audience', 'all')
+                  ->orWhere(fn($q2) =>
+                      $q2->where('audience', 'department')
+                         ->where('department_id', $employee->department_id)
+                  )
+            )
+            ->whereNotNull('published_at')
+            ->where('published_at', '<=', now())
+            ->with('creator')
+            ->orderByDesc('published_at')
+            ->paginate(15);
+
+        return view('employee.announcements', compact('employee', 'announcements'));
     }
 
     // ─────────────────────────────────────────────────────────────────────────

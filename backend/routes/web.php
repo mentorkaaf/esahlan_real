@@ -184,6 +184,16 @@ Route::prefix('employee')->name('employee.')->group(function () {
         Route::get('/leaves/create',       [\App\Http\Controllers\Employee\EmployeeController::class, 'leaveCreate'])->name('leaves.create');
         Route::post('/leaves',             [\App\Http\Controllers\Employee\EmployeeController::class, 'leaveStore'])->name('leaves.store');
 
+        // Payslips
+        Route::get('/payslips',            [\App\Http\Controllers\Employee\EmployeeController::class, 'payslips'])->name('payslips');
+        Route::get('/payslips/{payslip}',  [\App\Http\Controllers\Employee\EmployeeController::class, 'payslipShow'])->name('payslips.show');
+
+        // Documents
+        Route::get('/documents',           [\App\Http\Controllers\Employee\EmployeeController::class, 'documents'])->name('documents');
+
+        // Announcements
+        Route::get('/announcements',       [\App\Http\Controllers\Employee\EmployeeController::class, 'announcements'])->name('announcements');
+
         // Profile
         Route::get('/profile',             [\App\Http\Controllers\Employee\EmployeeController::class, 'profile'])->name('profile');
         Route::patch('/profile',           [\App\Http\Controllers\Employee\EmployeeController::class, 'profileUpdate'])->name('profile.update');

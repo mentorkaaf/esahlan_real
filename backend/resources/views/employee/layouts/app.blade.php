@@ -232,6 +232,32 @@
     </div>
 
     <div class="sidebar-section">
+      <div class="sidebar-label">Self-Service</div>
+      <a href="{{ route('employee.payslips') }}"
+         class="nav-link {{ request()->routeIs('employee.payslips*') ? 'active' : '' }}">
+        <i class="fas fa-file-invoice-dollar"></i> Payslips
+      </a>
+      <a href="{{ route('employee.documents') }}"
+         class="nav-link {{ request()->routeIs('employee.documents*') ? 'active' : '' }}">
+        <i class="fas fa-folder-open"></i> Documents
+      </a>
+      <a href="{{ route('employee.announcements') }}"
+         class="nav-link {{ request()->routeIs('employee.announcements*') ? 'active' : '' }}">
+        <i class="fas fa-bullhorn"></i> Announcements
+        @php
+          $unread = \App\Models\HR\HrAnnouncement::query()
+            ->where(fn($q) => $q->where('audience','all')
+              ->orWhere(fn($q2) => $q2->where('audience','department')->where('department_id',$emp->department_id)))
+            ->whereNotNull('published_at')->where('published_at','<=',now())
+            ->where('created_at','>=',now()->subDays(3))->count();
+        @endphp
+        @if($unread)
+          <span style="margin-left:auto;background:#dbeafe;color:#1e40af;font-size:10px;font-weight:700;padding:1px 7px;border-radius:20px;">{{ $unread }}</span>
+        @endif
+      </a>
+    </div>
+
+    <div class="sidebar-section">
       <div class="sidebar-label">Account</div>
       <a href="{{ route('employee.profile') }}"
          class="nav-link {{ request()->routeIs('employee.profile*') ? 'active' : '' }}">
