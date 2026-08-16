@@ -13,6 +13,7 @@ use App\Models\HR\HrCommission;
 use App\Models\HR\HrDocument;
 use App\Models\HR\HrGoal;
 use App\Models\HR\HrLeaveRequest as HrLeave;
+use App\Models\HR\HrLeaveType;
 use App\Models\HR\HrPayslip;
 use App\Models\HR\HrPerformanceCycle;
 use App\Models\HR\HrReview;
@@ -341,7 +342,7 @@ class EmployeeController extends Controller
     public function leaveCreate()
     {
         $employee   = $this->me();
-        $leaveTypes = ['annual', 'sick', 'maternity', 'paternity', 'emergency', 'unpaid'];
+        $leaveTypes = HrLeaveType::where('is_active', true)->orderBy('name')->get();
         return view('employee.leave-create', compact('employee', 'leaveTypes'));
     }
 
@@ -350,18 +351,24 @@ class EmployeeController extends Controller
         $employee = $this->me();
 
         $data = $request->validate([
-            'leave_type'   => 'required|in:annual,sick,maternity,paternity,emergency,unpaid',
-            'start_date'   => 'required|date|after_or_equal:today',
-            'end_date'     => 'required|date|after_or_equal:start_date',
-            'reason'       => 'required|string|max:500',
+            'leave_type_id' => 'required|exists:hr_leave_types,id',
+            'start_date'    => 'required|date|after_or_equal:today',
+            'end_date'      => 'required|date|after_or_equal:start_date',
+            'reason'        => 'nullable|string|max:500',
         ]);
 
-        $data['employee_id'] = $employee->id;
-        $data['status']      = 'pending';
-        $data['days']        = now()->parse($data['start_date'])
+        $working_days = now()->parse($data['start_date'])
             ->diffInWeekdays(now()->parse($data['end_date'])) + 1;
 
-        HrLeave::create($data);
+        HrLeave::create([
+            'employee_id'   => $employee->id,
+            'leave_type_id' => $data['leave_type_id'],
+            'start_date'    => $data['start_date'],
+            'end_date'      => $data['end_date'],
+            'reason'        => $data['reason'] ?? null,
+            'working_days'  => $working_days,
+            'status'        => 'pending',
+        ]);
 
         return redirect()->route('employee.leaves')
             ->with('success', 'Codsigaaga daawo la diray. HR ayaa dib u eegi doona.');
@@ -529,8 +536,9 @@ class EmployeeController extends Controller
         'eticket'    => ['resolved','closed'],
     ];
 
-    private function fetchModuleWork(string $slug, string $filter, string $search): \Illuminate\Support\Collection
+    private function fetchModuleWork(string $slug, string $filter, ?string $search): \Illuminate\Support\Collection
     {
+        $search ??= '';
         $statuses = match($filter) {
             'active' => self::ACTIVE_STATUSES[$slug]  ?? [],
             'done'   => self::DONE_STATUSES[$slug]    ?? [],
@@ -770,8 +778,9 @@ class EmployeeController extends Controller
     // ─────────────────────────────────────────────────────────────────────────
     // Apply status change to the correct table
     // ─────────────────────────────────────────────────────────────────────────
-    private function applyStatusChange(string $slug, int $itemId, string $newStatus, string $note, $employee): bool
+    private function applyStatusChange(string $slug, int $itemId, string $newStatus, ?string $note, $employee): bool
     {
+        $note ??= '';
         try {
             if ($slug === 'ehealth') {
                 return (bool) \DB::table('appointments')->where('id', $itemId)
