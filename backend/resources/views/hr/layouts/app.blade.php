@@ -541,6 +541,24 @@
             </a>
         </div>
 
+        {{-- ── WORKFORCE (manager / officer) ───────── --}}
+        @if(Auth::guard('hr')->user()->isManager() || Auth::guard('hr')->user()->isOfficer())
+        <div class="sb-group">
+            <div class="sb-group-head">
+                <span class="sb-group-label">Workforce</span>
+                <span class="sb-group-rule"></span>
+            </div>
+
+            <a href="{{ route('hr.workforce.index') }}"
+               class="sb-link {{ str_starts_with($route, 'hr.workforce') ? 'active' : '' }}">
+                <svg class="sb-ico" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
+                </svg>
+                <span class="sb-lbl">Module Assignments</span>
+            </a>
+        </div>
+        @endif
+
         {{-- ── ADMINISTRATION (role-gated) ──────── --}}
         @if(Auth::guard('hr')->user()->isManager() || Auth::guard('hr')->user()->isPayroll())
         <div class="sb-group">

@@ -19,6 +19,7 @@ use App\Http\Controllers\HR\HrPerformanceCycleController;
 use App\Http\Controllers\HR\HrDisciplinaryController;
 use App\Http\Controllers\HR\HrAnnouncementController;
 use App\Http\Controllers\HR\HrReportController;
+use App\Http\Controllers\HR\HrWorkforceController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -176,6 +177,20 @@ Route::middleware('auth.hr')->group(function () {
         Route::post('{announcement}/publish', [HrAnnouncementController::class, 'publish'])->name('publish')
              ->middleware('hr.role:hr_manager,hr_officer');
         Route::delete('{announcement}', [HrAnnouncementController::class, 'destroy'])->name('destroy')
+             ->middleware('hr.role:hr_manager');
+    });
+
+    // ── Workforce Assignments ─────────────────────────────────────────────
+    Route::prefix('workforce')->name('workforce.')->middleware('hr.role:hr_manager,hr_officer')->group(function () {
+        Route::get('/',                              [HrWorkforceController::class, 'index'])->name('index');
+        Route::get('/module/{module}',               [HrWorkforceController::class, 'module'])->name('module');
+        Route::get('/assign',                        [HrWorkforceController::class, 'create'])->name('create');
+        Route::post('/assign',                       [HrWorkforceController::class, 'store'])->name('store');
+        Route::get('/employee/{employee}',           [HrWorkforceController::class, 'employee'])->name('employee');
+        Route::delete('/{assignment}',               [HrWorkforceController::class, 'destroy'])->name('destroy');
+        Route::post('/{assignment}/suspend',         [HrWorkforceController::class, 'suspend'])->name('suspend')
+             ->middleware('hr.role:hr_manager');
+        Route::post('/{assignment}/reactivate',      [HrWorkforceController::class, 'reactivate'])->name('reactivate')
              ->middleware('hr.role:hr_manager');
     });
 

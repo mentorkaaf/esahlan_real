@@ -105,6 +105,17 @@ class HrEmployee extends Model
         return $this->hasMany(\App\Models\HR\HrDisciplinaryCase::class, 'employee_id');
     }
 
+    public function workforceAssignments()
+    {
+        return $this->hasMany(\App\Models\HR\WorkforceAssignment::class, 'employee_id');
+    }
+
+    public function activeWorkforceAssignments()
+    {
+        return $this->hasMany(\App\Models\HR\WorkforceAssignment::class, 'employee_id')
+                    ->where('status', 'active');
+    }
+
     public function auditLogs()
     {
         return HrAuditLog::where('subject_type', self::class)

@@ -11,4 +11,5 @@ class Module extends Model {
     public function districts() { return $this->belongsToMany(District::class,'module_district')->withPivot('is_active'); }
     public function categories() { return $this->hasMany(Category::class); }
     public function scopeActive($q) { return $q->where('is_active', true); }
+    public function workforceAssignments() { return $this->hasMany(\App\Models\HR\WorkforceAssignment::class); }
 }
