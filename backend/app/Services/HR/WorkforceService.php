@@ -5,7 +5,9 @@ namespace App\Services\HR;
 use App\Models\HR\HrEmployee;
 use App\Models\HR\WorkforceAssignment;
 use App\Models\Module;
+use App\Models\ModuleRole;
 use App\Services\FcmService;
+use App\Services\HR\WorkforcePermissionService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -23,6 +25,7 @@ class WorkforceService
         ?string $notes = null,
         ?int $moduleDepartmentId = null,
         ?int $modulePositionId = null,
+        ?int $moduleRoleId = null,
     ): array {
         // Employee must be hirable
         if (!in_array($employee->status, ['active', 'probation'])) {
@@ -47,12 +50,13 @@ class WorkforceService
             ];
         }
 
-        return DB::transaction(function () use ($employee, $module, $roleInModule, $notes, $moduleDepartmentId, $modulePositionId) {
+        return DB::transaction(function () use ($employee, $module, $roleInModule, $notes, $moduleDepartmentId, $modulePositionId, $moduleRoleId) {
             $assignment = WorkforceAssignment::create([
                 'employee_id'          => $employee->id,
                 'module_id'            => $module->id,
                 'module_department_id' => $moduleDepartmentId,
                 'module_position_id'   => $modulePositionId,
+                'module_role_id'       => $moduleRoleId,
                 'role_in_module'       => $roleInModule ?: null,
                 'status'               => 'active',
                 'assigned_at'          => now(),
@@ -73,6 +77,17 @@ class WorkforceService
                     if ($agentRole) {
                         \App\Models\User::where('id', $employee->user_id)
                             ->update(['role_id' => $agentRole->id]);
+                    }
+                }
+
+                // Grant module role permissions to the linked user account
+                if ($moduleRoleId) {
+                    $moduleRole = ModuleRole::find($moduleRoleId);
+                    if ($moduleRole) {
+                        $user = \App\Models\User::find($employee->user_id);
+                        if ($user) {
+                            WorkforcePermissionService::grantModuleRolePermissions($user, $moduleRole);
+                        }
                     }
                 }
             }
@@ -122,6 +137,15 @@ class WorkforceService
                         ->where('user_id', $employee->user_id)
                         ->where('module_id', $assignment->module_id)
                         ->delete();
+
+                    // Revoke all module-scoped permissions for this module
+                    $module = $assignment->module;
+                    if ($module) {
+                        $user = \App\Models\User::find($employee->user_id);
+                        if ($user) {
+                            WorkforcePermissionService::revokeModulePermissions($user, $module->slug);
+                        }
+                    }
                 }
             }
 

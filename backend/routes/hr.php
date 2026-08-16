@@ -22,6 +22,7 @@ use App\Http\Controllers\HR\HrReportController;
 use App\Http\Controllers\HR\HrWorkforceController;
 use App\Http\Controllers\HR\HrModuleDepartmentController;
 use App\Http\Controllers\HR\HrModulePositionController;
+use App\Http\Controllers\HR\HrModuleRoleController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -227,6 +228,33 @@ Route::middleware('auth.hr')->group(function () {
         Route::post('/{assignment}/reactivate',      [HrWorkforceController::class, 'reactivate'])->name('reactivate')
              ->middleware('hr.role:hr_manager');
     });
+
+    // ── Module Roles & Permissions ────────────────────────────────────────
+    Route::prefix('module-roles')->name('module-roles.')->middleware('hr.role:hr_manager,hr_officer')->group(function () {
+        Route::get('/',                              [HrModuleRoleController::class, 'index'])->name('index');
+        Route::get('/create',                        [HrModuleRoleController::class, 'create'])->name('create');
+        Route::post('/',                             [HrModuleRoleController::class, 'store'])->name('store');
+        Route::get('/{moduleRole}',                  [HrModuleRoleController::class, 'show'])->name('show');
+        Route::get('/{moduleRole}/edit',             [HrModuleRoleController::class, 'edit'])->name('edit');
+        Route::put('/{moduleRole}',                  [HrModuleRoleController::class, 'update'])->name('update');
+        Route::patch('/{moduleRole}/toggle-status',  [HrModuleRoleController::class, 'toggleStatus'])->name('toggle-status')
+             ->middleware('hr.role:hr_manager');
+        // JSON helpers
+        Route::get('/by-module/{module}',            [HrModuleRoleController::class, 'byModule'])->name('by-module');
+        Route::get('/by-module/{module}/permissions', function (\App\Models\Module $module) {
+            $perms = \Illuminate\Support\Facades\DB::table('permissions')
+                ->where('module', $module->slug)
+                ->orderByRaw("FIELD(`group`, 'dashboard','employees','orders','vendors','customers','reports','settings','finance','operations')")
+                ->get()
+                ->groupBy('group');
+            return response()->json($perms);
+        })->name('permissions-by-module');
+    });
+
+    // ── Employee Permissions View ─────────────────────────────────────────
+    Route::get('employees/{employee}/permissions', [HrModuleRoleController::class, 'employeePermissions'])
+         ->name('employees.permissions')
+         ->middleware('hr.role:hr_manager,hr_officer');
 
     // ── Reports ───────────────────────────────────────────────────────────
     Route::get('reports', [HrReportController::class, 'index'])->name('reports.index');

@@ -36,6 +36,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin.monitor'    => \App\Http\Middleware\AdminRouteMonitor::class,
             'auth.hr'          => \App\Http\Middleware\HrAuthenticate::class,
             'hr.role'          => \App\Http\Middleware\HrRole::class,
+            'module.permission'=> \App\Http\Middleware\CheckModulePermission::class,
         ]);
 
         // Sanitize text input on every API request (strip null bytes + control chars)

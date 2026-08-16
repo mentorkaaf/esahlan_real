@@ -13,6 +13,8 @@ class DatabaseSeeder extends Seeder
             ModuleSeeder::class,
             ModuleDepartmentSeeder::class,
             ModulePositionSeeder::class,
+            ModulePermissionSeeder::class,
+            ModuleRoleSeeder::class,
             SettingSeeder::class,
             AdminUserSeeder::class,
             DataProviderSeeder::class,

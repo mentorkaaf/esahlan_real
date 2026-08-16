@@ -74,9 +74,26 @@
                 </select>
             </div>
 
+            {{-- Module Role (permissions) --}}
+            <div id="module-role-picker" class="hidden">
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">
+                    Module Role
+                    <span class="text-xs text-gray-400 font-normal ml-1">(determines permissions)</span>
+                </label>
+                <select name="module_role_id" id="module-role-select"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1B1444]">
+                    <option value="">— No specific role —</option>
+                </select>
+                <p class="text-xs text-gray-400 mt-1">
+                    The selected role's permissions will be granted to the employee's user account automatically.
+                </p>
+            </div>
+
             {{-- Role in module --}}
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1.5">Role in Module</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">Role in Module
+                    <span class="text-xs text-gray-400 font-normal ml-1">(label only)</span>
+                </label>
                 <select name="role_in_module"
                         class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1B1444]">
                     <option value="staff"      {{ old('role_in_module') === 'staff'      ? 'selected' : '' }}>Staff (default)</option>
@@ -124,16 +141,20 @@ function loadPositions(moduleId, deptId) {
     }).catch(() => posPicker.classList.add('hidden'));
 }
 
-// When module changes, fetch its departments AND positions
+// When module changes, fetch its departments, positions, AND module roles
 document.querySelector('[name="module_id"]').addEventListener('change', function() {
     const moduleId = this.value;
     const deptPicker = document.getElementById('dept-picker');
     const deptSelect = document.getElementById('dept-select');
+    const roleSelect = document.getElementById('module-role-select');
+    const rolePicker = document.getElementById('module-role-picker');
 
     if (!moduleId) {
         deptPicker.classList.add('hidden');
         deptSelect.innerHTML = '<option value="">— No specific department —</option>';
         document.getElementById('pos-picker').classList.add('hidden');
+        rolePicker.classList.add('hidden');
+        roleSelect.innerHTML = '<option value="">— No specific role —</option>';
         return;
     }
 
@@ -147,6 +168,22 @@ document.querySelector('[name="module_id"]').addEventListener('change', function
         .catch(() => deptPicker.classList.add('hidden'));
 
     loadPositions(moduleId, null);
+
+    // Load module roles
+    fetch(`/hr/module-roles/by-module/${moduleId}`)
+        .then(r => r.json())
+        .then(roles => {
+            roleSelect.innerHTML = '<option value="">— No specific role —</option>';
+            roles.forEach(r => {
+                const opt = document.createElement('option');
+                opt.value = r.id;
+                opt.textContent = r.name + (r.is_default ? ' ★' : '');
+                if (r.is_default && roles.length > 0) opt.selected = false;
+                roleSelect.appendChild(opt);
+            });
+            rolePicker.classList.toggle('hidden', roles.length === 0);
+        })
+        .catch(() => rolePicker.classList.add('hidden'));
 });
 
 // When dept changes, refine position list
