@@ -63,9 +63,36 @@ class HrEmployeeController extends Controller
 
     public function show(HrEmployee $employee)
     {
-        $employee->load(['department', 'position', 'contracts', 'documents']);
+        $employee->load([
+            'department', 'position', 'contracts', 'documents',
+            // Business Suite workspace
+            'workforceAssignments' => fn($q) => $q->with([
+                'module', 'moduleDepartment', 'modulePosition',
+                'moduleRole.permissions', 'reportingManager', 'assignedBy',
+            ])->orderByRaw("FIELD(status, 'active', 'suspended', 'ended')")
+              ->orderByRaw("FIELD(assignment_type, 'primary', 'secondary', 'temporary', 'acting', 'project_based')")
+              ->orderBy('assigned_at'),
+        ]);
 
-        return view('hr.employees.show', compact('employee'));
+        // Split active vs history
+        $activeAssignments = $employee->workforceAssignments->where('status', 'active');
+        $pastAssignments   = $employee->workforceAssignments->whereIn('status', ['ended', 'suspended']);
+
+        $primaryAssignment   = $activeAssignments->firstWhere('assignment_type', 'primary');
+        $secondaryAssignments = $activeAssignments->where('assignment_type', '!=', 'primary');
+
+        // Aggregate all permissions from active assignments (deduplicated by slug)
+        $allPermissions = $activeAssignments
+            ->flatMap(fn($a) => $a->moduleRole?->permissions ?? collect())
+            ->unique('id')
+            ->groupBy('group');
+
+        return view('hr.employees.show', compact(
+            'employee',
+            'activeAssignments', 'pastAssignments',
+            'primaryAssignment', 'secondaryAssignments',
+            'allPermissions',
+        ));
     }
 
     public function edit(HrEmployee $employee)
