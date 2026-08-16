@@ -147,6 +147,11 @@ class AttendanceService
         Carbon $date,
         ?string $forceStatus
     ): array {
+        // Manual override always wins — HR can mark any status on any day
+        if ($forceStatus) {
+            return [$forceStatus, 0, 0];
+        }
+
         // weekend
         if ($date->isWeekend()) {
             return ['weekend', 0, 0];
@@ -156,10 +161,6 @@ class AttendanceService
         $holidays = HrHoliday::datesForYear($date->year);
         if (in_array($date->format('Y-m-d'), $holidays)) {
             return ['holiday', 0, 0];
-        }
-
-        if ($forceStatus) {
-            return [$forceStatus, 0, 0];
         }
 
         if (!$checkIn) {
