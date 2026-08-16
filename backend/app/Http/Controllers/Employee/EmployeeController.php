@@ -7,9 +7,13 @@ use App\Models\HR\EmployeeModuleMetric;
 use App\Models\HR\HrAnnouncement;
 use App\Models\HR\HrAuditLog;
 use App\Models\HR\HrAttendance;
+use App\Models\HR\HrCommission;
 use App\Models\HR\HrDocument;
+use App\Models\HR\HrGoal;
 use App\Models\HR\HrLeave;
 use App\Models\HR\HrPayslip;
+use App\Models\HR\HrPerformanceCycle;
+use App\Models\HR\HrReview;
 use App\Models\HR\WorkforceAssignment;
 use App\Models\Module;
 use Illuminate\Http\Request;
@@ -180,17 +184,18 @@ class EmployeeController extends Controller
     {
         $employee = $this->me();
         $period   = $request->get('period', now()->format('Y-m'));
+        $tab      = $request->get('tab', 'overview');
 
-        // Build period options (last 6 months)
+        // Period picker (last 12 months)
         $periods = [];
-        for ($i = 0; $i < 6; $i++) {
+        for ($i = 0; $i < 12; $i++) {
             $d = now()->subMonths($i);
             $periods[$d->format('Y-m')] = $d->format('M Y');
         }
 
         $allScores = EmployeeModuleMetric::scoresByModule($employee->id, $period);
 
-        // Per-module detail
+        // Per-module detail with team averages for comparison
         $assignments = WorkforceAssignment::where('employee_id', $employee->id)
             ->where('status', 'active')
             ->with(['module', 'module.performanceMetrics'])
@@ -200,20 +205,22 @@ class EmployeeController extends Controller
         foreach ($assignments as $a) {
             $mod = $a->module;
             if (! $mod) continue;
-            $composite = EmployeeModuleMetric::compositeScore($employee->id, $mod->id, $period);
-            $metrics   = EmployeeModuleMetric::where('employee_id', $employee->id)
+            $composite   = EmployeeModuleMetric::compositeScore($employee->id, $mod->id, $period);
+            $metrics     = EmployeeModuleMetric::where('employee_id', $employee->id)
                 ->where('module_id', $mod->id)
                 ->where('period', $period)
                 ->with('metric')
                 ->get();
+            $teamAvg     = EmployeeModuleMetric::teamAverages($mod->id, $period);
             $moduleDetails[] = [
                 'module'    => $mod,
                 'composite' => $composite,
                 'metrics'   => $metrics,
+                'teamAvg'   => $teamAvg,
             ];
         }
 
-        // 6-month trend per module
+        // 12-month trend per module
         $trend = [];
         foreach ($assignments as $a) {
             if (! $a->module) continue;
@@ -224,8 +231,46 @@ class EmployeeController extends Controller
             }
         }
 
+        // Overall across all modules for this period
+        $overallScore = count($moduleDetails)
+            ? round(collect($moduleDetails)->avg('composite'), 1)
+            : 0;
+
+        // ── Goals (active cycle) ─────────────────────────────────
+        $activeCycle = HrPerformanceCycle::where('status', 'active')
+            ->orderByDesc('period_start')
+            ->first();
+
+        $goals = $activeCycle
+            ? HrGoal::where('employee_id', $employee->id)
+                ->where('cycle_id', $activeCycle->id)
+                ->orderByDesc('weight')
+                ->get()
+            : collect();
+
+        // ── Reviews ─────────────────────────────────────────────
+        $reviews = HrReview::where('employee_id', $employee->id)
+            ->where('status', 'submitted')
+            ->with(['cycle', 'reviewer'])
+            ->orderByDesc('submitted_at')
+            ->get();
+
+        // ── Commissions (last 6 months) ──────────────────────────
+        $commissions = HrCommission::where('employee_id', $employee->id)
+            ->where('period', '>=', now()->subMonths(5)->format('Y-m'))
+            ->orderByDesc('period')
+            ->orderByDesc('created_at')
+            ->get();
+
+        $commissionByPeriod = $commissions->groupBy('period');
+        $commissionTotal    = $commissions->whereIn('status',['approved','included'])->sum('amount');
+
         return view('employee.performance', compact(
-            'employee', 'period', 'periods', 'allScores', 'moduleDetails', 'trend'
+            'employee', 'period', 'periods', 'tab',
+            'allScores', 'moduleDetails', 'trend', 'overallScore',
+            'activeCycle', 'goals',
+            'reviews',
+            'commissions', 'commissionByPeriod', 'commissionTotal'
         ));
     }
 
