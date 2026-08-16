@@ -4,6 +4,7 @@ namespace App\Models\HR;
 
 use App\Models\User;
 use App\Traits\HR\HrAuditable;
+// WorkforceAssignment used in type hints below (same namespace)
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -23,14 +24,16 @@ class HrEmployee extends Model
         'phone', 'email', 'district', 'address', 'photo',
         'employment_type', 'status', 'hire_date', 'probation_end',
         'base_salary', 'bank_account', 'mobile_money_number', 'emergency_contact',
+        'active_workspace_id', 'workspace_switched_at',
     ];
 
     protected $casts = [
-        'dob'               => 'date',
-        'hire_date'         => 'date',
-        'probation_end'     => 'date',
-        'base_salary'       => 'decimal:2',
-        'emergency_contact' => 'array',
+        'dob'                    => 'date',
+        'hire_date'              => 'date',
+        'probation_end'          => 'date',
+        'base_salary'            => 'decimal:2',
+        'emergency_contact'      => 'array',
+        'workspace_switched_at'  => 'datetime',
     ];
 
     // ── Relations ─────────────────────────────────────────────────────────────
@@ -114,6 +117,59 @@ class HrEmployee extends Model
     {
         return $this->hasMany(\App\Models\HR\WorkforceAssignment::class, 'employee_id')
                     ->where('status', 'active');
+    }
+
+    /** The assignment that is currently the employee's active workspace. */
+    public function activeWorkspace()
+    {
+        return $this->belongsTo(\App\Models\HR\WorkforceAssignment::class, 'active_workspace_id');
+    }
+
+    /**
+     * Switch to a different active workspace.
+     * The given assignment must be an active assignment belonging to this employee.
+     * If the employee has only one active assignment, it auto-activates on first call.
+     */
+    public function switchWorkspace(WorkforceAssignment $assignment): bool
+    {
+        if ($assignment->employee_id !== $this->id || $assignment->status !== 'active') {
+            return false;
+        }
+
+        $this->update([
+            'active_workspace_id'   => $assignment->id,
+            'workspace_switched_at' => now(),
+        ]);
+
+        return true;
+    }
+
+    /**
+     * Returns the effective active workspace assignment.
+     * If none is set, defaults to the primary assignment (or the first active one).
+     * Auto-saves the default so it's set going forward.
+     */
+    public function resolvedWorkspace(): ?WorkforceAssignment
+    {
+        if ($this->active_workspace_id) {
+            return $this->activeWorkspace;
+        }
+
+        // Auto-resolve: primary first, then any active
+        $default = $this->activeWorkforceAssignments()
+            ->with(['module', 'moduleRole'])
+            ->orderByRaw("FIELD(assignment_type, 'primary', 'secondary', 'temporary', 'acting', 'project_based')")
+            ->first();
+
+        if ($default) {
+            $this->update([
+                'active_workspace_id'   => $default->id,
+                'workspace_switched_at' => now(),
+            ]);
+            $this->setRelation('activeWorkspace', $default);
+        }
+
+        return $default;
     }
 
     public function auditLogs()

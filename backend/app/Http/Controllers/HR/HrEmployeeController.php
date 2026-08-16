@@ -87,11 +87,18 @@ class HrEmployeeController extends Controller
             ->unique('id')
             ->groupBy('group');
 
+        // Active workspace (for "My Workspaces" switcher)
+        $employee->loadMissing('activeWorkspace.module');
+        $resolvedWorkspace = $employee->active_workspace_id
+            ? $employee->activeWorkspace
+            : $activeAssignments->firstWhere('assignment_type', 'primary') ?? $activeAssignments->first();
+
         return view('hr.employees.show', compact(
             'employee',
             'activeAssignments', 'pastAssignments',
             'primaryAssignment', 'secondaryAssignments',
             'allPermissions',
+            'resolvedWorkspace',
         ));
     }
 

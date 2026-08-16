@@ -76,6 +76,187 @@
 @endif
 
 {{-- ══════════════════════════════════════════════════════════════════════════
+     MY WORKSPACES — shown when employee has 2+ active assignments
+     ══════════════════════════════════════════════════════════════════════════ --}}
+@if($activeAssignments->count() >= 1)
+@php
+$wsColors = [
+    'primary'       => ['ring'=>'ring-[#1B1444]',  'bg'=>'bg-[#1B1444]',    'pill'=>'bg-indigo-50 text-indigo-700 border-indigo-200'],
+    'secondary'     => ['ring'=>'ring-blue-400',    'bg'=>'bg-blue-500',     'pill'=>'bg-blue-50 text-blue-700 border-blue-200'],
+    'temporary'     => ['ring'=>'ring-orange-400',  'bg'=>'bg-orange-500',   'pill'=>'bg-orange-50 text-orange-700 border-orange-200'],
+    'acting'        => ['ring'=>'ring-purple-400',  'bg'=>'bg-purple-500',   'pill'=>'bg-purple-50 text-purple-700 border-purple-200'],
+    'project_based' => ['ring'=>'ring-teal-400',    'bg'=>'bg-teal-600',     'pill'=>'bg-teal-50 text-teal-700 border-teal-200'],
+];
+$controls = [
+    ['icon'=>'fas fa-compass',    'label'=>'Navigation',   'desc'=>'Sidebar menus and quick links'],
+    ['icon'=>'fas fa-tachometer-alt','label'=>'Dashboard', 'desc'=>'KPIs, charts, and data widgets'],
+    ['icon'=>'fas fa-database',   'label'=>'Module Data',  'desc'=>'Orders, inventory, records'],
+    ['icon'=>'fas fa-shield-alt', 'label'=>'Permissions',  'desc'=>'Access rights and capabilities'],
+    ['icon'=>'fas fa-chart-bar',  'label'=>'Reports',      'desc'=>'Analytics and exports'],
+];
+@endphp
+
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    {{-- Header --}}
+    <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+            <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-[#1B1444] to-[#2D2467] flex items-center justify-center">
+                <i class="fas fa-layer-group text-white text-xs"></i>
+            </div>
+            <div>
+                <h3 class="font-semibold text-gray-800 text-sm">My Workspaces</h3>
+                <p class="text-xs text-gray-400">{{ $activeAssignments->count() }} active assignment{{ $activeAssignments->count() === 1 ? '' : 's' }} · Active workspace controls navigation, dashboard, data, permissions &amp; reports</p>
+            </div>
+        </div>
+        @if($resolvedWorkspace)
+        <div class="flex items-center gap-2">
+            <div class="flex items-center gap-1.5 bg-green-50 border border-green-200 text-green-700 text-xs px-3 py-1.5 rounded-full">
+                <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                Active: <span class="font-semibold ml-1">{{ $resolvedWorkspace->module?->name }}</span>
+            </div>
+        </div>
+        @endif
+    </div>
+
+    @if(session('success') && str_contains(session('success'), 'workspace'))
+    <div class="mx-6 mt-4 bg-green-50 border border-green-200 text-green-700 text-sm px-4 py-2.5 rounded-lg flex items-center gap-2">
+        <i class="fas fa-check-circle"></i> {{ session('success') }}
+    </div>
+    @endif
+
+    {{-- Workspace grid --}}
+    <div class="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        @foreach($activeAssignments->sortByDesc(fn($a) => $a->assignment_type === 'primary') as $ws)
+        @php
+            $isActive = $resolvedWorkspace && $resolvedWorkspace->id === $ws->id;
+            $colors   = $wsColors[$ws->assignment_type] ?? $wsColors['secondary'];
+            $mod      = $ws->module;
+        @endphp
+        <div class="relative rounded-xl border-2 transition-all {{ $isActive ? $colors['ring'].' shadow-md' : 'border-gray-100 hover:border-gray-200' }} overflow-hidden">
+
+            {{-- Active badge --}}
+            @if($isActive)
+            <div class="absolute top-3 right-3 z-10">
+                <span class="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full
+                             {{ $colors['pill'] }} border">
+                    <i class="fas fa-check-circle text-[9px]"></i> ACTIVE
+                </span>
+            </div>
+            @endif
+
+            {{-- Card body --}}
+            <div class="p-4">
+                {{-- Module icon + name --}}
+                <div class="flex items-center gap-3 mb-3">
+                    <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                         style="background-color: {{ $mod?->color ?? '#1B1444' }}20;">
+                        <i class="{{ $mod?->icon ?? 'fas fa-cube' }} text-lg"
+                           style="color: {{ $mod?->color ?? '#1B1444' }};"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <div class="font-semibold text-gray-800 text-sm truncate">{{ $mod?->name }}</div>
+                        <span class="inline-flex items-center text-[10px] border px-1.5 py-0.5 rounded {{ $colors['pill'] }}">
+                            {{ $ws->assignment_type_label }}
+                        </span>
+                    </div>
+                </div>
+
+                {{-- Assignment details --}}
+                <div class="space-y-1 mb-3">
+                    @if($ws->moduleRole)
+                    <div class="flex items-center gap-1.5 text-xs text-gray-500">
+                        <i class="fas fa-shield-alt text-indigo-300 text-[10px] w-3"></i>
+                        <span>{{ $ws->moduleRole->name }}</span>
+                    </div>
+                    @endif
+                    @if($ws->moduleDepartment)
+                    <div class="flex items-center gap-1.5 text-xs text-gray-500">
+                        <i class="fas fa-building text-gray-300 text-[10px] w-3"></i>
+                        <span>{{ $ws->moduleDepartment->name }}</span>
+                    </div>
+                    @endif
+                    @if($ws->modulePosition)
+                    <div class="flex items-center gap-1.5 text-xs text-gray-500">
+                        <i class="fas fa-briefcase text-gray-300 text-[10px] w-3"></i>
+                        <span>{{ $ws->modulePosition->name }}</span>
+                    </div>
+                    @endif
+                    <div class="flex items-center gap-1.5 text-xs text-gray-500">
+                        <i class="fas fa-lock text-gray-300 text-[10px] w-3"></i>
+                        <span>{{ $ws->access_level_label }}</span>
+                    </div>
+                    @if($ws->planned_end_date)
+                    <div class="flex items-center gap-1.5 text-xs {{ $ws->isExpired() ? 'text-red-500' : 'text-gray-400' }}">
+                        <i class="fas fa-clock text-[10px] w-3"></i>
+                        <span>{{ $ws->isExpired() ? 'Expired' : 'Until ' . $ws->planned_end_date->format('d M Y') }}</span>
+                    </div>
+                    @endif
+                </div>
+
+                {{-- What this workspace controls --}}
+                @if($isActive)
+                <div class="border-t border-gray-100 pt-2.5 mt-2.5">
+                    <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Controls</p>
+                    <div class="flex flex-wrap gap-1">
+                        @foreach($controls as $ctrl)
+                        <span class="flex items-center gap-1 text-[10px] bg-gray-50 border border-gray-200 text-gray-600 px-1.5 py-0.5 rounded">
+                            <i class="{{ $ctrl['icon'] }} text-[9px] text-[#1B1444]"></i>
+                            {{ $ctrl['label'] }}
+                        </span>
+                        @endforeach
+                    </div>
+                </div>
+                @endif
+
+                {{-- Switch button --}}
+                @if(!$isActive && Auth::guard('hr')->user()->isManager())
+                <div class="border-t border-gray-100 pt-2.5 mt-2.5">
+                    <form method="POST" action="{{ route('hr.employees.workspace.switch', $employee) }}">
+                        @csrf
+                        <input type="hidden" name="assignment_id" value="{{ $ws->id }}">
+                        <button type="submit"
+                                class="w-full text-xs font-semibold py-1.5 px-3 rounded-lg border border-gray-200
+                                       text-gray-600 hover:text-[#1B1444] hover:border-[#1B1444] transition-colors
+                                       flex items-center justify-center gap-1.5">
+                            <i class="fas fa-exchange-alt text-[10px]"></i>
+                            Set as Active Workspace
+                        </button>
+                    </form>
+                </div>
+                @elseif($isActive)
+                <div class="border-t border-gray-100 pt-2.5 mt-2.5 text-center">
+                    <span class="text-[10px] text-gray-400 flex items-center justify-center gap-1">
+                        <i class="fas fa-check-circle text-green-500"></i>
+                        Currently active workspace
+                    </span>
+                </div>
+                @endif
+            </div>
+        </div>
+        @endforeach
+    </div>
+
+    {{-- Controls explanation footer --}}
+    <div class="border-t border-gray-50 px-6 py-3 bg-gray-50/50">
+        <div class="flex flex-wrap items-center gap-4">
+            <p class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider flex-shrink-0">Active workspace controls:</p>
+            <div class="flex flex-wrap gap-3">
+                @foreach($controls as $ctrl)
+                <div class="flex items-center gap-1.5 text-xs text-gray-500">
+                    <i class="{{ $ctrl['icon'] }} text-[#1B1444] text-[11px]"></i>
+                    <div>
+                        <span class="font-medium">{{ $ctrl['label'] }}</span>
+                        <span class="text-gray-400 hidden sm:inline"> — {{ $ctrl['desc'] }}</span>
+                    </div>
+                </div>
+                @endforeach
+            </div>
+        </div>
+    </div>
+</div>
+@endif
+
+{{-- ══════════════════════════════════════════════════════════════════════════
      BUSINESS SUITE WORKSPACE
      ══════════════════════════════════════════════════════════════════════════ --}}
 <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">

@@ -23,6 +23,7 @@ use App\Http\Controllers\HR\HrWorkforceController;
 use App\Http\Controllers\HR\HrModuleDepartmentController;
 use App\Http\Controllers\HR\HrModulePositionController;
 use App\Http\Controllers\HR\HrModuleRoleController;
+use App\Http\Controllers\HR\HrWorkspaceController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -268,6 +269,12 @@ Route::middleware('auth.hr')->group(function () {
     Route::get('employees/{employee}/permissions', [HrModuleRoleController::class, 'employeePermissions'])
          ->name('employees.permissions')
          ->middleware('hr.role:hr_manager,hr_officer');
+
+    // ── My Workspaces — Workspace Switcher ────────────────────────────────
+    Route::post('employees/{employee}/workspace/switch', [HrWorkspaceController::class, 'switch'])
+         ->name('employees.workspace.switch');
+    Route::post('employees/{employee}/workspace/auto-resolve', [HrWorkspaceController::class, 'autoResolve'])
+         ->name('employees.workspace.auto-resolve');
 
     // ── Reports ───────────────────────────────────────────────────────────
     Route::get('reports', [HrReportController::class, 'index'])->name('reports.index');
