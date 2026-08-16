@@ -3,8 +3,7 @@
 namespace App\Models;
 
 use App\Models\HR\WorkforceAssignment;
-use App\Services\HR\AuditService;
-use App\Traits\HrAuditable;
+use App\Traits\HR\HrAuditable;
 use Illuminate\Database\Eloquent\Model;
 
 class ModuleRole extends Model
