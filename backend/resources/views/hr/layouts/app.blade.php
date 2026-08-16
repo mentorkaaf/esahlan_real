@@ -596,6 +596,39 @@
                 </svg>
                 <span class="sb-lbl">Module Roles</span>
             </a>
+
+            {{-- Business Modules (collapsible) --}}
+            @php
+            $activeInHub = str_starts_with($route, 'hr.workforce.hub');
+            $sbModules = \App\Models\Module::where('is_active', true)->orderBy('sort_order')->get(['id','name','slug','icon','color']);
+            @endphp
+            <div x-data="{ open: {{ $activeInHub ? 'true' : 'false' }} }">
+                <button @click="open = !open"
+                        class="sb-link w-full flex items-center justify-between {{ $activeInHub ? 'active' : '' }}">
+                    <span class="flex items-center gap-2">
+                        <svg class="sb-ico" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                        </svg>
+                        <span class="sb-lbl">Business Modules</span>
+                    </span>
+                    <i class="fas fa-chevron-down text-[10px] transition-transform mr-1" :class="open ? 'rotate-180' : ''"></i>
+                </button>
+                <div x-show="open" x-collapse class="pl-9 mt-1 space-y-0.5">
+                    @foreach($sbModules as $sbm)
+                    @php $hubActive = $activeInHub && request()->route('slug') === $sbm->slug; @endphp
+                    <a href="{{ route('hr.workforce.hub.overview', $sbm->slug) }}"
+                       class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-colors
+                              {{ $hubActive ? 'bg-[#1B1444] text-white font-semibold' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800' }}">
+                        <span class="w-4 h-4 rounded flex items-center justify-center flex-shrink-0"
+                              style="background-color: {{ $sbm->color ?? '#1B1444' }}20;">
+                            <i class="{{ $sbm->icon ?? 'fas fa-cube' }} text-[8px]"
+                               style="color: {{ $sbm->color ?? '#1B1444' }};"></i>
+                        </span>
+                        <span>{{ $sbm->name }}</span>
+                    </a>
+                    @endforeach
+                </div>
+            </div>
         </div>
         @endif
 

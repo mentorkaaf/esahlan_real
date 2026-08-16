@@ -25,6 +25,7 @@ use App\Http\Controllers\HR\HrModulePositionController;
 use App\Http\Controllers\HR\HrModuleRoleController;
 use App\Http\Controllers\HR\HrWorkspaceController;
 use App\Http\Controllers\HR\HrWorkforceDashboardController;
+use App\Http\Controllers\HR\HrModuleWorkforceController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -225,6 +226,18 @@ Route::middleware('auth.hr')->group(function () {
         Route::get('/dashboard',                     [HrWorkforceDashboardController::class, 'index'])->name('dashboard');
         Route::get('/org-chart',                     [HrWorkforceDashboardController::class, 'orgChart'])->name('org-chart');
         Route::get('/org-chart-data',                [HrWorkforceDashboardController::class, 'orgChartData'])->name('org-chart-data');
+
+        // Phase 9 — Per-module workforce hub (13 modules, 7 tabs each)
+        Route::prefix('modules/{slug}')->name('hub.')->group(function () {
+            Route::get('/',            [HrModuleWorkforceController::class, 'overview'])->name('overview');
+            Route::get('/employees',   [HrModuleWorkforceController::class, 'employees'])->name('employees');
+            Route::get('/departments', [HrModuleWorkforceController::class, 'departments'])->name('departments');
+            Route::get('/positions',   [HrModuleWorkforceController::class, 'positions'])->name('positions');
+            Route::get('/roles',       [HrModuleWorkforceController::class, 'roles'])->name('roles');
+            Route::get('/assignments', [HrModuleWorkforceController::class, 'assignments'])->name('assignments');
+            Route::get('/org-chart',   [HrModuleWorkforceController::class, 'orgChart'])->name('org-chart');
+            Route::get('/reports',     [HrModuleWorkforceController::class, 'reports'])->name('reports');
+        });
 
         Route::get('/module/{module}',               [HrWorkforceController::class, 'module'])->name('module');
         // Phase 6 wizard
