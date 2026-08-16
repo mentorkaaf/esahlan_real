@@ -27,6 +27,7 @@ use App\Http\Controllers\HR\HrWorkspaceController;
 use App\Http\Controllers\HR\HrWorkforceDashboardController;
 use App\Http\Controllers\HR\HrModuleWorkforceController;
 use App\Http\Controllers\HR\HrModulePerformanceController;
+use App\Http\Controllers\HR\HrWorkforceAuditController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -72,9 +73,15 @@ Route::middleware('auth.hr')->group(function () {
     Route::resource('employees.documents', HrDocumentController::class)
          ->shallow();
 
-    // Audit log
-    Route::get('audit', [HrAuditController::class, 'index'])
+    // Audit logs
+    Route::get('audit',          [HrAuditController::class, 'index'])
          ->name('audit.index')
+         ->middleware('hr.role:hr_manager');
+    Route::get('audit/workforce', [HrWorkforceAuditController::class, 'index'])
+         ->name('audit.workforce')
+         ->middleware('hr.role:hr_manager');
+    Route::get('audit/workforce/{log}', [HrWorkforceAuditController::class, 'show'])
+         ->name('audit.workforce.show')
          ->middleware('hr.role:hr_manager');
 
     // ── Attendance ────────────────────────────────────────────────────────
@@ -257,6 +264,8 @@ Route::middleware('auth.hr')->group(function () {
         Route::post('/assign',                       [HrWorkforceController::class, 'store'])->name('store');
         Route::get('/employee/{employee}',           [HrWorkforceController::class, 'employee'])->name('employee');
         Route::delete('/{assignment}',               [HrWorkforceController::class, 'destroy'])->name('destroy');
+        Route::put('/{assignment}',                  [HrWorkforceController::class, 'update'])->name('update')
+             ->middleware('hr.role:hr_manager');
         Route::post('/{assignment}/suspend',         [HrWorkforceController::class, 'suspend'])->name('suspend')
              ->middleware('hr.role:hr_manager');
         Route::post('/{assignment}/reactivate',      [HrWorkforceController::class, 'reactivate'])->name('reactivate')

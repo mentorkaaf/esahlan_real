@@ -7,8 +7,11 @@ use App\Models\HR\HrEmployee;
 use App\Models\HR\HrDepartment;
 use App\Models\HR\HrPosition;
 use App\Services\HR\AuditService;
+use App\Services\HR\WorkforcePermissionService;
+use App\Services\HR\WorkforceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class HrEmployeeController extends Controller
@@ -123,7 +126,28 @@ class HrEmployeeController extends Controller
             $data['emergency_contact'] = json_decode($request->emergency_contact, true);
         }
 
+        $oldStatus = $employee->status;
         $employee->update($data);
+
+        // When employee is suspended or resigned → suspend all active assignments + revoke access
+        $newStatus = $employee->fresh()->status;
+        if ($oldStatus !== $newStatus && in_array($newStatus, ['suspended', 'resigned', 'terminated'])) {
+            $activeAssignments = $employee->workforceAssignments()->where('status', 'active')->get();
+            foreach ($activeAssignments as $assignment) {
+                WorkforceService::suspend($assignment, "Employee status changed to {$newStatus}");
+            }
+            WorkforcePermissionService::revokeAllEmployeeAccess($employee);
+            AuditService::logWorkforceEmployee('workforce.all_access_revoked', $employee, null, [
+                'reason'   => "employee_status_changed_to_{$newStatus}",
+                'old_status' => $oldStatus,
+            ]);
+        }
+
+        // When employee is reactivated → log it
+        if ($oldStatus !== $newStatus && $newStatus === 'active') {
+            AuditService::log('employee.reactivated', $employee,
+                ['status' => $oldStatus], ['status' => 'active']);
+        }
 
         return redirect()->route('hr.employees.show', $employee)
             ->with('success', 'Employee record updated.');
@@ -143,15 +167,33 @@ class HrEmployeeController extends Controller
     {
         $request->validate(['reason' => 'required|string|max:1000']);
 
+        $before = $employee->only('status');
         $employee->update(['status' => 'terminated']);
 
-        AuditService::log('employee.terminated', $employee, null, [
-            'status' => 'terminated',
-            'reason' => $request->reason,
+        // End all active workforce assignments + revoke all module access
+        $activeAssignments = $employee->workforceAssignments()
+            ->where('status', 'active')->get();
+
+        foreach ($activeAssignments as $assignment) {
+            WorkforceService::unassign($assignment, 'Employee terminated: ' . $request->reason);
+        }
+
+        $revokedCount = WorkforcePermissionService::revokeAllEmployeeAccess($employee);
+
+        AuditService::log('employee.terminated', $employee, $before, [
+            'status'              => 'terminated',
+            'reason'              => $request->reason,
+            'assignments_ended'   => $activeAssignments->count(),
+            'modules_revoked'     => $revokedCount,
+        ]);
+
+        AuditService::logWorkforceEmployee('workforce.all_access_revoked', $employee, null, [
+            'reason'          => 'employee_terminated',
+            'modules_revoked' => $revokedCount,
         ]);
 
         return redirect()->route('hr.employees.show', $employee)
-            ->with('success', 'Employee has been terminated.');
+            ->with('success', 'Employee has been terminated. All module access revoked.');
     }
 
     // ──────────────────────────────────────────────────────────────

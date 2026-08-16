@@ -161,6 +161,33 @@ class HrWorkforceController extends Controller
     }
 
     /**
+     * Update an existing assignment (position / department / role / access level).
+     * Full audit trail via WorkforceService::updateAssignment().
+     */
+    public function update(WorkforceAssignment $assignment, Request $request)
+    {
+        $data = $request->validate([
+            'module_department_id' => ['nullable', 'exists:module_departments,id'],
+            'module_position_id'   => ['nullable', 'exists:module_positions,id'],
+            'module_role_id'       => ['nullable', 'exists:module_roles,id'],
+            'access_level'         => ['nullable', 'in:read_only,standard,elevated,admin'],
+            'assignment_type'      => ['nullable', 'in:primary,secondary,temporary,acting,project_based'],
+            'planned_end_date'     => ['nullable', 'date'],
+            'reporting_manager_id' => ['nullable', 'exists:hr_employees,id'],
+            'role_in_module'       => ['nullable', 'string', 'max:60'],
+            'notes'                => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $result = WorkforceService::updateAssignment($assignment, $data);
+
+        if ($result['error']) {
+            return back()->withErrors(['update' => $result['error']]);
+        }
+
+        return back()->with('success', 'Assignment updated. All changes have been audited.');
+    }
+
+    /**
      * End an assignment (unassign).
      */
     public function destroy(WorkforceAssignment $assignment, Request $request)

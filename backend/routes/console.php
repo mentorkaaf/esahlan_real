@@ -170,3 +170,11 @@ Schedule::command('eticket:send-flight-notifications')
     ->name('eticket:flight-notifications')
     ->withoutOverlapping()
     ->runInBackground();
+
+// ── HR: Auto-expire workforce assignments ─────────────────────────────────
+// Daily at 01:00 — ends assignments whose planned_end_date has passed.
+// Revokes module access and user_modules entries. Logs to workforce audit.
+Schedule::command('hr:expire-assignments')
+    ->dailyAt('01:00')
+    ->name('hr:expire-assignments')
+    ->withoutOverlapping();

@@ -7,6 +7,7 @@ use App\Models\HR\WorkforceAssignment;
 use App\Models\Module;
 use App\Models\ModuleRole;
 use App\Services\FcmService;
+use App\Services\HR\AuditService;
 use App\Services\HR\WorkforcePermissionService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -121,9 +122,11 @@ class WorkforceService
                 }
             }
 
-            AuditService::log('workforce.assigned', $assignment, null, [
+            AuditService::logWorkforce('workforce.assigned', $assignment, null, [
                 'employee'       => $employee->full_name,
                 'module'         => $module->slug,
+                'assignment_type'=> $assignmentType,
+                'access_level'   => $accessLevel,
                 'role_in_module' => $roleInModule,
             ]);
 
@@ -178,7 +181,8 @@ class WorkforceService
                 }
             }
 
-            AuditService::log('workforce.unassigned', $assignment, $before, [
+            AuditService::logWorkforce('workforce.unassigned', $assignment, $before, [
+                'status' => 'ended',
                 'reason' => $reason,
             ]);
 
@@ -202,7 +206,9 @@ class WorkforceService
 
         $before = $assignment->only('status');
         $assignment->update(['status' => 'suspended', 'notes' => $reason]);
-        AuditService::log('workforce.suspended', $assignment, $before, ['reason' => $reason]);
+        AuditService::logWorkforce('workforce.suspended', $assignment, $before, [
+            'status' => 'suspended', 'reason' => $reason,
+        ]);
 
         return ['error' => null];
     }
@@ -218,7 +224,9 @@ class WorkforceService
 
         $before = $assignment->only('status');
         $assignment->update(['status' => 'active']);
-        AuditService::log('workforce.reactivated', $assignment, $before, ['status' => 'active']);
+        AuditService::logWorkforce('workforce.reactivated', $assignment, $before, [
+            'status' => 'active',
+        ]);
 
         return ['error' => null];
     }
@@ -247,6 +255,161 @@ class WorkforceService
             ->where('employee_id', $employee->id)
             ->where('status', 'active')
             ->get();
+    }
+
+    /**
+     * Update an existing assignment with full granular audit trail.
+     *
+     * Detects changes to: module_position_id, module_department_id, module_role_id,
+     * access_level, assignment_type, planned_end_date, reporting_manager_id, notes.
+     *
+     * Each significant field change fires its own named audit event so the log
+     * shows exactly WHAT changed, not just "assignment updated".
+     *
+     * Returns ['error' => null] on success.
+     */
+    public static function updateAssignment(
+        WorkforceAssignment $assignment,
+        array               $data,
+    ): array {
+        if (!$assignment->isActive() && $assignment->status !== 'suspended') {
+            return ['error' => 'Only active or suspended assignments can be updated.'];
+        }
+
+        $assignment->loadMissing(['employee', 'module', 'moduleRole', 'moduleDepartment', 'modulePosition']);
+        $employee = $assignment->employee;
+        $module   = $assignment->module;
+
+        $before = $assignment->only([
+            'module_position_id', 'module_department_id', 'module_role_id',
+            'access_level', 'assignment_type', 'planned_end_date',
+            'reporting_manager_id', 'notes', 'role_in_module',
+        ]);
+
+        DB::transaction(function () use ($assignment, $data, $before, $employee, $module) {
+            $assignment->fill($data);
+
+            // ── Position change ───────────────────────────────────────────
+            if ($assignment->isDirty('module_position_id')) {
+                AuditService::logWorkforce('workforce.position_changed', $assignment,
+                    ['module_position_id' => $before['module_position_id']],
+                    ['module_position_id' => $data['module_position_id'] ?? null],
+                );
+            }
+
+            // ── Department change ─────────────────────────────────────────
+            if ($assignment->isDirty('module_department_id')) {
+                AuditService::logWorkforce('workforce.department_changed', $assignment,
+                    ['module_department_id' => $before['module_department_id']],
+                    ['module_department_id' => $data['module_department_id'] ?? null],
+                );
+            }
+
+            // ── Role change (also swaps permissions) ──────────────────────
+            if ($assignment->isDirty('module_role_id')) {
+                $oldRoleId = $before['module_role_id'];
+                $newRoleId = $data['module_role_id'] ?? null;
+
+                AuditService::logWorkforce('workforce.role_changed', $assignment,
+                    ['module_role_id' => $oldRoleId, 'module_role_name' => $assignment->getOriginal('module_role_id') ? optional(\App\Models\ModuleRole::find($oldRoleId))->name : null],
+                    ['module_role_id' => $newRoleId, 'module_role_name' => $newRoleId ? optional(\App\Models\ModuleRole::find($newRoleId))->name : null],
+                );
+
+                // Sync user permissions
+                if ($employee?->user_id) {
+                    $user = \App\Models\User::find($employee->user_id);
+                    if ($user) {
+                        if ($newRoleId) {
+                            $newRole = \App\Models\ModuleRole::find($newRoleId);
+                            if ($newRole) {
+                                WorkforcePermissionService::swapModuleRolePermissions($user, $module->slug, $newRole);
+                                AuditService::logWorkforce('workforce.permission_granted', $assignment, null, [
+                                    'module_role' => $newRole->name,
+                                    'via'         => 'role_swap',
+                                ]);
+                            }
+                        } else {
+                            WorkforcePermissionService::revokeModulePermissions($user, $module->slug);
+                            AuditService::logWorkforce('workforce.permission_revoked', $assignment, [
+                                'module_role_id' => $oldRoleId,
+                            ], null);
+                        }
+                    }
+                }
+            }
+
+            // ── Access level change ───────────────────────────────────────
+            if ($assignment->isDirty('access_level')) {
+                $old = $before['access_level'];
+                $new = $data['access_level'] ?? null;
+                $levels = ['read_only' => 1, 'standard' => 2, 'elevated' => 3, 'admin' => 4];
+                $elevated = ($levels[$new] ?? 0) > ($levels[$old] ?? 0);
+
+                AuditService::logWorkforce(
+                    $elevated ? 'workforce.access_granted' : 'workforce.access_revoked',
+                    $assignment,
+                    ['access_level' => $old],
+                    ['access_level' => $new],
+                );
+            }
+
+            $assignment->save();
+        });
+
+        return ['error' => null];
+    }
+
+    /**
+     * Auto-expire assignments whose planned_end_date has passed.
+     * Called by ExpireWorkforceAssignments command.
+     *
+     * Returns count of expired assignments.
+     */
+    public static function expireOverdue(): int
+    {
+        $overdue = WorkforceAssignment::where('status', 'active')
+            ->whereNotNull('planned_end_date')
+            ->where('planned_end_date', '<', now()->toDateString())
+            ->with(['employee', 'module'])
+            ->get();
+
+        $count = 0;
+        foreach ($overdue as $assignment) {
+            DB::transaction(function () use ($assignment) {
+                $before = $assignment->only('status', 'planned_end_date');
+                $assignment->update(['status' => 'ended', 'ended_at' => now()]);
+
+                // Revoke module access from linked user
+                $employee = $assignment->employee;
+                if ($employee?->user_id) {
+                    $otherActive = WorkforceAssignment::where('employee_id', $employee->id)
+                        ->where('module_id', $assignment->module_id)
+                        ->where('status', 'active')
+                        ->where('id', '!=', $assignment->id)
+                        ->exists();
+
+                    if (!$otherActive) {
+                        DB::table('user_modules')
+                            ->where('user_id', $employee->user_id)
+                            ->where('module_id', $assignment->module_id)
+                            ->delete();
+
+                        $user = \App\Models\User::find($employee->user_id);
+                        if ($user && $assignment->module) {
+                            WorkforcePermissionService::revokeModulePermissions($user, $assignment->module->slug);
+                        }
+                    }
+                }
+
+                AuditService::logWorkforce('workforce.expired', $assignment, $before, [
+                    'status' => 'ended',
+                    'reason' => 'planned_end_date reached',
+                ], ['actor_type' => 'system', 'actor_id' => null, 'actor_name' => 'System (auto-expire)']);
+            });
+            $count++;
+        }
+
+        return $count;
     }
 
     // ── Private ──────────────────────────────────────────────────────────────

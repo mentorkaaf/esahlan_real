@@ -189,4 +189,74 @@ class WorkforcePermissionService
             ->where('module_role_permissions.permission_id', $permId)
             ->exists();
     }
+
+    /**
+     * Revoke ALL module permissions and module memberships for an employee.
+     *
+     * Called when:
+     *   - Employee is terminated
+     *   - Employee is globally suspended
+     *   - All workforce assignments are force-ended
+     *
+     * @param  HrEmployee $employee
+     * @return int  Number of module slugs affected
+     */
+    public static function revokeAllEmployeeAccess(HrEmployee $employee): int
+    {
+        if (!$employee->user_id) {
+            return 0;
+        }
+
+        $user = \App\Models\User::find($employee->user_id);
+        if (!$user) {
+            return 0;
+        }
+
+        // Find all module slugs the employee has access to
+        $moduleSlugs = DB::table('user_modules')
+            ->join('modules', 'modules.id', '=', 'user_modules.module_id')
+            ->where('user_modules.user_id', $user->id)
+            ->pluck('modules.slug')
+            ->all();
+
+        // Revoke all module-scoped user_permissions
+        $modulePermIds = DB::table('permissions')
+            ->whereIn('module', $moduleSlugs)
+            ->pluck('id')
+            ->all();
+
+        if ($modulePermIds) {
+            DB::table('user_permissions')
+                ->where('user_id', $user->id)
+                ->whereIn('permission_id', $modulePermIds)
+                ->delete();
+        }
+
+        // Remove from user_modules
+        DB::table('user_modules')
+            ->where('user_id', $user->id)
+            ->delete();
+
+        return count($moduleSlugs);
+    }
+
+    /**
+     * Check whether an employee has a valid, active, non-expired, non-suspended
+     * assignment to a given module slug.
+     *
+     * Used by CheckModuleAccess middleware for API enforcement.
+     */
+    public static function employeeHasModuleAccess(HrEmployee $employee, string $moduleSlug): bool
+    {
+        return DB::table('workforce_assignments')
+            ->join('modules', 'modules.id', '=', 'workforce_assignments.module_id')
+            ->where('workforce_assignments.employee_id', $employee->id)
+            ->where('modules.slug', $moduleSlug)
+            ->where('workforce_assignments.status', 'active')
+            ->where(function ($q) {
+                $q->whereNull('workforce_assignments.planned_end_date')
+                  ->orWhere('workforce_assignments.planned_end_date', '>=', now()->toDateString());
+            })
+            ->exists();
+    }
 }
