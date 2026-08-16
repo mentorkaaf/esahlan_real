@@ -2,22 +2,24 @@
 
 namespace App\Models;
 
-use App\Models\HR\HrEmployee;
+use App\Models\HR\HrPosition;
 use App\Models\HR\WorkforceAssignment;
 use App\Traits\HR\HrAuditable;
 use Illuminate\Database\Eloquent\Model;
 
-class ModuleDepartment extends Model
+class ModulePosition extends Model
 {
     use HrAuditable;
 
-    protected $table = 'module_departments';
+    protected $table = 'module_positions';
 
     protected $fillable = [
         'module_id',
+        'module_department_id',
+        'hr_position_id',
         'name',
         'description',
-        'manager_id',
+        'level',
         'status',
         'sort_order',
     ];
@@ -33,24 +35,25 @@ class ModuleDepartment extends Model
         return $this->belongsTo(Module::class);
     }
 
-    public function manager()
+    public function moduleDepartment()
     {
-        return $this->belongsTo(HrEmployee::class, 'manager_id');
+        return $this->belongsTo(ModuleDepartment::class, 'module_department_id');
+    }
+
+    /** The company HR position this module position is equivalent to (reuse). */
+    public function hrPosition()
+    {
+        return $this->belongsTo(HrPosition::class, 'hr_position_id');
     }
 
     public function workforceAssignments()
     {
-        return $this->hasMany(WorkforceAssignment::class, 'module_department_id');
-    }
-
-    public function positions()
-    {
-        return $this->hasMany(\App\Models\ModulePosition::class, 'module_department_id');
+        return $this->hasMany(WorkforceAssignment::class, 'module_position_id');
     }
 
     public function activeAssignments()
     {
-        return $this->hasMany(WorkforceAssignment::class, 'module_department_id')
+        return $this->hasMany(WorkforceAssignment::class, 'module_position_id')
                     ->where('status', 'active');
     }
 
@@ -66,9 +69,14 @@ class ModuleDepartment extends Model
         return $query->where('module_id', $moduleId);
     }
 
+    public function scopeForDepartment($query, int $deptId)
+    {
+        return $query->where('module_department_id', $deptId);
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    public function isActive(): bool  { return $this->status === 'active'; }
+    public function isActive(): bool   { return $this->status === 'active'; }
     public function isArchived(): bool { return $this->status === 'archived'; }
 
     public function getStatusColorAttribute(): string
@@ -83,11 +91,23 @@ class ModuleDepartment extends Model
 
     public function getStatusLabelAttribute(): string
     {
-        return match ($this->status) {
-            'active'   => 'Active',
-            'inactive' => 'Inactive',
-            'archived' => 'Archived',
-            default    => ucfirst($this->status),
+        return ucfirst($this->status);
+    }
+
+    public function getLevelBadgeColorAttribute(): string
+    {
+        return match ($this->level) {
+            'junior'  => 'blue',
+            'mid'     => 'indigo',
+            'senior'  => 'purple',
+            'lead'    => 'orange',
+            'manager' => 'red',
+            default   => 'gray',
         };
+    }
+
+    public static function levels(): array
+    {
+        return ['junior', 'mid', 'senior', 'lead', 'manager'];
     }
 }

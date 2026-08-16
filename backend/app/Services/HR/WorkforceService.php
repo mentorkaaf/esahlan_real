@@ -22,6 +22,7 @@ class WorkforceService
         string $roleInModule,
         ?string $notes = null,
         ?int $moduleDepartmentId = null,
+        ?int $modulePositionId = null,
     ): array {
         // Employee must be hirable
         if (!in_array($employee->status, ['active', 'probation'])) {
@@ -46,11 +47,12 @@ class WorkforceService
             ];
         }
 
-        return DB::transaction(function () use ($employee, $module, $roleInModule, $notes, $moduleDepartmentId) {
+        return DB::transaction(function () use ($employee, $module, $roleInModule, $notes, $moduleDepartmentId, $modulePositionId) {
             $assignment = WorkforceAssignment::create([
                 'employee_id'          => $employee->id,
                 'module_id'            => $module->id,
                 'module_department_id' => $moduleDepartmentId,
+                'module_position_id'   => $modulePositionId,
                 'role_in_module'       => $roleInModule ?: null,
                 'status'               => 'active',
                 'assigned_at'          => now(),

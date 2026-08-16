@@ -13,4 +13,5 @@ class Module extends Model {
     public function scopeActive($q) { return $q->where('is_active', true); }
     public function workforceAssignments() { return $this->hasMany(\App\Models\HR\WorkforceAssignment::class); }
     public function moduleDepartments() { return $this->hasMany(ModuleDepartment::class); }
+    public function modulePositions() { return $this->hasMany(ModulePosition::class); }
 }

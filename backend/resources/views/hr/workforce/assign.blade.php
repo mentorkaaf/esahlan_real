@@ -65,6 +65,15 @@
                 <p class="text-xs text-gray-400 mt-1">Which department within this module will this employee join?</p>
             </div>
 
+            {{-- Position in module --}}
+            <div id="pos-picker" class="hidden">
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">Position</label>
+                <select name="module_position_id" id="pos-select"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1B1444]">
+                    <option value="">— No specific position —</option>
+                </select>
+            </div>
+
             {{-- Role in module --}}
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1.5">Role in Module</label>
@@ -103,7 +112,19 @@
 </div>
 @push('scripts')
 <script>
-// When module changes, fetch its departments via a simple JSON endpoint
+function loadPositions(moduleId, deptId) {
+    const posPicker = document.getElementById('pos-picker');
+    const posSelect = document.getElementById('pos-select');
+    if (!moduleId) { posPicker.classList.add('hidden'); return; }
+    const url = `/hr/module-positions/by-module/${moduleId}` + (deptId ? `?dept_id=${deptId}` : '');
+    fetch(url).then(r => r.json()).then(data => {
+        posSelect.innerHTML = '<option value="">— No specific position —</option>';
+        data.forEach(p => posSelect.innerHTML += `<option value="${p.id}">${p.name} (${p.level})</option>`);
+        posPicker.classList.toggle('hidden', data.length === 0);
+    }).catch(() => posPicker.classList.add('hidden'));
+}
+
+// When module changes, fetch its departments AND positions
 document.querySelector('[name="module_id"]').addEventListener('change', function() {
     const moduleId = this.value;
     const deptPicker = document.getElementById('dept-picker');
@@ -112,6 +133,7 @@ document.querySelector('[name="module_id"]').addEventListener('change', function
     if (!moduleId) {
         deptPicker.classList.add('hidden');
         deptSelect.innerHTML = '<option value="">— No specific department —</option>';
+        document.getElementById('pos-picker').classList.add('hidden');
         return;
     }
 
@@ -119,12 +141,18 @@ document.querySelector('[name="module_id"]').addEventListener('change', function
         .then(r => r.json())
         .then(data => {
             deptSelect.innerHTML = '<option value="">— No specific department —</option>';
-            data.forEach(d => {
-                deptSelect.innerHTML += `<option value="${d.id}">${d.name}</option>`;
-            });
+            data.forEach(d => deptSelect.innerHTML += `<option value="${d.id}">${d.name}</option>`);
             deptPicker.classList.toggle('hidden', data.length === 0);
         })
         .catch(() => deptPicker.classList.add('hidden'));
+
+    loadPositions(moduleId, null);
+});
+
+// When dept changes, refine position list
+document.getElementById('dept-select')?.addEventListener('change', function() {
+    const moduleId = document.querySelector('[name="module_id"]').value;
+    loadPositions(moduleId, this.value);
 });
 </script>
 @endpush

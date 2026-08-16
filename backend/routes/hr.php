@@ -21,6 +21,7 @@ use App\Http\Controllers\HR\HrAnnouncementController;
 use App\Http\Controllers\HR\HrReportController;
 use App\Http\Controllers\HR\HrWorkforceController;
 use App\Http\Controllers\HR\HrModuleDepartmentController;
+use App\Http\Controllers\HR\HrModulePositionController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -197,6 +198,20 @@ Route::middleware('auth.hr')->group(function () {
         Route::delete('/assignment/{assignment}/remove-employee', [HrModuleDepartmentController::class, 'removeEmployee'])->name('remove-employee');
         // JSON helper for dynamic department picker
         Route::get('/by-module/{module}', [HrModuleDepartmentController::class, 'byModule'])->name('by-module');
+    });
+
+    // ── Module Positions ──────────────────────────────────────────────────
+    Route::prefix('module-positions')->name('module-positions.')->middleware('hr.role:hr_manager,hr_officer')->group(function () {
+        Route::get('/',                     [HrModulePositionController::class, 'index'])->name('index');
+        Route::get('/create',               [HrModulePositionController::class, 'create'])->name('create');
+        Route::post('/',                    [HrModulePositionController::class, 'store'])->name('store');
+        Route::get('/{modulePosition}',     [HrModulePositionController::class, 'show'])->name('show');
+        Route::get('/{modulePosition}/edit',[HrModulePositionController::class, 'edit'])->name('edit');
+        Route::put('/{modulePosition}',     [HrModulePositionController::class, 'update'])->name('update');
+        Route::post('/{modulePosition}/status', [HrModulePositionController::class, 'status'])->name('status')
+             ->middleware('hr.role:hr_manager');
+        // JSON helper for dynamic position picker
+        Route::get('/by-module/{module}',   [HrModulePositionController::class, 'byModule'])->name('by-module');
     });
 
     // ── Workforce Assignments ─────────────────────────────────────────────

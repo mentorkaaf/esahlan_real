@@ -86,6 +86,7 @@ class HrWorkforceController extends Controller
             'employee_id'          => ['required', 'exists:hr_employees,id'],
             'module_id'            => ['required', 'exists:modules,id'],
             'module_department_id' => ['nullable', 'exists:module_departments,id'],
+            'module_position_id'   => ['nullable', 'exists:module_positions,id'],
             'role_in_module'       => ['nullable', 'string', 'max:60'],
             'notes'                => ['nullable', 'string', 'max:500'],
         ]);
@@ -99,6 +100,7 @@ class HrWorkforceController extends Controller
             $data['role_in_module'] ?? 'staff',
             $data['notes'] ?? null,
             !empty($data['module_department_id']) ? (int) $data['module_department_id'] : null,
+            !empty($data['module_position_id'])   ? (int) $data['module_position_id']   : null,
         );
 
         if ($result['error']) {

@@ -16,6 +16,7 @@ class WorkforceAssignment extends Model
         'employee_id',
         'module_id',
         'module_department_id',
+        'module_position_id',
         'role_in_module',
         'status',
         'assigned_at',
@@ -44,6 +45,11 @@ class WorkforceAssignment extends Model
     public function moduleDepartment()
     {
         return $this->belongsTo(\App\Models\ModuleDepartment::class, 'module_department_id');
+    }
+
+    public function modulePosition()
+    {
+        return $this->belongsTo(\App\Models\ModulePosition::class, 'module_position_id');
     }
 
     /** HR staff member who created the assignment */
