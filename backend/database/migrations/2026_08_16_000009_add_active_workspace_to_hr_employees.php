@@ -13,11 +13,10 @@ return new class extends Migration
             // for employees with multiple module assignments.
             $table->foreignId('active_workspace_id')
                   ->nullable()
-                  ->after('reporting_to')
                   ->constrained('workforce_assignments')
                   ->nullOnDelete();
 
-            $table->timestamp('workspace_switched_at')->nullable()->after('active_workspace_id');
+            $table->timestamp('workspace_switched_at')->nullable();
         });
     }
 
