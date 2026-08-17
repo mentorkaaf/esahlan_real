@@ -1116,6 +1116,12 @@ Route::get('/pages/{slug}', [\App\Http\Controllers\Api\LegalPageController::clas
 
 // ── Global eCommerce API ───────────────────────────────────────────────────────
 Route::prefix('v1/global')->group(function () {
+    // Store status — public (no auth needed, Flutter checks on startup)
+    Route::get('/store-status', function () {
+        $enabled = \App\Models\Global\GlobalSetting::getBool('global_store_enabled', true);
+        return response()->json(['enabled' => $enabled]);
+    });
+
     // Public endpoints
     Route::post('/auth/register',          [\App\Http\Controllers\Api\Global\GlobalAuthController::class, 'register']);
     Route::post('/auth/login',             [\App\Http\Controllers\Api\Global\GlobalAuthController::class, 'login']);

@@ -1023,6 +1023,7 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
 
             Route::get('/settings',                   [\App\Http\Controllers\Admin\Global\AdminGlobalSettingsController::class, 'index'])->name('settings');
             Route::put('/settings',                   [\App\Http\Controllers\Admin\Global\AdminGlobalSettingsController::class, 'update'])->name('settings.update');
+            Route::post('/settings/toggle-store',     [\App\Http\Controllers\Admin\Global\AdminGlobalSettingsController::class, 'toggleStore'])->name('settings.toggle-store');
             Route::put('/settings/shipping/{zone}',   [\App\Http\Controllers\Admin\Global\AdminGlobalSettingsController::class, 'updateShippingZone'])->name('settings.shipping.update');
 
             // Inventory

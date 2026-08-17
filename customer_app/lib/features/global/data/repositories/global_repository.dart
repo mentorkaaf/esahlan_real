@@ -330,4 +330,15 @@ class GlobalRepository {
       throw Exception(msg);
     }
   }
+
+  // ── Store enabled/disabled (admin real-time toggle) ───────────────────────
+  Future<bool> getStoreEnabled() async {
+    try {
+      final res = await _dio.get('$_base/store-status');
+      final data = res.data is Map ? res.data : {};
+      return (data['enabled'] ?? true) == true;
+    } catch (_) {
+      return true; // default open on network failure
+    }
+  }
 }

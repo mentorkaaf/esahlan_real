@@ -9,6 +9,84 @@
     </div>
 </div>
 
+{{-- ── Store Toggle (Dashboard) ── --}}
+@php $storeOn = \App\Models\Global\GlobalSetting::getBool('global_store_enabled', true); @endphp
+<div id="dashToggleWrap" style="
+    display:flex;align-items:center;justify-content:space-between;
+    padding:16px 22px;border-radius:14px;margin-bottom:22px;
+    background:{{ $storeOn ? 'linear-gradient(135deg,#065f46,#047857)' : 'linear-gradient(135deg,#7f1d1d,#991b1b)' }};
+    box-shadow:0 4px 18px {{ $storeOn ? 'rgba(5,150,105,.3)' : 'rgba(220,38,38,.3)' }};
+    transition:all .4s;
+">
+    <div style="display:flex;align-items:center;gap:14px">
+        <div style="width:46px;height:46px;background:rgba(255,255,255,.15);border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <i id="dashToggleIcon" class="fas {{ $storeOn ? 'fa-store' : 'fa-store-slash' }}" style="font-size:20px;color:#fff"></i>
+        </div>
+        <div>
+            <div style="font-size:15px;font-weight:800;color:#fff">Global Store</div>
+            <div id="dashToggleStatus" style="font-size:12px;color:rgba(255,255,255,.7);margin-top:2px">
+                {{ $storeOn ? '🟢 Open — customers can browse & buy' : '🔴 Closed — hidden from all customers' }}
+            </div>
+        </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px">
+        <span id="dashToggleBadge" style="font-size:11px;font-weight:800;padding:5px 14px;border-radius:20px;background:rgba(255,255,255,.2);color:#fff;letter-spacing:.05em">
+            {{ $storeOn ? 'OPEN' : 'CLOSED' }}
+        </span>
+        {{-- Toggle switch --}}
+        <label style="position:relative;display:inline-block;width:58px;height:30px;cursor:pointer">
+            <input type="checkbox" id="dashToggleInput" {{ $storeOn ? 'checked' : '' }}
+                style="opacity:0;width:0;height:0" onchange="dashToggleStore(this.checked)">
+            <span style="position:absolute;inset:0;border-radius:30px;background:rgba(255,255,255,.25);transition:.3s"></span>
+            <span id="dashToggleThumb" style="
+                position:absolute;top:3px;left:{{ $storeOn ? '31px' : '3px' }};
+                width:24px;height:24px;border-radius:50%;transition:.3s;
+                background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.25);
+            "></span>
+        </label>
+        <span id="dashToggleSaving" style="font-size:11px;color:rgba(255,255,255,.6);display:none">Saving…</span>
+    </div>
+</div>
+
+<script>
+function dashToggleStore(enabled) {
+    const wrap   = document.getElementById('dashToggleWrap');
+    const icon   = document.getElementById('dashToggleIcon');
+    const status = document.getElementById('dashToggleStatus');
+    const badge  = document.getElementById('dashToggleBadge');
+    const thumb  = document.getElementById('dashToggleThumb');
+    const saving = document.getElementById('dashToggleSaving');
+
+    saving.style.display = 'inline';
+
+    // Optimistic UI
+    if (enabled) {
+        wrap.style.background  = 'linear-gradient(135deg,#065f46,#047857)';
+        wrap.style.boxShadow   = '0 4px 18px rgba(5,150,105,.3)';
+        icon.className         = 'fas fa-store';
+        status.textContent     = '🟢 Open — customers can browse & buy';
+        badge.textContent      = 'OPEN';
+        thumb.style.left       = '31px';
+    } else {
+        wrap.style.background  = 'linear-gradient(135deg,#7f1d1d,#991b1b)';
+        wrap.style.boxShadow   = '0 4px 18px rgba(220,38,38,.3)';
+        icon.className         = 'fas fa-store-slash';
+        status.textContent     = '🔴 Closed — hidden from all customers';
+        badge.textContent      = 'CLOSED';
+        thumb.style.left       = '3px';
+    }
+
+    fetch('{{ route('admin.global.settings.toggle-store') }}', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','X-CSRF-TOKEN':'{{ csrf_token() }}','Accept':'application/json'},
+        body: JSON.stringify({ enabled }),
+    })
+    .then(r => r.json())
+    .then(() => { saving.textContent = enabled ? '✅ Store opened' : '✅ Store closed'; setTimeout(() => { saving.style.display='none'; saving.textContent='Saving…'; }, 2000); })
+    .catch(() => { saving.textContent = '❌ Error'; setTimeout(() => { saving.style.display='none'; saving.textContent='Saving…'; }, 2000); });
+}
+</script>
+
 {{-- KPI Cards --}}
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px">
     @php

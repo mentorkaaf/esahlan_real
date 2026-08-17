@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin\Global;
 use App\Http\Controllers\Controller;
 use App\Models\Global\GlobalSetting;
 use App\Models\Global\GlobalShippingZone;
+use App\Events\RealtimeEvent;
 use Illuminate\Http\Request;
 
 class AdminGlobalSettingsController extends Controller
@@ -60,6 +61,30 @@ class AdminGlobalSettingsController extends Controller
         }
 
         return back()->with('success', 'Settings saved successfully.');
+    }
+
+    // ── Real-time toggle — called via AJAX from settings page ─────────────────
+    public function toggleStore(Request $request)
+    {
+        $enabled = $request->boolean('enabled');
+        GlobalSetting::set('global_store_enabled', $enabled ? '1' : '0');
+
+        // Broadcast to all Flutter clients instantly via Reverb
+        broadcast(new RealtimeEvent(
+            channels: [['channel' => 'global.store', 'type' => 'public']],
+            eventName: 'store.toggled',
+            payload: [
+                'enabled' => $enabled,
+                'message' => $enabled
+                    ? 'Global Store is now open'
+                    : 'Global Store has been closed by admin',
+            ],
+        ));
+
+        return response()->json([
+            'success' => true,
+            'enabled' => $enabled,
+        ]);
     }
 
     public function updateShippingZone(Request $request, GlobalShippingZone $zone)

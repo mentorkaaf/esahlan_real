@@ -61,6 +61,12 @@ class _GlobalShellState extends ConsumerState<GlobalShell> {
 
   @override
   Widget build(BuildContext context) {
+    // ── Real-time store status check ─────────────────────────────────────────
+    final storeEnabled = ref.watch(globalStoreEnabledProvider);
+    if (!storeEnabled) {
+      return const _StoreClosedScreen();
+    }
+
     final location  = GoRouterState.of(context).uri.path;
     final idx       = _currentIndex(location);
     final cart      = ref.watch(globalCartProvider).valueOrNull;
@@ -815,4 +821,112 @@ class _Tab {
     required this.path, required this.icon,
     required this.activeIcon, required this.label,
   });
+}
+
+// ── Store Closed Screen ───────────────────────────────────────────────────────
+// Marka admin-ku Global Store disable gareeyo, screen-kan ayaa soo baxda
+// si toos ah (real-time) — user-ku ma baahan refresh.
+
+class _StoreClosedScreen extends StatelessWidget {
+  const _StoreClosedScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(40),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Icon
+                Container(
+                  width: 100, height: 100,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF8A00).withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.store_mall_directory_rounded,
+                    size: 52, color: Color(0xFFFF8A00),
+                  ),
+                ),
+                const SizedBox(height: 28),
+
+                // Title
+                const Text(
+                  'eSahlan Global Store',
+                  style: TextStyle(
+                    fontSize: 22, fontWeight: FontWeight.w900,
+                    color: Color(0xFF07003B),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+
+                // Subtitle
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.orange.shade200),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.access_time_rounded, size: 16, color: Colors.orange),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Store-ku hadda wuu xidhan yahay.\nWaxaan dib u furmeynaa si dhakhso ah.',
+                          style: TextStyle(fontSize: 13, color: Colors.orange, height: 1.5),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 32),
+
+                // Info badges
+                Wrap(
+                  spacing: 8, runSpacing: 8,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    _InfoChip(icon: Icons.security_rounded,   label: 'Secure & Safe'),
+                    _InfoChip(icon: Icons.flash_on_rounded,   label: 'Coming Back Soon'),
+                    _InfoChip(icon: Icons.support_agent_rounded, label: 'Support Available'),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _InfoChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  const _InfoChip({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: const Color(0xFFE5E7EB)),
+    ),
+    child: Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(icon, size: 13, color: const Color(0xFFFF8A00)),
+      const SizedBox(width: 5),
+      Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF374151))),
+    ]),
+  );
 }

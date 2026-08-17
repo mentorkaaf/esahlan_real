@@ -13,6 +13,108 @@
 <div style="background:#ecfdf5;border:1px solid #6ee7b7;color:#065f46;padding:12px 16px;border-radius:8px;margin-bottom:20px;font-size:13px">✅ {{ session('success') }}</div>
 @endif
 
+{{-- ═══════════════════════════════════════════════════════════
+     GLOBAL STORE MASTER TOGGLE — Real-time via Reverb
+     Marka la click gareeyo si toos ah app-ka ayuu u fal-gashaa
+     ═══════════════════════════════════════════════════════════ --}}
+@php $storeEnabled = \App\Models\Global\GlobalSetting::getBool('global_store_enabled', true); @endphp
+<div id="storeToggleCard" style="
+    background: linear-gradient(135deg, {{ $storeEnabled ? '#065f46' : '#7f1d1d' }}, {{ $storeEnabled ? '#047857' : '#991b1b' }});
+    border-radius: 16px; padding: 22px 28px; margin-bottom: 24px;
+    display: flex; align-items: center; gap: 20px;
+    box-shadow: 0 4px 24px {{ $storeEnabled ? 'rgba(5,150,105,.35)' : 'rgba(220,38,38,.35)' }};
+    transition: all .4s ease;
+">
+    <div style="width:56px;height:56px;background:rgba(255,255,255,.15);border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <i id="storeToggleIcon" class="fas {{ $storeEnabled ? 'fa-store' : 'fa-store-slash' }}" style="font-size:24px;color:#fff"></i>
+    </div>
+    <div style="flex:1">
+        <div style="font-size:16px;font-weight:800;color:#fff">Global Store</div>
+        <div id="storeToggleStatus" style="font-size:13px;color:rgba(255,255,255,.75);margin-top:2px">
+            {{ $storeEnabled ? '🟢 Open — customers can browse and purchase' : '🔴 Closed — store is hidden from customers' }}
+        </div>
+        <div id="storeToggleFeedback" style="font-size:11px;color:rgba(255,255,255,.5);margin-top:4px;display:none">
+            ⚡ Broadcast-ku wuxuu u socdaa app-ka…
+        </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;flex-shrink:0">
+        <span id="storeToggleBadge" style="
+            font-size:11px;font-weight:800;padding:4px 12px;border-radius:20px;
+            background:rgba(255,255,255,.2);color:#fff;text-transform:uppercase;letter-spacing:.05em;
+        ">{{ $storeEnabled ? 'OPEN' : 'CLOSED' }}</span>
+        <label style="position:relative;display:inline-block;width:56px;height:30px;cursor:pointer">
+            <input type="checkbox" id="storeToggleInput" {{ $storeEnabled ? 'checked' : '' }}
+                style="opacity:0;width:0;height:0" onchange="toggleGlobalStore(this.checked)">
+            <span id="storeToggleSlider" style="
+                position:absolute;inset:0;border-radius:30px;transition:.3s;
+                background:{{ $storeEnabled ? '#fff' : 'rgba(255,255,255,.3)' }};
+            "></span>
+            <span id="storeToggleThumb" style="
+                position:absolute;top:3px;left:{{ $storeEnabled ? '29px' : '3px' }};
+                width:24px;height:24px;border-radius:50%;transition:.3s;
+                background:{{ $storeEnabled ? '#059669' : '#991b1b' }};
+                box-shadow:0 2px 6px rgba(0,0,0,.3);
+            "></span>
+        </label>
+    </div>
+</div>
+
+<script>
+function toggleGlobalStore(enabled) {
+    const card    = document.getElementById('storeToggleCard');
+    const icon    = document.getElementById('storeToggleIcon');
+    const status  = document.getElementById('storeToggleStatus');
+    const badge   = document.getElementById('storeToggleBadge');
+    const slider  = document.getElementById('storeToggleSlider');
+    const thumb   = document.getElementById('storeToggleThumb');
+    const fb      = document.getElementById('storeToggleFeedback');
+
+    // Optimistic UI update
+    if (enabled) {
+        card.style.background   = 'linear-gradient(135deg,#065f46,#047857)';
+        card.style.boxShadow    = '0 4px 24px rgba(5,150,105,.35)';
+        icon.className          = 'fas fa-store';
+        status.textContent      = '🟢 Open — customers can browse and purchase';
+        badge.textContent       = 'OPEN';
+        slider.style.background = '#fff';
+        thumb.style.left        = '29px';
+        thumb.style.background  = '#059669';
+    } else {
+        card.style.background   = 'linear-gradient(135deg,#7f1d1d,#991b1b)';
+        card.style.boxShadow    = '0 4px 24px rgba(220,38,38,.35)';
+        icon.className          = 'fas fa-store-slash';
+        status.textContent      = '🔴 Closed — store is hidden from customers';
+        badge.textContent       = 'CLOSED';
+        slider.style.background = 'rgba(255,255,255,.3)';
+        thumb.style.left        = '3px';
+        thumb.style.background  = '#991b1b';
+    }
+
+    fb.style.display = 'block';
+
+    fetch('{{ route('admin.global.settings.toggle-store') }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Accept': 'application/json',
+        },
+        body: JSON.stringify({ enabled }),
+    })
+    .then(r => r.json())
+    .then(d => {
+        fb.textContent = d.success
+            ? '✅ App-ka wuu helay — real-time updated'
+            : '❌ Khalad dhacay';
+        setTimeout(() => { fb.style.display = 'none'; }, 3000);
+    })
+    .catch(() => {
+        fb.textContent = '❌ Server connection failed';
+        setTimeout(() => { fb.style.display = 'none'; }, 3000);
+    });
+}
+</script>
+
 <form method="POST" action="{{ route('admin.global.settings.update') }}">
 @csrf @method('PUT')
 

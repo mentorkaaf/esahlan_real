@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../../../../core/services/firebase_service.dart';
+import '../../../../core/services/realtime_client.dart';
 import '../../data/models/global_models.dart';
 import '../../data/repositories/global_repository.dart';
 
@@ -320,3 +321,45 @@ final globalReviewsProvider = FutureProvider.family<
     return (reviews: reviews, stats: stats);
   },
 );
+
+// ── Global Store Enabled/Disabled — Real-time via Reverb ─────────────────────
+// Subscribes to public channel `global.store` and listens for `store.toggled`.
+// Admin toggle-ka marka uu click gareeyo, isla markiiba app-ka wuu fal-gashaa.
+
+class GlobalStoreEnabledNotifier extends Notifier<bool> {
+  void Function(dynamic)? _handler;
+
+  @override
+  bool build() {
+    // 1. Fetch initial value from backend
+    ref.read(globalRepoProvider).getStoreEnabled().then((v) {
+      state = v;
+    }).catchError((_) {
+      // Default open if network fails — avoid false lockout
+      state = true;
+    });
+
+    // 2. Subscribe to Reverb public channel `global.store`
+    final rt = RealtimeClient.instance;
+    _handler = (data) {
+      if (data is Map && data['enabled'] != null) {
+        state = data['enabled'] == true;
+      }
+    };
+    rt.listen('global.store', 'store.toggled', _handler!);
+
+    // 3. Cleanup on dispose
+    ref.onDispose(() {
+      if (_handler != null) {
+        rt.removeListener('global.store', 'store.toggled', _handler!);
+      }
+      rt.unsubscribe('global.store');
+    });
+
+    return true; // optimistic default until fetch completes
+  }
+}
+
+final globalStoreEnabledProvider =
+    NotifierProvider<GlobalStoreEnabledNotifier, bool>(
+        GlobalStoreEnabledNotifier.new);
