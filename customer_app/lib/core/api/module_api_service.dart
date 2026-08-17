@@ -153,6 +153,7 @@ class ModuleApiService {
   Future<dynamic> getExchangeOrders()   => _get('/eexchange/orders');
   Future<dynamic> getExchangeAccounts() => _get('/eexchange/accounts');
   Future<dynamic> addExchangeAccount(Map<String, dynamic> data) => _post('/eexchange/accounts', data);
+  Future<dynamic> getWalletLogos() => _get('/eexchange/wallet-logos');
   Future<dynamic> removeExchangeAccount(int id) => _delete('/eexchange/accounts/$id');
 
   // ═══════════════════════════════════════════════════════════════════

@@ -80,6 +80,20 @@ class EExchangeController extends Controller
         return response()->json(['success' => true, 'data' => $orders]);
     }
 
+    // ── Wallet Logos ──────────────────────────────────────────────────────────
+
+    /** GET /api/v1/eexchange/wallet-logos — no auth required */
+    public function walletLogos()
+    {
+        $wallets = ['evc', 'edahab', 'jeep', 'premier', 'ebesa'];
+        $logos = [];
+        foreach ($wallets as $w) {
+            $url = \App\Models\Global\GlobalSetting::get("wallet_logo_{$w}");
+            if ($url) $logos[$w] = $url;
+        }
+        return response()->json(['success' => true, 'data' => $logos]);
+    }
+
     // ── Exchange Rates ────────────────────────────────────────────────────────
 
     public function rates()

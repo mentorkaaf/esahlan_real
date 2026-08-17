@@ -278,6 +278,7 @@ Route::prefix('v1')->group(function () {
 
     // eExchange
     Route::get('eexchange/rates',                        [EExchangeController::class, 'rates']);
+    Route::get('eexchange/wallet-logos',                 [EExchangeController::class, 'walletLogos']);
     Route::post('eexchange/calculate',                   [EExchangeController::class, 'calculate']);
     Route::post('eexchange/preview',                     [EExchangeController::class, 'calculate']);   // alias used by Flutter
 

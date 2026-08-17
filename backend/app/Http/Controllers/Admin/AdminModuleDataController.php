@@ -260,6 +260,22 @@ class AdminModuleDataController extends Controller
         return back()->with('success', 'Rate deleted.');
     }
 
+    public function exchangeUploadLogo(Request $request)
+    {
+        $request->validate([
+            'wallet'  => 'required|in:evc,edahab,jeep,premier,ebesa',
+            'logo'    => 'required|image|mimes:png,jpg,jpeg,webp,svg|max:2048',
+        ]);
+
+        $wallet = $request->input('wallet');
+        $path   = $request->file('logo')->store("wallet-logos", 'public');
+        $url    = asset('storage/' . $path);
+
+        \App\Models\Global\GlobalSetting::set("wallet_logo_{$wallet}", $url);
+
+        return back()->with('success', ucfirst($wallet) . ' logo updated successfully.');
+    }
+
     // ══════════════════════════════════════════════════════════════
     // eHEALTH — Doctors
     // ══════════════════════════════════════════════════════════════

@@ -675,6 +675,7 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::get('/exchange',                  [$ctrl, 'exchangeIndex'])->name('exchange');
             Route::post('/exchange/rates',            [$ctrl, 'exchangeStore'])->name('exchange.store');
             Route::delete('/exchange/rates/{rate}',   [$ctrl, 'exchangeDestroy'])->name('exchange.destroy');
+            Route::post('/exchange/wallet-logos',     [$ctrl, 'exchangeUploadLogo'])->name('exchange.logo.upload');
 
             // eHealth
             Route::get('/health',                    [$ctrl, 'healthIndex'])->name('health');

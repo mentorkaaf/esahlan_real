@@ -434,6 +434,76 @@ window.addEventListener('DOMContentLoaded',function(){
             </div>
         </div>
     </div>
+
+    {{-- ── Wallet Logos ── --}}
+    @php
+        $walletDefs = [
+            'evc'     => ['EVC+ / Sahal / Zaad', '#00A8E8'],
+            'edahab'  => ['eDahab Merchant',      '#2E7D32'],
+            'jeep'    => ['Jeep Money',            '#0D47A1'],
+            'premier' => ['Premier Wallet',        '#1A237E'],
+            'ebesa'   => ['eBesa',                 '#6A1B9A'],
+        ];
+    @endphp
+    <div style="background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);border:1px solid #e5e7eb;overflow:hidden;margin-top:24px">
+        <div style="padding:16px 22px;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;gap:10px">
+            <div style="width:34px;height:34px;background:#f0f4ff;border-radius:9px;display:flex;align-items:center;justify-content:center">
+                <i class="fas fa-image" style="color:#4f46e5;font-size:14px"></i>
+            </div>
+            <div>
+                <h3 style="font-size:14px;font-weight:800;color:#111;margin:0">Wallet Logos</h3>
+                <p style="font-size:11px;color:#9ca3af;margin:0">Upload logo images shown in the Flutter app</p>
+            </div>
+        </div>
+        <div style="padding:22px">
+            @if(session('success'))
+                <div style="background:#ecfdf5;border:1px solid #6ee7b7;border-radius:10px;padding:10px 16px;margin-bottom:16px;font-size:13px;color:#065f46;font-weight:600">
+                    ✅ {{ session('success') }}
+                </div>
+            @endif
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px">
+                @foreach($walletDefs as $wKey => $wInfo)
+                @php
+                    $currentLogo = \App\Models\Global\GlobalSetting::get("wallet_logo_{$wKey}");
+                @endphp
+                <div style="border:1.5px solid #e5e7eb;border-radius:12px;overflow:hidden">
+                    {{-- Logo preview --}}
+                    <div style="height:80px;background:#f9fafb;display:flex;align-items:center;justify-content:center;position:relative">
+                        @if($currentLogo)
+                            <img src="{{ $currentLogo }}" alt="{{ $wKey }}" style="max-height:60px;max-width:130px;object-fit:contain">
+                            <span style="position:absolute;top:6px;right:6px;background:#10b981;color:#fff;font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px">✓ SET</span>
+                        @else
+                            <div style="text-align:center">
+                                <div style="font-size:20px;font-weight:900;color:{{ $wInfo[1] }}">{{ strtoupper($wKey) }}</div>
+                                <div style="font-size:10px;color:#9ca3af">No logo yet</div>
+                            </div>
+                        @endif
+                    </div>
+                    {{-- Info + upload --}}
+                    <div style="padding:12px">
+                        <div style="font-size:12px;font-weight:800;color:#111;margin-bottom:2px">{{ strtoupper($wKey) }}</div>
+                        <div style="font-size:10px;color:#9ca3af;margin-bottom:10px">{{ $wInfo[0] }}</div>
+                        <form action="{{ route('admin.module-data.exchange.logo.upload') }}" method="POST" enctype="multipart/form-data">
+                            @csrf
+                            <input type="hidden" name="wallet" value="{{ $wKey }}">
+                            <label style="display:block;width:100%;cursor:pointer">
+                                <input type="file" name="logo" accept="image/*" style="display:none"
+                                    onchange="this.closest('form').submit()">
+                                <div style="text-align:center;padding:7px 10px;background:{{ $wInfo[1] }}12;border:1.5px dashed {{ $wInfo[1] }}55;border-radius:8px;font-size:11px;font-weight:700;color:{{ $wInfo[1] }};transition:.15s">
+                                    <i class="fas fa-upload" style="margin-right:4px"></i>
+                                    {{ $currentLogo ? 'Replace' : 'Upload' }} Logo
+                                </div>
+                            </label>
+                        </form>
+                    </div>
+                </div>
+                @endforeach
+            </div>
+            <p style="font-size:11px;color:#9ca3af;margin-top:14px;text-align:center">
+                PNG / JPG / WebP · Max 2MB · Recommended: square 256×256px or higher
+            </p>
+        </div>
+    </div>
 </div>
 
 <script>

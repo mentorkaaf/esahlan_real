@@ -16,6 +16,16 @@ import '../../../features/global/presentation/providers/global_provider.dart';
 import 'crypto/crypto_exchange_screen.dart';
 
 final _svc = ModuleApiService.create();
+
+/// Wallet logos from admin — cached globally, refreshes on hot restart
+final _walletLogosProvider = FutureProvider<Map<String, String>>((ref) async {
+  try {
+    final res = await _svc.getWalletLogos();
+    final data = res['data'] as Map<String, dynamic>? ?? {};
+    return data.map((k, v) => MapEntry(k, v.toString()));
+  } catch (_) { return {}; }
+});
+
 final _exchangeAccountsProvider = FutureProvider<List<_ExchangeAccount>>((ref) async {
   try {
     final res = await _svc.getExchangeAccounts();
@@ -120,12 +130,13 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen>
     if (cryptoEnabled == _lastCryptoEnabled) return;
     _lastCryptoEnabled = cryptoEnabled;
     final oldCtrl = _tabCtrl;
-    _tabCtrl = TabController(
-      length: cryptoEnabled ? 2 : 1,
-      vsync: this,
-    );
-    // jump to Local if crypto tab was active and now gone
+    _tabCtrl = TabController(length: cryptoEnabled ? 2 : 1, vsync: this);
     oldCtrl.dispose();
+  }
+
+  void _openAddAccounts() async {
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AddAccountsScreen()));
+    ref.invalidate(_exchangeAccountsProvider);
   }
 
   @override
@@ -144,6 +155,25 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen>
         ),
         title: Text('eExchange',
             style: TextStyle(fontWeight: FontWeight.w800, color: context.colors.navyText, fontFamily: 'Cairo')),
+        actions: [
+          // ── Add Accounts button ──────────────────────────────────────
+          GestureDetector(
+            onTap: _openAddAccounts,
+            child: Container(
+              margin: const EdgeInsets.only(right: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.account_balance_wallet_rounded, size: 16, color: AppColors.primary),
+                const SizedBox(width: 5),
+                Text('My Accounts', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.primary)),
+              ]),
+            ),
+          ),
+        ],
         bottom: TabBar(
           controller: _tabCtrl,
           labelColor: AppColors.primary,
@@ -160,7 +190,7 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen>
       body: TabBarView(
         controller: _tabCtrl,
         children: [
-          const _LocalExchangeTab(),
+          _LocalExchangeTab(onAddAccounts: _openAddAccounts),
           if (cryptoEnabled) const CryptoExchangeScreen(),
         ],
       ),
@@ -171,7 +201,8 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen>
 // ── Local Exchange Tab ────────────────────────────────────────────────────────
 
 class _LocalExchangeTab extends ConsumerStatefulWidget {
-  const _LocalExchangeTab();
+  final VoidCallback onAddAccounts;
+  const _LocalExchangeTab({required this.onAddAccounts});
   @override
   ConsumerState<_LocalExchangeTab> createState() => _LocalExchangeTabState();
 }
@@ -186,20 +217,10 @@ class _LocalExchangeTabState extends ConsumerState<_LocalExchangeTab> {
   bool _converting = false;
   bool _confirming = false;
 
-  final _phoneCtrl  = TextEditingController(text: '+252 ');
-  final _phoneFocus = FocusNode();
   final _amountCtrl = TextEditingController();
 
   @override
-  void initState() {
-    super.initState();
-    _phoneFocus.addListener(() => setState(() {}));
-  }
-
-  @override
   void dispose() {
-    _phoneCtrl.dispose();
-    _phoneFocus.dispose();
     _amountCtrl.dispose();
     super.dispose();
   }
@@ -212,39 +233,40 @@ class _LocalExchangeTabState extends ConsumerState<_LocalExchangeTab> {
     catch (_) { return null; }
   }
 
-  void _selectToWallet(String id) {
-    setState(() {
-      _toWallet = id; _preview = null;
-      final acc = _accountFor(id);
-      _phoneCtrl.text = acc?.phoneNumber ?? '+252 ';
-    });
-  }
+  // Recipient phone comes from saved "To" account
+  String get _recipientPhone => _accountFor(_toWallet)?.phoneNumber ?? '';
+  bool get _hasFromAccount  => _accountFor(_fromWallet) != null;
+  bool get _hasToAccount    => _accountFor(_toWallet) != null;
+  bool get _canPreview      => _amount > 0 && _fromWallet != _toWallet && _hasToAccount;
+
+  void _selectFromWallet(String id) => setState(() { _fromWallet = id; _preview = null; });
+  void _selectToWallet(String id)   => setState(() { _toWallet = id;   _preview = null; });
 
   void _swapWallets() {
     setState(() {
       final tmp = _fromWallet; _fromWallet = _toWallet; _toWallet = tmp;
       _preview = null;
-      final acc = _accountFor(_toWallet);
-      _phoneCtrl.text = acc?.phoneNumber ?? '+252 ';
     });
-  }
-
-  String get _cleanPhone => _phoneCtrl.text.trim();
-  bool get _phoneValid {
-    final p = _cleanPhone.replaceAll(RegExp(r'\s'), '');
-    return p.startsWith('+252') && p.length >= 10;
   }
 
   @override
   Widget build(BuildContext context) {
     final accountsAsync = ref.watch(_exchangeAccountsProvider);
     final ordersAsync   = ref.watch(_exchangeOrdersProvider);
-    final accounts      = accountsAsync.valueOrNull ?? [];
     final orders        = ordersAsync.valueOrNull ?? [];
+
+    // If accounts still loading, show loader
+    if (accountsAsync.isLoading) {
+      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+    }
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+
+        // ── Missing accounts banner ────────────────────────────────────
+        if (!_hasFromAccount || !_hasToAccount)
+          _buildAddAccountBanner(!_hasFromAccount ? _fromWallet : _toWallet),
 
         // ── From / To Card ─────────────────────────────────────────────
         _buildFromToCard(),
@@ -252,10 +274,6 @@ class _LocalExchangeTabState extends ConsumerState<_LocalExchangeTab> {
 
         // ── Amount ─────────────────────────────────────────────────────
         _buildAmountCard(),
-        const SizedBox(height: 14),
-
-        // ── Recipient ──────────────────────────────────────────────────
-        _buildPhoneCard(accounts),
         const SizedBox(height: 16),
 
         // ── Preview / Confirm ──────────────────────────────────────────
@@ -274,12 +292,14 @@ class _LocalExchangeTabState extends ConsumerState<_LocalExchangeTab> {
             label: _converting ? 'Calculating...' : 'Preview Exchange',
             isLoading: _converting,
             outlined: true,
-            onPressed: (_amount <= 0 || _fromWallet == _toWallet || !_phoneValid) ? null : _previewExchange,
+            onPressed: _canPreview ? _previewExchange : null,
           ),
           if (_fromWallet == _toWallet)
             _hint('Select different wallets', isError: true)
-          else if (_amount > 0 && !_phoneValid)
-            _hint('Enter a valid phone number (+252...)', isError: true),
+          else if (!_hasToAccount)
+            _hint('Add your ${_wallet(_toWallet).name} account first', isError: true)
+          else if (_amount <= 0)
+            _hint('Enter an amount to continue'),
         ],
         const SizedBox(height: 28),
 
@@ -290,11 +310,42 @@ class _LocalExchangeTabState extends ConsumerState<_LocalExchangeTab> {
     );
   }
 
+  // ── Missing account banner ────────────────────────────────────────────────
+
+  Widget _buildAddAccountBanner(String walletId) {
+    final w = _wallet(walletId);
+    return GestureDetector(
+      onTap: widget.onAddAccounts,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: w.bgColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: w.color.withValues(alpha: 0.3)),
+        ),
+        child: Row(children: [
+          _WalletLogo(wallet: w, size: 32),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Add your ${w.name} account',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: w.color)),
+            Text('Tap to save your phone number for quick exchange',
+                style: const TextStyle(fontSize: 11, color: AppColors.textGrey)),
+          ])),
+          Icon(Icons.add_circle_rounded, color: w.color, size: 22),
+        ]),
+      ),
+    );
+  }
+
   // ── From / To Card ────────────────────────────────────────────────────────
 
   Widget _buildFromToCard() {
-    final fromW = _wallet(_fromWallet);
-    final toW   = _wallet(_toWallet);
+    final fromW    = _wallet(_fromWallet);
+    final toW      = _wallet(_toWallet);
+    final fromAcc  = _accountFor(_fromWallet);
+    final toAcc    = _accountFor(_toWallet);
 
     return Container(
       decoration: BoxDecoration(
@@ -303,34 +354,48 @@ class _LocalExchangeTabState extends ConsumerState<_LocalExchangeTab> {
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 12, offset: const Offset(0, 4))],
       ),
       child: Column(children: [
-        // FROM
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
-          child: Row(children: [
-            const Text('From', style: TextStyle(fontSize: 12, color: AppColors.textGrey, fontWeight: FontWeight.w600)),
-            const Spacer(),
-            // Wallet selector row
-            _buildWalletSelector(_fromWallet, (id) => setState(() { _fromWallet = id; _preview = null; })),
-          ]),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Row(children: [
-            _WalletLogo(wallet: fromW, size: 44),
-            const SizedBox(width: 12),
-            Expanded(child: Text(fromW.name, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: context.colors.navyText))),
-            Text('\$  0.00', style: TextStyle(fontWeight: FontWeight.w300, fontSize: 18, color: context.colors.navyText.withValues(alpha: 0.4))),
-          ]),
-        ),
-        const SizedBox(height: 14),
 
-        // Divider + Swap
+        // ── FROM ────────────────────────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+          child: Row(children: [
+            Text('From', style: const TextStyle(fontSize: 12, color: AppColors.textGrey, fontWeight: FontWeight.w600)),
+            const Spacer(),
+            _buildWalletPills(_fromWallet, _selectFromWallet),
+          ]),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+          child: Row(children: [
+            _WalletLogo(wallet: fromW, size: 42),
+            const SizedBox(width: 12),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(fromW.name,
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.colors.navyText)),
+              const SizedBox(height: 2),
+              // Saved account phone
+              if (fromAcc != null)
+                Text(fromAcc.phoneNumber,
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: fromW.color))
+              else
+                GestureDetector(
+                  onTap: widget.onAddAccounts,
+                  child: Text('+ Add account',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: fromW.color.withValues(alpha: 0.7))),
+                ),
+            ])),
+            Text('\$  0.00', style: TextStyle(fontWeight: FontWeight.w300, fontSize: 18,
+                color: context.colors.navyText.withValues(alpha: 0.35))),
+          ]),
+        ),
+
+        // ── Divider + Swap ──────────────────────────────────────────────
         Stack(alignment: Alignment.center, children: [
           Divider(height: 1, color: Colors.grey.shade100),
           GestureDetector(
             onTap: _swapWallets,
             child: Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(7),
               decoration: BoxDecoration(
                 color: Colors.white,
                 shape: BoxShape.circle,
@@ -341,45 +406,75 @@ class _LocalExchangeTabState extends ConsumerState<_LocalExchangeTab> {
           ),
         ]),
 
-        // TO
+        // ── TO ──────────────────────────────────────────────────────────
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 18),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
           child: Row(children: [
-            _WalletLogo(wallet: toW, size: 44),
+            _WalletLogo(wallet: toW, size: 42),
             const SizedBox(width: 12),
-            Expanded(child: Text(toW.name, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: context.colors.navyText))),
-            Text('\$  0.00', style: TextStyle(fontWeight: FontWeight.w300, fontSize: 18, color: context.colors.navyText.withValues(alpha: 0.4))),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(toW.name,
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.colors.navyText)),
+              const SizedBox(height: 2),
+              // Saved account phone (recipient auto-filled)
+              if (toAcc != null)
+                Row(children: [
+                  Text(toAcc.phoneNumber,
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: toW.color)),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                    decoration: BoxDecoration(color: toW.bgColor, borderRadius: BorderRadius.circular(4)),
+                    child: Text('Saved', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: toW.color)),
+                  ),
+                ])
+              else
+                GestureDetector(
+                  onTap: widget.onAddAccounts,
+                  child: Text('+ Add account to auto-fill',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: toW.color.withValues(alpha: 0.7))),
+                ),
+            ])),
+            Text('\$  0.00', style: TextStyle(fontWeight: FontWeight.w300, fontSize: 18,
+                color: context.colors.navyText.withValues(alpha: 0.35))),
           ]),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
           child: Row(children: [
-            const Text('To', style: TextStyle(fontSize: 12, color: AppColors.textGrey, fontWeight: FontWeight.w600)),
+            Text('To', style: const TextStyle(fontSize: 12, color: AppColors.textGrey, fontWeight: FontWeight.w600)),
             const Spacer(),
-            _buildWalletSelector(_toWallet, _selectToWallet),
+            _buildWalletPills(_toWallet, _selectToWallet),
           ]),
         ),
       ]),
     );
   }
 
-  Widget _buildWalletSelector(String selected, void Function(String) onSelect) {
+  Widget _buildWalletPills(String selected, void Function(String) onSelect) {
     return Row(mainAxisSize: MainAxisSize.min, children: _wallets.map((w) {
       final sel = selected == w.id;
+      final hasSaved = _accountFor(w.id) != null;
       return GestureDetector(
         onTap: () => onSelect(w.id),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
-          margin: const EdgeInsets.only(left: 6),
+          margin: const EdgeInsets.only(left: 5),
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: sel ? w.color : Colors.grey.shade100,
+            color: sel ? w.color : (hasSaved ? w.bgColor : Colors.grey.shade100),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Text(w.shortName,
-              style: TextStyle(
-                  fontSize: 10, fontWeight: FontWeight.w800,
-                  color: sel ? Colors.white : AppColors.textGrey)),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Text(w.shortName,
+                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800,
+                    color: sel ? Colors.white : (hasSaved ? w.color : AppColors.textGrey))),
+            if (hasSaved && !sel) ...[
+              const SizedBox(width: 3),
+              Container(width: 5, height: 5,
+                  decoration: BoxDecoration(color: w.color, shape: BoxShape.circle)),
+            ],
+          ]),
         ),
       );
     }).toList());
@@ -413,81 +508,20 @@ class _LocalExchangeTabState extends ConsumerState<_LocalExchangeTab> {
         onTap: () { _amountCtrl.text = v.toString(); setState(() { _amount = v.toDouble(); _preview = null; }); },
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(20),
-          ),
+          decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(20)),
           child: Text('\$$v', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: context.colors.navyText)),
         ),
       )).toList()),
     ]),
   );
 
-  // ── Recipient Phone Card ──────────────────────────────────────────────────
-
-  Widget _buildPhoneCard(List<_ExchangeAccount> accounts) {
-    final toWallet = _wallet(_toWallet);
-    final savedAcc = _accountFor(_toWallet);
-
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white, borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)],
-        border: Border.all(
-          color: _phoneFocus.hasFocus ? AppColors.primary : Colors.transparent,
-          width: 1.5,
-        ),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Text('${toWallet.name} Phone Number',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textGrey)),
-          const Spacer(),
-          if (savedAcc != null)
-            GestureDetector(
-              onTap: () => setState(() { _phoneCtrl.text = savedAcc.phoneNumber; _preview = null; }),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: toWallet.bgColor, borderRadius: BorderRadius.circular(8)),
-                child: Text('Use Saved', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: toWallet.color)),
-              ),
-            ),
-        ]),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _phoneCtrl,
-          focusNode: _phoneFocus,
-          keyboardType: TextInputType.phone,
-          inputFormatters: [_PhonePrefixFormatter('+252 ')],
-          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 22, color: context.colors.navyText, letterSpacing: 0.5),
-          onChanged: (_) => setState(() => _preview = null),
-          onTap: () => _phoneCtrl.selection = TextSelection.collapsed(offset: _phoneCtrl.text.length),
-          decoration: InputDecoration(
-            hintText: '+252 61 234 5678',
-            hintStyle: TextStyle(fontSize: 20, color: Colors.grey.shade300, fontWeight: FontWeight.w400),
-            border: InputBorder.none,
-            isDense: true,
-          ),
-        ),
-        if (_cleanPhone.isNotEmpty && _cleanPhone != '+252 ')
-          Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: Text(
-              _phoneValid ? '+252 ${_cleanPhone.replaceAll('+252', '').trim()}' : 'Enter remaining digits',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
-                  color: _phoneValid ? toWallet.color : AppColors.textGrey),
-            ),
-          ),
-      ]),
-    );
-  }
-
   // ── Preview Card ──────────────────────────────────────────────────────────
 
   Widget _buildPreviewCard() {
     final fromW = _wallet(_fromWallet);
     final toW   = _wallet(_toWallet);
+    final toAcc = _accountFor(_toWallet);
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -495,7 +529,6 @@ class _LocalExchangeTabState extends ConsumerState<_LocalExchangeTab> {
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
       ),
       child: Column(children: [
-        // From → To
         Row(children: [
           _WalletLogo(wallet: fromW, size: 36),
           const SizedBox(width: 8),
@@ -509,9 +542,9 @@ class _LocalExchangeTabState extends ConsumerState<_LocalExchangeTab> {
         const SizedBox(height: 16),
         Divider(color: Colors.grey.shade100),
         const SizedBox(height: 12),
-        _previewRow('You Send',       '\$${_preview!['amount']}'),
-        _previewRow('Exchange Rate',  '${_preview!['rate']}'),
-        _previewRow('Service Fee',    '-\$${_preview!['fee']}'),
+        _previewRow('You Send',      '\$${_preview!['amount']}'),
+        _previewRow('Exchange Rate', '${_preview!['rate']}'),
+        _previewRow('Service Fee',   '-\$${_preview!['fee']}'),
         const SizedBox(height: 8),
         Divider(color: Colors.grey.shade100),
         const SizedBox(height: 10),
@@ -520,17 +553,22 @@ class _LocalExchangeTabState extends ConsumerState<_LocalExchangeTab> {
           Text('\$${_preview!['converted_amount'] ?? _preview!['converted'] ?? _preview!['you_receive']}',
               style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 26, color: Color(0xFF2E7D32))),
         ]),
-        const SizedBox(height: 14),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(12)),
-          child: Row(children: [
-            _WalletLogo(wallet: toW, size: 28),
-            const SizedBox(width: 10),
-            Expanded(child: Text(_cleanPhone,
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: context.colors.navyText))),
-          ]),
-        ),
+        if (toAcc != null) ...[
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(color: toW.bgColor, borderRadius: BorderRadius.circular(12)),
+            child: Row(children: [
+              _WalletLogo(wallet: toW, size: 28),
+              const SizedBox(width: 10),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(toAcc.phoneNumber, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: toW.color)),
+                Text(toW.name, style: const TextStyle(fontSize: 11, color: AppColors.textGrey)),
+              ])),
+              Icon(Icons.check_circle_rounded, color: toW.color, size: 18),
+            ]),
+          ),
+        ],
       ]),
     );
   }
@@ -583,10 +621,12 @@ class _LocalExchangeTabState extends ConsumerState<_LocalExchangeTab> {
           width: double.infinity, padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16),
               boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)]),
-          child: const Column(children: [
-            Icon(Icons.swap_horiz_rounded, size: 40, color: AppColors.textGrey),
-            SizedBox(height: 10),
-            Text('No transactions yet', style: TextStyle(color: AppColors.textGrey, fontWeight: FontWeight.w600)),
+          child: Column(children: [
+            const Icon(Icons.swap_horiz_rounded, size: 40, color: AppColors.textGrey),
+            const SizedBox(height: 10),
+            const Text('No transactions yet', style: TextStyle(color: AppColors.textGrey, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 4),
+            Text('Your exchange history will appear here', style: TextStyle(fontSize: 12, color: Colors.grey.shade400)),
           ]),
         )
       else
@@ -606,8 +646,7 @@ class _LocalExchangeTabState extends ConsumerState<_LocalExchangeTab> {
 
   Widget _buildOrderTile(_ExchangeOrder order) {
     final fromW = _wallet(order.fromWallet);
-    final isCompleted = order.status == 'completed';
-    final statusColor = isCompleted ? const Color(0xFF2E7D32)
+    final statusColor = order.status == 'completed' ? const Color(0xFF2E7D32)
         : order.status == 'pending' ? const Color(0xFFF57C00)
         : AppColors.textGrey;
 
@@ -644,7 +683,6 @@ class _LocalExchangeTabState extends ConsumerState<_LocalExchangeTab> {
   // ── Logic ─────────────────────────────────────────────────────────────────
 
   Future<void> _previewExchange() async {
-    if (!_phoneValid) { _phoneFocus.requestFocus(); _showErrorDialog('Enter a valid +252 phone number'); return; }
     setState(() => _converting = true);
     try {
       final res = await _svc.previewExchange({'from_wallet': _fromWallet, 'to_wallet': _toWallet, 'amount': _amount});
@@ -657,6 +695,9 @@ class _LocalExchangeTabState extends ConsumerState<_LocalExchangeTab> {
   }
 
   Future<void> _confirm() async {
+    final phone = _recipientPhone;
+    if (phone.isEmpty) { _showErrorDialog('Add your ${_wallet(_toWallet).name} account first'); return; }
+
     if (_paymentMethod == 'mobile_pay') {
       final result = await showMobilePaySheet(context, amount: _amount,
           description: 'eExchange ${_fromWallet.toUpperCase()} → ${_toWallet.toUpperCase()}');
@@ -665,7 +706,7 @@ class _LocalExchangeTabState extends ConsumerState<_LocalExchangeTab> {
     } else if (_paymentMethod == 'waafi_pay') {
       if (!mounted) return;
       final result = await showWaafiPaySheet(context, amount: _amount, type: 'order',
-          description: 'eExchange', prefillPhone: _cleanPhone);
+          description: 'eExchange', prefillPhone: phone);
       if (result?.success != true) return;
       _waafiRef = result!.reference;
     }
@@ -678,7 +719,7 @@ class _LocalExchangeTabState extends ConsumerState<_LocalExchangeTab> {
     try {
       final res = await _svc.confirmExchange({
         'from_wallet': _fromWallet, 'to_wallet': _toWallet,
-        'amount': _amount, 'recipient_phone': _cleanPhone,
+        'amount': _amount, 'recipient_phone': phone,
         'payment_method': _paymentMethod,
         if (_waafiRef != null) 'payment_reference': _waafiRef,
       });
@@ -726,24 +767,41 @@ class _LocalExchangeTabState extends ConsumerState<_LocalExchangeTab> {
 
 // ── Wallet Logo Widget ────────────────────────────────────────────────────────
 
-class _WalletLogo extends StatelessWidget {
+class _WalletLogo extends ConsumerWidget {
   final _WalletDef wallet;
   final double size;
   const _WalletLogo({required this.wallet, required this.size});
 
   @override
-  Widget build(BuildContext context) => Container(
-    width: size, height: size,
-    decoration: BoxDecoration(color: wallet.bgColor, borderRadius: BorderRadius.circular(size * 0.25)),
-    child: Center(
-      child: Text(wallet.shortName,
-          style: TextStyle(fontSize: size * 0.28, fontWeight: FontWeight.w900, color: wallet.color),
-          maxLines: 1, overflow: TextOverflow.clip),
-    ),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final logos = ref.watch(_walletLogosProvider).valueOrNull ?? {};
+    final logoUrl = logos[wallet.id];
+
+    return Container(
+      width: size, height: size,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: wallet.bgColor,
+        borderRadius: BorderRadius.circular(size * 0.25),
+      ),
+      child: logoUrl != null
+          ? Image.network(
+              logoUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => _fallbackText(),
+            )
+          : _fallbackText(),
+    );
+  }
+
+  Widget _fallbackText() => Center(
+    child: Text(wallet.shortName,
+        style: TextStyle(fontSize: size * 0.28, fontWeight: FontWeight.w900, color: wallet.color),
+        maxLines: 1, overflow: TextOverflow.clip),
   );
 }
 
-// ── Add Accounts Screen (full page) ──────────────────────────────────────────
+// ── Add Accounts Screen ───────────────────────────────────────────────────────
 
 class AddAccountsScreen extends ConsumerStatefulWidget {
   const AddAccountsScreen({super.key});
@@ -760,7 +818,6 @@ class _AddAccountsScreenState extends ConsumerState<AddAccountsScreen> {
   @override
   void initState() {
     super.initState();
-    // Pre-fill saved numbers
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final accounts = ref.read(_exchangeAccountsProvider).valueOrNull ?? [];
       for (final acc in accounts) {
@@ -772,7 +829,7 @@ class _AddAccountsScreenState extends ConsumerState<AddAccountsScreen> {
 
   @override
   void dispose() {
-    for (final c in _ctrls.values) c.dispose();
+    for (final c in _ctrls.values) { c.dispose(); }
     super.dispose();
   }
 
@@ -787,18 +844,23 @@ class _AddAccountsScreenState extends ConsumerState<AddAccountsScreen> {
           icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: context.colors.navyText),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text('Add Accounts', style: TextStyle(fontWeight: FontWeight.w800, color: context.colors.navyText)),
+        title: Text('My Wallet Accounts',
+            style: TextStyle(fontWeight: FontWeight.w800, color: context.colors.navyText)),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const SizedBox(height: 8),
-          Text(
-            'Add your private accounts or wallets to\nmanage the exchanges. and use eDir to\nsimplify you to swap between wallets',
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 13, color: AppColors.textGrey, height: 1.6),
+          const SizedBox(height: 4),
+          Container(
+            width: double.infinity, padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(color: const Color(0xFFF0F4FF), borderRadius: BorderRadius.circular(12)),
+            child: const Text(
+              'Save your wallet phone numbers here. They will be auto-filled when you exchange between wallets — no need to type them each time.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: Color(0xFF374151), height: 1.6),
+            ),
           ),
-          const Divider(height: 32),
+          const SizedBox(height: 20),
           ..._wallets.map((w) => _buildWalletField(w)),
           const SizedBox(height: 24),
           SizedBox(
@@ -822,9 +884,13 @@ class _AddAccountsScreenState extends ConsumerState<AddAccountsScreen> {
 
   Widget _buildWalletField(_WalletDef w) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.only(bottom: 16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(w.name, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.colors.navyText)),
+        Row(children: [
+          _WalletLogo(wallet: w, size: 24),
+          const SizedBox(width: 8),
+          Text(w.name, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.colors.navyText)),
+        ]),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
@@ -832,22 +898,17 @@ class _AddAccountsScreenState extends ConsumerState<AddAccountsScreen> {
             border: Border.all(color: Colors.grey.shade300),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Row(children: [
-            _WalletLogo(wallet: w, size: 32),
-            const SizedBox(width: 10),
-            Expanded(child: TextField(
-              controller: _ctrls[w.id],
-              keyboardType: TextInputType.phone,
-              inputFormatters: [_PhonePrefixFormatter('+252 ')],
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: context.colors.navyText),
-              decoration: InputDecoration(
-                hintText: '+252 61 234 5678',
-                hintStyle: TextStyle(color: Colors.grey.shade400, fontWeight: FontWeight.w400),
-                border: InputBorder.none,
-                isDense: true,
-              ),
-            )),
-          ]),
+          child: TextField(
+            controller: _ctrls[w.id],
+            keyboardType: TextInputType.phone,
+            inputFormatters: [_PhonePrefixFormatter('+252 ')],
+            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: context.colors.navyText),
+            decoration: InputDecoration(
+              hintText: '+252 61 234 5678',
+              hintStyle: TextStyle(color: Colors.grey.shade400, fontWeight: FontWeight.w400),
+              border: InputBorder.none, isDense: true,
+            ),
+          ),
         ),
       ]),
     );
@@ -868,8 +929,10 @@ class _AddAccountsScreenState extends ConsumerState<AddAccountsScreen> {
     if (mounted) {
       setState(() => _saving = false);
       ref.invalidate(_exchangeAccountsProvider);
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$saved account${saved == 1 ? '' : 's'} saved!')));
+      if (saved > 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('$saved account${saved == 1 ? '' : 's'} saved!')));
+      }
       Navigator.of(context).pop();
     }
   }
@@ -924,8 +987,7 @@ class _ExchangeSuccessScreen extends StatelessWidget {
                 style: TextStyle(fontSize: 14, color: AppColors.textGrey, height: 1.6), textAlign: TextAlign.center),
             const SizedBox(height: 32),
             Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+              width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(colors: [AppColors.primary, Color(0xFF2C3E8A)]),
                 borderRadius: BorderRadius.circular(14),
@@ -957,9 +1019,9 @@ class _ExchangeSuccessScreen extends StatelessWidget {
                     child: Text('Exchange Details', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: context.colors.navyText))),
                 const SizedBox(height: 14),
                 _detailRow(context, 'From Wallet', from.toUpperCase(), icon: Icons.arrow_upward_rounded, color: Colors.red),
-                _detailRow(context, 'To Wallet',   to.toUpperCase(),   icon: Icons.arrow_downward_rounded, color: const Color(0xFF2E7D32)),
-                _detailRow(context, 'Amount Sent',  '\$$sent'),
-                _detailRow(context, 'Service Fee',  '-\$$fee'),
+                _detailRow(context, 'To Wallet', to.toUpperCase(), icon: Icons.arrow_downward_rounded, color: const Color(0xFF2E7D32)),
+                _detailRow(context, 'Amount Sent', '\$$sent'),
+                _detailRow(context, 'Service Fee', '-\$$fee'),
                 const Divider(height: 20),
                 Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                   Text('Recipient Receives', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: context.colors.navyText)),
