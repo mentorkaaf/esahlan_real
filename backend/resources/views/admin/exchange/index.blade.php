@@ -11,8 +11,8 @@
         <a href="{{ route('admin.exchange.users') }}" style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;background:var(--brand,#f59e0b);color:#fff;border-radius:9px;font-weight:700;font-size:13px;text-decoration:none">
             <i class="fas fa-users"></i> User Accounts
         </a>
-        <a href="{{ route('admin.crypto.index') }}" style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border-radius:9px;font-weight:700;font-size:13px;text-decoration:none">
-            <i class="fas fa-bitcoin"></i> Crypto
+        <a href="{{ route('admin.module-data.exchange') }}" style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border-radius:9px;font-weight:700;font-size:13px;text-decoration:none">
+            <i class="fas fa-sliders-h"></i> Rates & Settings
         </a>
     </div>
 </div>
