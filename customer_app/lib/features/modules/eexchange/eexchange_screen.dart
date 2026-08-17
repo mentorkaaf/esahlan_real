@@ -3,10 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/module_api_service.dart';
+import '../../../core/services/realtime_client.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
+import '../../auth/presentation/providers/auth_provider.dart';
 import '../../payment/waafi_pay_sheet.dart';
 import '../../payment/mobile_pay_sheet.dart';
 import '../../payment/payment_method_section.dart';
@@ -219,8 +221,42 @@ class _LocalExchangeTabState extends ConsumerState<_LocalExchangeTab> {
 
   final _amountCtrl = TextEditingController();
 
+  // ── Real-time order status ─────────────────────────────────────────────────
+  void Function(dynamic)? _orderUpdateListener;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _subscribeRealtime());
+  }
+
+  void _subscribeRealtime() {
+    final user = ref.read(authStateProvider).valueOrNull;
+    if (user == null) return;
+    _orderUpdateListener = (data) {
+      if (!mounted) return;
+      // Refresh the orders list when server pushes an update
+      ref.invalidate(_exchangeOrdersProvider);
+    };
+    RealtimeClient.instance.listen(
+      'private-user.${user.id}',
+      'exchange.order_updated',
+      _orderUpdateListener!,
+    );
+  }
+
   @override
   void dispose() {
+    if (_orderUpdateListener != null) {
+      final user = ref.read(authStateProvider).valueOrNull;
+      if (user != null) {
+        RealtimeClient.instance.removeListener(
+          'private-user.${user.id}',
+          'exchange.order_updated',
+          _orderUpdateListener!,
+        );
+      }
+    }
     _amountCtrl.dispose();
     super.dispose();
   }
@@ -601,30 +637,36 @@ class _LocalExchangeTabState extends ConsumerState<_LocalExchangeTab> {
   Widget _buildRecentTransactions(List<_ExchangeOrder> orders, bool loading) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
-        Icon(Icons.remove_red_eye_outlined, size: 18, color: context.colors.navyText),
+        Icon(Icons.receipt_long_rounded, size: 18, color: context.colors.navyText),
         const SizedBox(width: 8),
         Text('Recent Transactions',
             style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText)),
         const Spacer(),
         if (orders.isNotEmpty)
           TextButton(
-            onPressed: () {},
+            onPressed: () => ref.invalidate(_exchangeOrdersProvider),
             style: TextButton.styleFrom(minimumSize: Size.zero, padding: EdgeInsets.zero, tapTargetSize: MaterialTapTargetSize.shrinkWrap),
-            child: const Text('All', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, decoration: TextDecoration.underline)),
+            child: const Text('Refresh', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 12)),
           ),
       ]),
       const SizedBox(height: 12),
       if (loading)
-        const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator(strokeWidth: 2)))
+        Container(
+          width: double.infinity, padding: const EdgeInsets.all(32),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+          child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        )
       else if (orders.isEmpty)
         Container(
-          width: double.infinity, padding: const EdgeInsets.all(24),
+          width: double.infinity, padding: const EdgeInsets.all(28),
           decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16),
               boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)]),
           child: Column(children: [
-            const Icon(Icons.swap_horiz_rounded, size: 40, color: AppColors.textGrey),
-            const SizedBox(height: 10),
-            const Text('No transactions yet', style: TextStyle(color: AppColors.textGrey, fontWeight: FontWeight.w600)),
+            Container(width: 56, height: 56,
+                decoration: BoxDecoration(color: const Color(0xFFF3F4F6), shape: BoxShape.circle),
+                child: const Icon(Icons.swap_horiz_rounded, size: 28, color: AppColors.textGrey)),
+            const SizedBox(height: 12),
+            const Text('No transactions yet', style: TextStyle(color: AppColors.textGrey, fontWeight: FontWeight.w700, fontSize: 14)),
             const SizedBox(height: 4),
             Text('Your exchange history will appear here', style: TextStyle(fontSize: 12, color: Colors.grey.shade400)),
           ]),
@@ -637,7 +679,7 @@ class _LocalExchangeTabState extends ConsumerState<_LocalExchangeTab> {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: orders.length,
-            separatorBuilder: (_, __) => Divider(height: 1, indent: 68, color: Colors.grey.shade100),
+            separatorBuilder: (_, __) => Divider(height: 1, indent: 70, color: Colors.grey.shade100),
             itemBuilder: (_, i) => _buildOrderTile(orders[i]),
           ),
         ),
@@ -646,26 +688,70 @@ class _LocalExchangeTabState extends ConsumerState<_LocalExchangeTab> {
 
   Widget _buildOrderTile(_ExchangeOrder order) {
     final fromW = _wallet(order.fromWallet);
-    final statusColor = order.status == 'completed' ? const Color(0xFF2E7D32)
-        : order.status == 'pending' ? const Color(0xFFF57C00)
-        : AppColors.textGrey;
+    final toW   = _wallet(order.toWallet);
+
+    // Status colors + labels
+    final Color statusColor;
+    final String statusLabel;
+    final IconData statusIcon;
+    switch (order.status) {
+      case 'completed':
+        statusColor = const Color(0xFF2E7D32);
+        statusLabel = 'Completed';
+        statusIcon  = Icons.check_circle_rounded;
+        break;
+      case 'processing':
+        statusColor = const Color(0xFF1565C0);
+        statusLabel = 'Processing';
+        statusIcon  = Icons.autorenew_rounded;
+        break;
+      case 'failed':
+        statusColor = AppColors.error;
+        statusLabel = 'Failed';
+        statusIcon  = Icons.cancel_rounded;
+        break;
+      default:
+        statusColor = const Color(0xFFF57C00);
+        statusLabel = 'Pending';
+        statusIcon  = Icons.access_time_rounded;
+    }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
       child: Row(children: [
-        _WalletLogo(wallet: fromW, size: 40),
-        const SizedBox(width: 12),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('${_wallet(order.fromWallet).shortName} to ${_wallet(order.toWallet).shortName}',
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: context.colors.navyText)),
-          const SizedBox(height: 2),
-          Text(
-            '${order.status[0].toUpperCase()}${order.status.substring(1)} · ${_wallet(order.toWallet).shortName}',
-            style: TextStyle(fontSize: 12, color: statusColor, fontWeight: FontWeight.w600),
+        // Wallet logo with overlay
+        Stack(children: [
+          _WalletLogo(wallet: fromW, size: 46),
+          Positioned(bottom: 0, right: 0,
+            child: Container(
+              padding: const EdgeInsets.all(2),
+              decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+              child: _WalletLogo(wallet: toW, size: 18),
+            ),
           ),
+        ]),
+        const SizedBox(width: 13),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // "eDahab Merchant to EVC" — matches sample design
+          Text('${fromW.name} to ${toW.shortName}',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5, color: context.colors.navyText),
+              maxLines: 1, overflow: TextOverflow.ellipsis),
+          const SizedBox(height: 4),
+          Row(children: [
+            Icon(statusIcon, size: 12, color: statusColor),
+            const SizedBox(width: 4),
+            Text('$statusLabel · ${toW.name}',
+                style: TextStyle(fontSize: 11.5, color: statusColor, fontWeight: FontWeight.w600),
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+          ]),
         ])),
-        Text('\$${order.sentAmount.toStringAsFixed(2)}',
-            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: context.colors.navyText)),
+        const SizedBox(width: 8),
+        Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+          Text('\$${order.sentAmount.toStringAsFixed(2)}',
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: context.colors.navyText)),
+          const SizedBox(height: 3),
+          Text('sent', style: TextStyle(fontSize: 10, color: Colors.grey.shade400, fontWeight: FontWeight.w500)),
+        ]),
       ]),
     );
   }

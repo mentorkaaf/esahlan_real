@@ -117,10 +117,25 @@ class AdminExchangeController extends Controller
     public function updateStatus(Request $request, int $id)
     {
         $request->validate(['status' => 'required|in:pending,processing,completed,failed']);
+
+        $order = DB::table('exchange_orders')->where('id', $id)->first();
+        if (!$order) return back()->with('error', 'Order not found.');
+
         DB::table('exchange_orders')->where('id', $id)->update([
             'status'     => $request->status,
             'updated_at' => now(),
         ]);
+
+        // Real-time push to the user's Flutter app
+        \App\Services\RealtimeService::toUser($order->user_id, 'exchange.order_updated', [
+            'id'          => $id,
+            'status'      => $request->status,
+            'from_wallet' => $order->from_wallet,
+            'to_wallet'   => $order->to_wallet,
+            'sent_amount' => $order->sent_amount,
+            'reference'   => $order->reference,
+        ]);
+
         return back()->with('success', 'Order status updated to ' . ucfirst($request->status));
     }
 
