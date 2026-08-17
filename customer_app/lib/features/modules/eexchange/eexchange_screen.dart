@@ -71,11 +71,12 @@ class _ExchangeOrder {
     this.reference, required this.createdAt});
   factory _ExchangeOrder.fromJson(Map<String, dynamic> j) => _ExchangeOrder(
     id: j['id'] as int,
-    fromWallet: j['from_wallet'] as String? ?? '',
-    toWallet: j['to_wallet'] as String? ?? '',
-    sentAmount: double.tryParse(j['sent_amount']?.toString() ?? '0') ?? 0,
-    receivedAmount: double.tryParse(j['received_amount']?.toString() ?? '0') ?? 0,
-    status: j['status'] as String? ?? 'pending',
+    // DB stores uppercase (EVC, PREMIER) — normalize to lowercase for wallet lookup
+    fromWallet: (j['from_wallet'] as String? ?? '').toLowerCase(),
+    toWallet:   (j['to_wallet']   as String? ?? '').toLowerCase(),
+    sentAmount:     double.tryParse(j['sent_amount']?.toString()     ?? '0') ?? 0,
+    receivedAmount: double.tryParse((j['converted_amount'] ?? j['received_amount'])?.toString() ?? '0') ?? 0,
+    status:    j['status']    as String? ?? 'pending',
     reference: j['reference'] as String?,
     createdAt: DateTime.tryParse(j['created_at']?.toString() ?? '') ?? DateTime.now(),
   );
