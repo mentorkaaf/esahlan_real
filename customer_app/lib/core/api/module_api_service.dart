@@ -150,6 +150,7 @@ class ModuleApiService {
   Future<dynamic> previewExchange(Map<String, dynamic> data) => _post('/eexchange/preview', data);
   Future<dynamic> confirmExchange(Map<String, dynamic> data) => _post('/eexchange/confirm', data);
   // Saved wallet accounts
+  Future<dynamic> getExchangeOrders()   => _get('/eexchange/orders');
   Future<dynamic> getExchangeAccounts() => _get('/eexchange/accounts');
   Future<dynamic> addExchangeAccount(Map<String, dynamic> data) => _post('/eexchange/accounts', data);
   Future<dynamic> removeExchangeAccount(int id) => _delete('/eexchange/accounts/$id');

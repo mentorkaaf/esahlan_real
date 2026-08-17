@@ -67,6 +67,19 @@ class EExchangeController extends Controller
         return response()->json(['success' => true]);
     }
 
+    // ── My Orders ────────────────────────────────────────────────────────────
+
+    /** GET /api/v1/eexchange/orders */
+    public function myOrders(Request $request)
+    {
+        $orders = DB::table('exchange_orders')
+            ->where('user_id', $request->user()->id)
+            ->orderByDesc('created_at')
+            ->limit(20)
+            ->get(['id', 'from_wallet', 'to_wallet', 'sent_amount', 'received_amount', 'status', 'created_at', 'reference']);
+        return response()->json(['success' => true, 'data' => $orders]);
+    }
+
     // ── Exchange Rates ────────────────────────────────────────────────────────
 
     public function rates()

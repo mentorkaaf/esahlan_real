@@ -678,6 +678,7 @@ Route::prefix('v1')->group(function () {
             Route::post('eparcel/order',        [EParcelController::class, 'createOrder']);
             Route::post('eexchange/transfer',        [EExchangeController::class, 'transfer']);
             Route::post('eexchange/confirm',         [EExchangeController::class, 'transfer']);    // alias
+            Route::get('eexchange/orders',           [EExchangeController::class, 'myOrders']);
             Route::get('eexchange/accounts',         [EExchangeController::class, 'myAccounts']);
             Route::post('eexchange/accounts',        [EExchangeController::class, 'addAccount']);
             Route::delete('eexchange/accounts/{id}', [EExchangeController::class, 'removeAccount']);
