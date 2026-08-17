@@ -363,3 +363,41 @@ class GlobalStoreEnabledNotifier extends Notifier<bool> {
 final globalStoreEnabledProvider =
     NotifierProvider<GlobalStoreEnabledNotifier, bool>(
         GlobalStoreEnabledNotifier.new);
+
+// ── Crypto Exchange Enabled/Disabled — Real-time via Reverb ──────────────────
+// Subscribes to public channel `global.exchange` and listens for `crypto.toggled`.
+
+class CryptoEnabledNotifier extends Notifier<bool> {
+  void Function(dynamic)? _handler;
+
+  @override
+  bool build() {
+    // 1. Fetch initial value
+    ref.read(globalRepoProvider).getCryptoEnabled().then((v) {
+      state = v;
+    }).catchError((_) {
+      state = true;
+    });
+
+    // 2. Subscribe to Reverb public channel `global.exchange`
+    final rt = RealtimeClient.instance;
+    _handler = (data) {
+      if (data is Map && data['enabled'] != null) {
+        state = data['enabled'] == true;
+      }
+    };
+    rt.listen('global.exchange', 'crypto.toggled', _handler!);
+
+    ref.onDispose(() {
+      if (_handler != null) {
+        rt.removeListener('global.exchange', 'crypto.toggled', _handler!);
+      }
+      rt.unsubscribe('global.exchange');
+    });
+
+    return true;
+  }
+}
+
+final cryptoEnabledProvider =
+    NotifierProvider<CryptoEnabledNotifier, bool>(CryptoEnabledNotifier.new);

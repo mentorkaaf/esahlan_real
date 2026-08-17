@@ -338,7 +338,18 @@ class GlobalRepository {
       final data = res.data is Map ? res.data : {};
       return (data['enabled'] ?? true) == true;
     } catch (_) {
-      return true; // default open on network failure
+      return true;
+    }
+  }
+
+  // ── Crypto exchange enabled/disabled ──────────────────────────────────────
+  Future<bool> getCryptoEnabled() async {
+    try {
+      final res = await _dio.get('$_base/crypto-status');
+      final data = res.data is Map ? res.data : {};
+      return (data['enabled'] ?? true) == true;
+    } catch (_) {
+      return true;
     }
   }
 }

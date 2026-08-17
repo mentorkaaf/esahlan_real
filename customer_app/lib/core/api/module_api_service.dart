@@ -32,6 +32,15 @@ class ModuleApiService {
     }
   }
 
+  Future<dynamic> _delete(String path) async {
+    try {
+      final r = await _dio.delete(path);
+      return r.data;
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
   // ═══════════════════════════════════════════════════════════════════
   // eFOOD
   // ═══════════════════════════════════════════════════════════════════
@@ -140,6 +149,10 @@ class ModuleApiService {
   Future<dynamic> transferExchange(Map<String, dynamic> data) => _post('/eexchange/transfer', data);
   Future<dynamic> previewExchange(Map<String, dynamic> data) => _post('/eexchange/preview', data);
   Future<dynamic> confirmExchange(Map<String, dynamic> data) => _post('/eexchange/confirm', data);
+  // Saved wallet accounts
+  Future<dynamic> getExchangeAccounts() => _get('/eexchange/accounts');
+  Future<dynamic> addExchangeAccount(Map<String, dynamic> data) => _post('/eexchange/accounts', data);
+  Future<dynamic> removeExchangeAccount(int id) => _delete('/eexchange/accounts/$id');
 
   // ═══════════════════════════════════════════════════════════════════
   // eHEALTH
