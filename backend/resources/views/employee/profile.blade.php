@@ -122,20 +122,78 @@
   <div class="card" style="margin-bottom:20px;">
     <div class="card-header">
       <div class="card-title"><i class="fas fa-th-large"></i> Module Assignments-kayga</div>
+      <span style="font-size:12px;color:var(--muted);">{{ $employee->workforceAssignments->count() }} active</span>
     </div>
-    <div class="card-body">
+    <div class="card-body" style="display:flex;flex-direction:column;gap:14px;">
       @foreach($employee->workforceAssignments as $a)
-      <div class="assign-row">
-        <div class="assign-icon" style="background:{{ $a->module?->color ?? 'var(--navy2)' }};">
-          <i class="fas fa-layer-group" style="color:#fff;font-size:12px;"></i>
+      @php
+        $modColor = $a->module?->color ?? '#1B1444';
+        $typeColor = match($a->assignment_type) {
+          'primary'   => 'orange', 'secondary' => 'blue',
+          'temporary' => 'yellow', 'acting'    => 'purple',
+          default     => 'gray'
+        };
+        $accessColor = match($a->access_level ?? 'standard') {
+          'admin'    => '#dc2626', 'elevated' => '#d97706',
+          'standard' => '#2563eb', default    => '#6b7280'
+        };
+      @endphp
+      <div style="border:1.5px solid var(--border-soft);border-radius:14px;overflow:hidden;">
+
+        {{-- Header strip --}}
+        <div style="background:{{ $modColor }};padding:12px 16px;display:flex;align-items:center;gap:12px;">
+          <div style="width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <i class="fas fa-layer-group" style="color:#fff;font-size:15px;"></i>
+          </div>
+          <div style="flex:1;">
+            <div style="font-weight:800;font-size:15px;color:#fff;">{{ $a->module?->name ?? '—' }}</div>
+            @if($a->moduleRole)
+              <div style="font-size:11px;color:rgba(255,255,255,.65);margin-top:2px;">{{ $a->moduleRole->name }}</div>
+            @endif
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+            <span class="badge badge-{{ $typeColor }}">{{ $a->assignment_type_label }}</span>
+            @if($a->access_level)
+            <span style="font-size:10px;font-weight:700;color:{{ $accessColor }};background:rgba(255,255,255,.12);padding:2px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:.05em;">
+              {{ $a->access_level_label }}
+            </span>
+            @endif
+          </div>
         </div>
-        <div style="flex:1;min-width:0;">
-          <div style="font-weight:700;font-size:13px;color:var(--text);">{{ $a->module?->name ?? '—' }}</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:1px;">{{ $a->modulePosition?->name ?? $a->moduleDepartment?->name ?? 'No position' }}</div>
+
+        {{-- Details grid --}}
+        <div style="padding:14px 16px;background:var(--surface);display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+
+          @if($a->moduleDepartment)
+          <div style="display:flex;flex-direction:column;gap:2px;">
+            <span style="font-size:10px;font-weight:700;color:var(--muted2);text-transform:uppercase;letter-spacing:.06em;">Qaybta</span>
+            <span style="font-size:13px;font-weight:600;color:var(--text);">{{ $a->moduleDepartment->name }}</span>
+          </div>
+          @endif
+
+          @if($a->modulePosition)
+          <div style="display:flex;flex-direction:column;gap:2px;">
+            <span style="font-size:10px;font-weight:700;color:var(--muted2);text-transform:uppercase;letter-spacing:.06em;">Xilka</span>
+            <span style="font-size:13px;font-weight:600;color:var(--text);">{{ $a->modulePosition->name }}</span>
+          </div>
+          @endif
+
+          @if($a->reportingManager)
+          <div style="display:flex;flex-direction:column;gap:2px;">
+            <span style="font-size:10px;font-weight:700;color:var(--muted2);text-transform:uppercase;letter-spacing:.06em;">Warbixinta u qaadaha</span>
+            <span style="font-size:13px;font-weight:600;color:var(--text);">{{ $a->reportingManager->full_name }}</span>
+          </div>
+          @endif
+
+          @if($a->start_date)
+          <div style="display:flex;flex-direction:column;gap:2px;">
+            <span style="font-size:10px;font-weight:700;color:var(--muted2);text-transform:uppercase;letter-spacing:.06em;">Laga bilaabay</span>
+            <span style="font-size:13px;font-weight:600;color:var(--text);">{{ $a->start_date->format('d M Y') }}</span>
+          </div>
+          @endif
+
         </div>
-        <span class="badge badge-{{ match($a->assignment_type){ 'primary'=>'orange','secondary'=>'blue','temporary'=>'yellow',default=>'gray' } }}">
-          {{ $a->assignment_type_label }}
-        </span>
+
       </div>
       @endforeach
     </div>

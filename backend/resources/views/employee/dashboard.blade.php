@@ -202,11 +202,22 @@
           </div>
           <div style="flex:1;min-width:0;">
             <div style="font-weight:700;font-size:14px;color:var(--text);">{{ $mod?->name ?? 'Unknown' }}</div>
-            <div style="font-size:12px;color:var(--muted);margin-top:2px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-              <span>{{ $a->modulePosition?->name ?? $a->moduleDepartment?->name ?? 'No position' }}</span>
+            <div style="font-size:12px;color:var(--muted);margin-top:3px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+              @if($a->modulePosition)
+                <span style="font-weight:600;color:var(--text-soft);">{{ $a->modulePosition->name }}</span>
+                <span style="color:var(--border);">·</span>
+              @endif
+              @if($a->moduleDepartment)
+                <span>{{ $a->moduleDepartment->name }}</span>
+                <span style="color:var(--border);">·</span>
+              @endif
               <span class="badge badge-{{ match($a->assignment_type){ 'primary'=>'orange','secondary'=>'blue','temporary'=>'yellow',default=>'gray' } }}">
                 {{ $a->assignment_type_label }}
               </span>
+              @if($a->reportingManager)
+                <span style="color:var(--border);">·</span>
+                <span style="color:var(--muted);font-size:11px;"><i class="fas fa-user-tie" style="font-size:9px;"></i> {{ $a->reportingManager->full_name }}</span>
+              @endif
             </div>
           </div>
           @if(count($perfScores) && isset($perfScores[$mod?->slug]))

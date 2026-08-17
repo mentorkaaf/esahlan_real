@@ -41,7 +41,7 @@ class EmployeeController extends Controller
         $employee = $this->me()->load([
             'department', 'position',
             'workforceAssignments' => fn($q) => $q->where('status', 'active')
-                ->with(['module', 'moduleDepartment', 'modulePosition', 'moduleRole']),
+                ->with(['module', 'moduleDepartment', 'modulePosition', 'moduleRole', 'reportingManager']),
         ]);
 
         $activeAssignments = $employee->workforceAssignments;
@@ -380,7 +380,8 @@ class EmployeeController extends Controller
     public function profile()
     {
         $employee = $this->me()->load(['department', 'position',
-            'workforceAssignments' => fn($q) => $q->where('status', 'active')->with('module')]);
+            'workforceAssignments' => fn($q) => $q->where('status', 'active')
+                ->with(['module', 'moduleDepartment', 'modulePosition', 'moduleRole', 'reportingManager'])]);
         return view('employee.profile', compact('employee'));
     }
 
