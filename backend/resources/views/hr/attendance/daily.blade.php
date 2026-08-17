@@ -56,7 +56,7 @@
         <tbody class="divide-y divide-gray-50" id="attendance-table">
             @foreach($employees as $emp)
             @php
-                $att = $emp->attendance->first(); {{-- eager load already filtered by date --}}
+                $att = $emp->attendance->first(); // eager load already filtered by date
                 $status = $att?->status ?? 'absent';
             @endphp
             <tr class="hover:bg-gray-50/50" data-emp="{{ $emp->id }}">
