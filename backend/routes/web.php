@@ -138,8 +138,62 @@ Route::prefix('vendor')->name('vendor.')->group(function () {
 
 // Public landing page
 // ── Smart App Download Link — esahlan.com/app ──────────────────────────────
-Route::get('/app', function () {
-    return view('app-redirect');
+Route::get('/app', function (\Illuminate\Http\Request $request) {
+    // Detect device from User-Agent
+    $ua = $request->userAgent() ?? '';
+    if (preg_match('/android/i', $ua)) {
+        $device = 'android';
+    } elseif (preg_match('/iPad|iPhone|iPod/i', $ua)) {
+        $device = 'ios';
+    } else {
+        $device = 'desktop';
+    }
+
+    // Detect browser
+    $browser = 'Unknown';
+    if (str_contains($ua, 'Chrome'))       $browser = 'Chrome';
+    elseif (str_contains($ua, 'Firefox'))  $browser = 'Firefox';
+    elseif (str_contains($ua, 'Safari'))   $browser = 'Safari';
+    elseif (str_contains($ua, 'Edge'))     $browser = 'Edge';
+    elseif (str_contains($ua, 'Opera'))    $browser = 'Opera';
+
+    // Detect OS
+    $os = 'Unknown';
+    if (preg_match('/android/i', $ua))            $os = 'Android';
+    elseif (preg_match('/iPad|iPhone|iPod/i', $ua)) $os = 'iOS';
+    elseif (str_contains($ua, 'Windows'))          $os = 'Windows';
+    elseif (str_contains($ua, 'Mac'))              $os = 'macOS';
+    elseif (str_contains($ua, 'Linux'))            $os = 'Linux';
+
+    // Quick country from Cloudflare header (if using CF) or skip
+    $countryCode = $request->header('CF-IPCountry') ?: null;
+    $countryMap  = [
+        'SO'=>'Somalia','KE'=>'Kenya','ET'=>'Ethiopia','DJ'=>'Djibouti',
+        'US'=>'United States','GB'=>'United Kingdom','AE'=>'UAE','SA'=>'Saudi Arabia',
+        'CA'=>'Canada','AU'=>'Australia','DE'=>'Germany','FR'=>'France',
+        'NL'=>'Netherlands','SE'=>'Sweden','NO'=>'Norway','FI'=>'Finland',
+    ];
+    $countryName = $countryCode ? ($countryMap[$countryCode] ?? $countryCode) : null;
+
+    // Log the click (fire-and-forget, don't block the page)
+    try {
+        \Illuminate\Support\Facades\DB::table('app_link_clicks')->insert([
+            'device_type'  => $device,
+            'ip'           => $request->ip(),
+            'country_code' => $countryCode,
+            'country_name' => $countryName,
+            'browser'      => $browser,
+            'os'           => $os,
+            'referer'      => substr($request->header('referer') ?? '', 0, 500),
+            'created_at'   => now(),
+        ]);
+    } catch (\Throwable $e) { /* never block the page */ }
+
+    // Dynamic store URLs from admin settings
+    $iosUrl     = \App\Models\Global\GlobalSetting::get('app_link_ios_url',     'https://apps.apple.com/app/id000000000');
+    $androidUrl = \App\Models\Global\GlobalSetting::get('app_link_android_url', 'https://play.google.com/store/apps/details?id=com.esahlan.app');
+
+    return view('app-redirect', compact('iosUrl', 'androidUrl'));
 })->name('app.download');
 
 Route::get('/', function () {
@@ -862,6 +916,15 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
         });
 
         // ── Roles & Access (assign roles + scope employees to modules) ────────
+        // ── App Download Link Analytics ───────────────────────────────────────
+        Route::prefix('app-link')->name('app-link.')->group(function () {
+            $alc = \App\Http\Controllers\Admin\AdminAppLinkController::class;
+            Route::get('/',           [$alc, 'index'])->name('index');
+            Route::post('/urls',      [$alc, 'saveUrls'])->name('urls');
+            Route::post('/clear',     [$alc, 'clearData'])->name('clear');
+            Route::get('/chart-data', [$alc, 'chartData'])->name('chart-data');
+        });
+
         Route::middleware('role:super_admin,admin')->prefix('access')->name('access.')->group(function () {
             Route::get('/',        [\App\Http\Controllers\Admin\AdminAccessController::class, 'index'])->name('index');
             Route::put('/{user}',  [\App\Http\Controllers\Admin\AdminAccessController::class, 'update'])->name('update');

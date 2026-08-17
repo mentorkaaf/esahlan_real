@@ -831,6 +831,19 @@
         {{-- ══ MARKETING ══ --}}
         @if($u->isFullAdmin())
         <div class="nav-section-label">Marketing</div>
+        <a href="{{ route('admin.app-link.index') }}" class="nav-link {{ request()->routeIs('admin.app-link.*') ? 'active' : '' }}"
+           style="{{ request()->routeIs('admin.app-link.*') ? '' : '' }}">
+            <div class="nav-icon"><i class="fas fa-mobile-screen-button"></i></div>
+            <span class="nav-text">App Download Link</span>
+            @php
+                try {
+                    $__todayClicks = \Illuminate\Support\Facades\DB::table('app_link_clicks')->whereDate('created_at', today())->count();
+                } catch(\Exception $e) { $__todayClicks = 0; }
+            @endphp
+            @if($__todayClicks > 0)
+                <span class="nav-badge" style="background:rgba(245,158,11,0.2);color:#f59e0b;border:1px solid rgba(245,158,11,0.3)">{{ $__todayClicks }}</span>
+            @endif
+        </a>
         <a href="{{ route('admin.banners.index') }}" class="nav-link {{ request()->routeIs('admin.banners.*') ? 'active' : '' }}">
             <div class="nav-icon"><i class="fas fa-images"></i></div><span class="nav-text">Banners</span>
         </a>
