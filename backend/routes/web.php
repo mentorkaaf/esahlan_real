@@ -137,6 +137,11 @@ Route::prefix('vendor')->name('vendor.')->group(function () {
 });
 
 // Public landing page
+// ── Smart App Download Link — esahlan.com/app ──────────────────────────────
+Route::get('/app', function () {
+    return view('app-redirect');
+})->name('app.download');
+
 Route::get('/', function () {
     if (auth()->check()) {
         $role = auth()->user()->role?->slug ?? '';
