@@ -174,15 +174,24 @@ class AdminModuleDataController extends Controller
     public function exchangeIndex()
     {
         $rates   = ExchangeRate::orderBy('from_wallet')->orderBy('to_wallet')->get();
-        $wallets = ['evc', 'edahab', 'jeep', 'premier'];
-        return view('admin.module-data.exchange', compact('rates', 'wallets'));
+        $wallets = ['evc', 'edahab', 'jeep', 'premier', 'ebesa'];
+        $cryptoOn = \App\Models\Global\GlobalSetting::getBool('crypto_exchange_enabled', true);
+
+        // Quick stats for the page
+        $stats = [
+            'total_orders' => \Illuminate\Support\Facades\DB::table('exchange_orders')->count(),
+            'pending'      => \Illuminate\Support\Facades\DB::table('exchange_orders')->where('status', 'pending')->count(),
+            'volume_today' => \Illuminate\Support\Facades\DB::table('exchange_orders')->where('status', 'completed')->whereDate('created_at', today())->sum('sent_amount'),
+        ];
+
+        return view('admin.module-data.exchange', compact('rates', 'wallets', 'cryptoOn', 'stats'));
     }
 
     public function exchangeStore(Request $request)
     {
         $data = $request->validate([
-            'from_wallet'     => 'required|in:evc,edahab,jeep,premier',
-            'to_wallet'       => 'required|in:evc,edahab,jeep,premier|different:from_wallet',
+            'from_wallet'     => 'required|in:evc,edahab,jeep,premier,ebesa',
+            'to_wallet'       => 'required|in:evc,edahab,jeep,premier,ebesa|different:from_wallet',
             'rate'            => 'required|numeric|min:0',
             'fee_percentage'  => 'nullable|numeric|min:0|max:100',
         ]);
