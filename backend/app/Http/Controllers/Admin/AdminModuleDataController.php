@@ -244,11 +244,10 @@ class AdminModuleDataController extends Controller
         ExchangeRate::updateOrCreate(
             ['from_wallet' => $data['from_wallet'], 'to_wallet' => $data['to_wallet']],
             [
-                'rate'            => $data['rate'],
-                'fee_type'        => 'percentage',
-                'fee_value'       => $data['fee_percentage'] ?? 1.0,
-                'fee_percentage'  => $data['fee_percentage'] ?? 1.0,
-                'is_active'       => true,
+                'rate'       => $data['rate'],
+                'fee_type'   => 'percentage',
+                'fee_value'  => $data['fee_percentage'] ?? 1.0,  // real column name
+                'is_active'  => true,
             ]
         );
         return back()->with('success', 'Exchange rate saved.');

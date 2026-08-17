@@ -353,13 +353,13 @@ window.addEventListener('DOMContentLoaded',function(){
                         </td>
                         <td style="padding:10px 16px;text-align:center;font-size:14px;font-weight:800;color:#111">{{ $rate->rate }}</td>
                         <td style="padding:10px 16px;text-align:center">
-                            <span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:#fef3c7;color:#92400e">{{ $rate->fee_percentage ?? 1 }}%</span>
+                            <span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:#fef3c7;color:#92400e">{{ $rate->fee_value ?? 1 }}%</span>
                         </td>
                         <td style="padding:10px 16px;text-align:center">
                             <div style="display:flex;gap:6px;justify-content:center">
                                 {{-- Edit → pre-fills the form below --}}
                                 <button type="button"
-                                    onclick="editRate('{{ $rate->from_wallet }}','{{ $rate->to_wallet }}','{{ $rate->rate }}','{{ $rate->fee_percentage ?? 1 }}')"
+                                    onclick="editRate('{{ $rate->from_wallet }}','{{ $rate->to_wallet }}','{{ $rate->rate }}','{{ $rate->fee_value ?? 1 }}')"
                                     style="padding:5px 12px;background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">
                                     <i class="fas fa-pen"></i> Edit
                                 </button>
