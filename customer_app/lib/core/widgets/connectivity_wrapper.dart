@@ -140,8 +140,9 @@ class _ConnectivityWrapperState extends ConsumerState<ConnectivityWrapper> {
             _NoInternetScreen(
               onBuyData: () => setState(() => _showEdataFlow = true),
             ),
-          // eData purchase flow — full-screen, replaces offline screen
-          // Only ONE Scaffold visible at a time → no keyboard/focus issues
+          // eData purchase flow — shown as a proper Navigator route so keyboard
+          // insets and focus work correctly; triggered by _showEdataFlow flag
+          // (actual navigation happens in didUpdateWidget via post-frame callback)
           if (!_isOnline && _showEdataFlow)
             OfflineEdataOverlay(
               onClose: () => setState(() => _showEdataFlow = false),

@@ -528,7 +528,7 @@ class _OfflineEdataPageState extends State<OfflineEdataPage> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Phone input — SizedBox + TextFormField(filled:false) — simplest reliable fix
+// Phone input — explicit fillColor:white so it never appears gray/disabled
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _PhoneInput extends StatelessWidget {
@@ -539,46 +539,43 @@ class _PhoneInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 56,
-      child: TextFormField(
-        controller: ctrl,
-        keyboardType: TextInputType.phone,
-        style: const TextStyle(
+    return TextField(
+      controller: ctrl,
+      keyboardType: TextInputType.phone,
+      enabled: true,
+      style: const TextStyle(
+        fontSize: 15,
+        fontWeight: FontWeight.w600,
+        color: Color(0xFF1A1A2E),
+      ),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(
+          color: Color(0xFF9CA3AF),
+          fontWeight: FontWeight.w400,
           fontSize: 15,
-          fontWeight: FontWeight.w600,
-          color: Color(0xFF1A1A2E),
         ),
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: const TextStyle(
-            color: Color(0xFF9CA3AF),
-            fontWeight: FontWeight.w400,
-            fontSize: 15,
-          ),
-          prefixIcon: Icon(Icons.phone_rounded, color: accent, size: 20),
-          filled: false,
-          contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: accent, width: 2),
-          ),
-          errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFFDC2626)),
-          ),
-          focusedErrorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFFDC2626), width: 2),
-          ),
+        prefixIcon: Icon(Icons.phone_rounded, color: accent, size: 20),
+        // filled:true + fillColor:white ensures the field is visually
+        // distinct and never inherits a gray/disabled look from the theme
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: accent, width: 2),
+        ),
+        disabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
         ),
       ),
     );
