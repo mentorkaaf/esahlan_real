@@ -676,8 +676,11 @@ Route::prefix('v1')->group(function () {
             Route::post('efood/order',          [EFoodController::class, 'createOrder']);
             Route::post('edata/purchase',       [EDataController::class, 'purchasePackage']);
             Route::post('eparcel/order',        [EParcelController::class, 'createOrder']);
-            Route::post('eexchange/transfer',   [EExchangeController::class, 'transfer']);
-            Route::post('eexchange/confirm',    [EExchangeController::class, 'transfer']);    // alias used by Flutter
+            Route::post('eexchange/transfer',        [EExchangeController::class, 'transfer']);
+            Route::post('eexchange/confirm',         [EExchangeController::class, 'transfer']);    // alias
+            Route::get('eexchange/accounts',         [EExchangeController::class, 'myAccounts']);
+            Route::post('eexchange/accounts',        [EExchangeController::class, 'addAccount']);
+            Route::delete('eexchange/accounts/{id}', [EExchangeController::class, 'removeAccount']);
 
             // ── Crypto Exchange ───────────────────────────────────────
             Route::prefix('crypto')->group(function () {
@@ -1119,6 +1122,10 @@ Route::prefix('v1/global')->group(function () {
     // Store status — public (no auth needed, Flutter checks on startup)
     Route::get('/store-status', function () {
         $enabled = \App\Models\Global\GlobalSetting::getBool('global_store_enabled', true);
+        return response()->json(['enabled' => $enabled]);
+    });
+    Route::get('/crypto-status', function () {
+        $enabled = \App\Models\Global\GlobalSetting::getBool('crypto_exchange_enabled', true);
         return response()->json(['enabled' => $enabled]);
     });
 

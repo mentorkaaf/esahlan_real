@@ -87,6 +87,24 @@ class AdminGlobalSettingsController extends Controller
         ]);
     }
 
+    // ── Real-time toggle — Crypto Exchange ───────────────────────────────────
+    public function toggleCrypto(Request $request)
+    {
+        $enabled = $request->boolean('enabled');
+        GlobalSetting::set('crypto_exchange_enabled', $enabled ? '1' : '0');
+
+        broadcast(new RealtimeEvent(
+            channels: [['channel' => 'global.exchange', 'type' => 'public']],
+            eventName: 'crypto.toggled',
+            payload: [
+                'enabled' => $enabled,
+                'message' => $enabled ? 'Crypto Exchange is now enabled' : 'Crypto Exchange has been disabled',
+            ],
+        ));
+
+        return response()->json(['success' => true, 'enabled' => $enabled]);
+    }
+
     public function updateShippingZone(Request $request, GlobalShippingZone $zone)
     {
         $data = $request->validate([

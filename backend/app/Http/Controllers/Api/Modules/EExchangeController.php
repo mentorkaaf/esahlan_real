@@ -12,6 +12,63 @@ use Illuminate\Support\Str;
 
 class EExchangeController extends Controller
 {
+    // ── Saved Accounts ────────────────────────────────────────────────────────
+
+    /** GET /api/v1/eexchange/accounts */
+    public function myAccounts(Request $request)
+    {
+        $accounts = DB::table('exchange_accounts')
+            ->where('user_id', $request->user()->id)
+            ->orderBy('wallet_type')
+            ->get();
+        return response()->json(['success' => true, 'data' => $accounts]);
+    }
+
+    /** POST /api/v1/eexchange/accounts */
+    public function addAccount(Request $request)
+    {
+        $v = Validator::make($request->all(), [
+            'wallet_type'  => 'required|string|in:evc,edahab,jeep,premier,ebesa,usdt',
+            'phone_number' => 'required|string|min:5|max:30',
+            'label'        => 'nullable|string|max:60',
+        ]);
+        if ($v->fails()) return response()->json(['success' => false, 'message' => $v->errors()->first()], 422);
+
+        $userId = $request->user()->id;
+
+        // Upsert — update if same wallet type already saved
+        DB::table('exchange_accounts')->updateOrInsert(
+            ['user_id' => $userId, 'wallet_type' => $request->wallet_type],
+            [
+                'phone_number' => trim($request->phone_number),
+                'label'        => $request->label ?? null,
+                'updated_at'   => now(),
+                'created_at'   => now(),
+            ]
+        );
+
+        $account = DB::table('exchange_accounts')
+            ->where('user_id', $userId)
+            ->where('wallet_type', $request->wallet_type)
+            ->first();
+
+        return response()->json(['success' => true, 'data' => $account]);
+    }
+
+    /** DELETE /api/v1/eexchange/accounts/{id} */
+    public function removeAccount(Request $request, int $id)
+    {
+        $deleted = DB::table('exchange_accounts')
+            ->where('id', $id)
+            ->where('user_id', $request->user()->id)
+            ->delete();
+
+        if (!$deleted) return response()->json(['success' => false, 'message' => 'Account not found'], 404);
+        return response()->json(['success' => true]);
+    }
+
+    // ── Exchange Rates ────────────────────────────────────────────────────────
+
     public function rates()
     {
         $rates = DB::table('exchange_rates')->where('is_active', true)->get();

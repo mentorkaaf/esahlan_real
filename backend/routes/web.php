@@ -928,10 +928,14 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
 
         // eExchange Orders (local currency swap — existing)
         Route::prefix('exchange')->name('exchange.')->group(function () {
-            Route::get('/',              [AdminExchangeController::class, 'index'])->name('index');
-            Route::post('/bulk-delete',  [AdminExchangeController::class, 'bulkDestroy'])->name('bulk-destroy');
-            Route::get('/{id}',          [AdminExchangeController::class, 'show'])->name('show');
-            Route::delete('/{id}',       [AdminExchangeController::class, 'destroy'])->name('destroy');
+            Route::get('/',                           [AdminExchangeController::class, 'index'])->name('index');
+            Route::post('/bulk-delete',               [AdminExchangeController::class, 'bulkDestroy'])->name('bulk-destroy');
+            Route::get('/users',                      [AdminExchangeController::class, 'users'])->name('users');
+            Route::get('/users/{userId}/accounts',    [AdminExchangeController::class, 'userAccounts'])->name('user-accounts');
+            Route::delete('/accounts/{id}',           [AdminExchangeController::class, 'deleteAccount'])->name('account.destroy');
+            Route::patch('/{id}/status',              [AdminExchangeController::class, 'updateStatus'])->name('update-status');
+            Route::get('/{id}',                       [AdminExchangeController::class, 'show'])->name('show');
+            Route::delete('/{id}',                    [AdminExchangeController::class, 'destroy'])->name('destroy');
         });
 
         // Dispatch Center
@@ -1024,6 +1028,7 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::get('/settings',                   [\App\Http\Controllers\Admin\Global\AdminGlobalSettingsController::class, 'index'])->name('settings');
             Route::put('/settings',                   [\App\Http\Controllers\Admin\Global\AdminGlobalSettingsController::class, 'update'])->name('settings.update');
             Route::post('/settings/toggle-store',     [\App\Http\Controllers\Admin\Global\AdminGlobalSettingsController::class, 'toggleStore'])->name('settings.toggle-store');
+            Route::post('/settings/toggle-crypto',    [\App\Http\Controllers\Admin\Global\AdminGlobalSettingsController::class, 'toggleCrypto'])->name('settings.toggle-crypto');
             Route::put('/settings/shipping/{zone}',   [\App\Http\Controllers\Admin\Global\AdminGlobalSettingsController::class, 'updateShippingZone'])->name('settings.shipping.update');
 
             // Inventory
