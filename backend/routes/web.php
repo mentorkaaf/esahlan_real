@@ -137,8 +137,9 @@ Route::prefix('vendor')->name('vendor.')->group(function () {
 });
 
 // Public landing page
-// ── Smart App Download Link — esahlan.com/app ──────────────────────────────
-Route::get('/app', function (\Illuminate\Http\Request $request) {
+// ── Smart App Download Link — esahlan.com/download ─────────────────────────
+// NOTE: /app/ is reserved by Nginx for Reverb WebSocket — use /download instead
+Route::get('/download', function (\Illuminate\Http\Request $request) {
     // Detect device from User-Agent
     $ua = $request->userAgent() ?? '';
     if (preg_match('/android/i', $ua)) {

@@ -15,7 +15,7 @@ $chartMax    = max(collect($chart)->max('total'), 1);
     <div>
         <h1 class="page-title">📲 App Download Link</h1>
         <p class="page-subtitle">
-            Track who taps <strong>esahlan.com/app</strong> — device type, timing, country, and more.
+            Track who taps <strong>esahlan.com/download</strong> — device type, timing, country, and more.
         </p>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
@@ -31,7 +31,7 @@ $chartMax    = max(collect($chart)->max('total'), 1);
         {{-- Live link --}}
         <a href="{{ route('app.download') }}" target="_blank"
            style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;background:var(--brand,#f59e0b);color:#fff;border-radius:9px;font-weight:700;font-size:13px;text-decoration:none">
-            <i class="fas fa-external-link-alt"></i> esahlan.com/app
+            <i class="fas fa-external-link-alt"></i> esahlan.com/download
         </a>
     </div>
 </div>
@@ -223,7 +223,7 @@ $chartMax    = max(collect($chart)->max('total'), 1);
         <div style="display:flex;justify-content:space-between;align-items:center">
             <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#6b7280">
                 <i class="fas fa-info-circle"></i>
-                The download page at <strong>esahlan.com/app</strong> uses these links instantly — no redeploy needed.
+                The download page at <strong>esahlan.com/download</strong> uses these links instantly — no redeploy needed.
             </div>
             <button type="submit" style="padding:10px 22px;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer">
                 <i class="fas fa-save"></i> Save Links
@@ -295,7 +295,7 @@ $chartMax    = max(collect($chart)->max('total'), 1);
             @empty
             <tr><td colspan="6" style="padding:40px;text-align:center;color:#9ca3af;font-size:13px">
                 <i class="fas fa-hand-pointer" style="font-size:36px;display:block;margin-bottom:12px;opacity:.3"></i>
-                No clicks yet. Share <strong>esahlan.com/app</strong> to start tracking.
+                No clicks yet. Share <strong>esahlan.com/download</strong> to start tracking.
             </td></tr>
             @endforelse
         </tbody>

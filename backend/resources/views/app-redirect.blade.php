@@ -10,7 +10,7 @@
     <meta property="og:title" content="eSahlan App">
     <meta property="og:description" content="Your all-in-one super app — eFood, eExchange, eLearning & more.">
     <meta property="og:image" content="https://esahlan.com/images/og-app.png">
-    <meta property="og:url" content="https://esahlan.com/app">
+    <meta property="og:url" content="https://esahlan.com/download">
 
     {{-- Smart App Banners (iOS) --}}
     {{-- <meta name="apple-itunes-app" content="app-id=XXXXXXXXX"> --}}
