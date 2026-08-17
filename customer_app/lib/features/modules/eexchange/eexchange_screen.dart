@@ -16,7 +16,6 @@ import '../../../features/global/presentation/providers/global_provider.dart';
 import 'crypto/crypto_exchange_screen.dart';
 
 final _svc = ModuleApiService.create();
-final _exchangeRatesProvider    = FutureProvider((_) => _svc.getExchangeRates());
 final _exchangeAccountsProvider = FutureProvider<List<_ExchangeAccount>>((ref) async {
   try {
     final res = await _svc.getExchangeAccounts();
