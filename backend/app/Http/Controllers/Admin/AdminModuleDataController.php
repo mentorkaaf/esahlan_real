@@ -171,20 +171,66 @@ class AdminModuleDataController extends Controller
     // eEXCHANGE — Exchange Rates
     // ══════════════════════════════════════════════════════════════
 
-    public function exchangeIndex()
+    public function exchangeIndex(Request $request)
     {
-        $rates   = ExchangeRate::orderBy('from_wallet')->orderBy('to_wallet')->get();
-        $wallets = ['evc', 'edahab', 'jeep', 'premier', 'ebesa'];
+        $rates    = ExchangeRate::orderBy('from_wallet')->orderBy('to_wallet')->get();
+        $wallets  = ['evc', 'edahab', 'jeep', 'premier', 'ebesa'];
         $cryptoOn = \App\Models\Global\GlobalSetting::getBool('crypto_exchange_enabled', true);
 
-        // Quick stats for the page
+        // ── Orders query (same logic as AdminExchangeController) ──────────────
+        $query = \Illuminate\Support\Facades\DB::table('exchange_orders')
+            ->join('users', 'users.id', '=', 'exchange_orders.user_id')
+            ->select('exchange_orders.*', 'users.name as user_name', 'users.phone as user_phone')
+            ->orderByDesc('exchange_orders.created_at');
+
+        if ($request->filled('from_wallet')) $query->where('from_wallet', strtoupper($request->from_wallet));
+        if ($request->filled('to_wallet'))   $query->where('to_wallet',   strtoupper($request->to_wallet));
+        if ($request->filled('status'))      $query->where('exchange_orders.status', $request->status);
+        if ($request->filled('date_from'))   $query->whereDate('exchange_orders.created_at', '>=', $request->date_from);
+        if ($request->filled('date_to'))     $query->whereDate('exchange_orders.created_at', '<=', $request->date_to);
+        if ($request->filled('search')) {
+            $s = '%' . $request->search . '%';
+            $query->where(fn($q) => $q->where('reference', 'like', $s)
+                ->orWhere('recipient_phone', 'like', $s)
+                ->orWhere('users.name', 'like', $s)
+                ->orWhere('users.phone', 'like', $s));
+        }
+        if ($request->filled('fraud_only')) {
+            $query->where(fn($q) => $q->where('sent_amount', '>=', 500)
+                ->orWhereRaw('(SELECT COUNT(*) FROM exchange_orders e2 WHERE e2.user_id = exchange_orders.user_id AND e2.created_at >= NOW() - INTERVAL 1 HOUR) >= 5'));
+        }
+
+        $orders = $query->paginate(25)->withQueryString();
+
+        // ── Stats ─────────────────────────────────────────────────────────────
+        $db = \Illuminate\Support\Facades\DB::table('exchange_orders');
         $stats = [
-            'total_orders' => \Illuminate\Support\Facades\DB::table('exchange_orders')->count(),
-            'pending'      => \Illuminate\Support\Facades\DB::table('exchange_orders')->where('status', 'pending')->count(),
-            'volume_today' => \Illuminate\Support\Facades\DB::table('exchange_orders')->where('status', 'completed')->whereDate('created_at', today())->sum('sent_amount'),
+            'total'        => (clone $db)->count(),
+            'today'        => (clone $db)->whereDate('created_at', today())->count(),
+            'pending'      => (clone $db)->where('status', 'pending')->count(),
+            'completed'    => (clone $db)->where('status', 'completed')->count(),
+            'volume'       => (clone $db)->where('status', 'completed')->sum('sent_amount'),
+            'volume_today' => (clone $db)->where('status', 'completed')->whereDate('created_at', today())->sum('sent_amount'),
+            'fees'         => (clone $db)->where('status', 'completed')->sum('fee_amount'),
+            'fees_today'   => (clone $db)->where('status', 'completed')->whereDate('created_at', today())->sum('fee_amount'),
+            'large_orders' => (clone $db)->where('sent_amount', '>=', 500)->whereDate('created_at', today())->count(),
         ];
 
-        return view('admin.module-data.exchange', compact('rates', 'wallets', 'cryptoOn', 'stats'));
+        // ── Chart (7 days) ────────────────────────────────────────────────────
+        $chart = collect(range(6, 0))->map(fn($i) => [
+            'date'  => now()->subDays($i)->toDateString(),
+            'count' => \Illuminate\Support\Facades\DB::table('exchange_orders')->whereDate('created_at', now()->subDays($i)->toDateString())->count(),
+        ]);
+
+        // ── Top wallet pairs ──────────────────────────────────────────────────
+        $pairVolume = \Illuminate\Support\Facades\DB::table('exchange_orders')
+            ->selectRaw('from_wallet, to_wallet, COUNT(*) as cnt, SUM(sent_amount) as vol')
+            ->where('status', 'completed')
+            ->groupBy('from_wallet', 'to_wallet')
+            ->orderByDesc('cnt')->limit(6)->get();
+
+        return view('admin.module-data.exchange',
+            compact('rates', 'wallets', 'cryptoOn', 'stats', 'orders', 'chart', 'pairVolume'));
     }
 
     public function exchangeStore(Request $request)

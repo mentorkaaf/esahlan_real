@@ -928,7 +928,8 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
 
         // eExchange Orders (local currency swap — existing)
         Route::prefix('exchange')->name('exchange.')->group(function () {
-            Route::get('/',                           [AdminExchangeController::class, 'index'])->name('index');
+            // Redirect old standalone orders page → unified management page
+            Route::get('/', fn() => redirect()->route('admin.module-data.exchange'))->name('index');
             Route::post('/bulk-delete',               [AdminExchangeController::class, 'bulkDestroy'])->name('bulk-destroy');
             Route::get('/users',                      [AdminExchangeController::class, 'users'])->name('users');
             Route::get('/users/{userId}/accounts',    [AdminExchangeController::class, 'userAccounts'])->name('user-accounts');
