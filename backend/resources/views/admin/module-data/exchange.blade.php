@@ -337,14 +337,14 @@ window.addEventListener('DOMContentLoaded',function(){
                         <th style="padding:10px 16px;text-align:left;font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase">To</th>
                         <th style="padding:10px 16px;text-align:center;font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase">Rate</th>
                         <th style="padding:10px 16px;text-align:center;font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase">Fee %</th>
-                        <th style="padding:10px 16px;text-align:center;font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase">Action</th>
+                        <th style="padding:10px 16px;text-align:center;font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     @php $wColors=['evc'=>'#E74C3C','edahab'=>'#27AE60','jeep'=>'#2980B9','premier'=>'#8E44AD','ebesa'=>'#D35400']; @endphp
                     @forelse($rates as $rate)
                     @php $fc=$wColors[$rate->from_wallet]??'#6b7280';$tc=$wColors[$rate->to_wallet]??'#6b7280'; @endphp
-                    <tr style="border-top:1px solid #f3f4f6">
+                    <tr style="border-top:1px solid #f3f4f6;transition:background .15s" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background=''">
                         <td style="padding:10px 16px">
                             <span style="display:inline-block;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:800;color:#fff;background:{{ $fc }}">{{ strtoupper($rate->from_wallet) }}</span>
                         </td>
@@ -356,12 +356,20 @@ window.addEventListener('DOMContentLoaded',function(){
                             <span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:#fef3c7;color:#92400e">{{ $rate->fee_percentage ?? 1 }}%</span>
                         </td>
                         <td style="padding:10px 16px;text-align:center">
-                            <form action="{{ route('admin.module-data.exchange.destroy', $rate->id) }}" method="POST" onsubmit="return confirm('Delete this rate?')">
-                                @csrf @method('DELETE')
-                                <button type="submit" style="padding:5px 12px;background:#fef2f2;color:#ef4444;border:1px solid #fecaca;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">
-                                    <i class="fas fa-trash"></i>
+                            <div style="display:flex;gap:6px;justify-content:center">
+                                {{-- Edit → pre-fills the form below --}}
+                                <button type="button"
+                                    onclick="editRate('{{ $rate->from_wallet }}','{{ $rate->to_wallet }}','{{ $rate->rate }}','{{ $rate->fee_percentage ?? 1 }}')"
+                                    style="padding:5px 12px;background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">
+                                    <i class="fas fa-pen"></i> Edit
                                 </button>
-                            </form>
+                                <form action="{{ route('admin.module-data.exchange.destroy', $rate->id) }}" method="POST" onsubmit="return confirm('Delete this rate?')">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" style="padding:5px 12px;background:#fef2f2;color:#ef4444;border:1px solid #fecaca;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
                         </td>
                     </tr>
                     @empty
@@ -372,17 +380,24 @@ window.addEventListener('DOMContentLoaded',function(){
             </div>
         </div>
 
-        {{-- Add Rate Form --}}
-        <div style="background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.07);border:1px solid #e5e7eb;overflow:hidden">
-            <div style="padding:14px 18px;border-bottom:1px solid #f3f4f6">
-                <h3 style="font-size:14px;font-weight:700;color:#111;margin:0">Add / Update Rate</h3>
+        {{-- Add / Edit Rate Form --}}
+        <div id="rateFormCard" style="background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.07);border:1px solid #e5e7eb;overflow:hidden">
+            <div id="rateFormHeader" style="padding:14px 18px;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;justify-content:space-between">
+                <h3 id="rateFormTitle" style="font-size:14px;font-weight:700;color:#111;margin:0">Add / Update Rate</h3>
+                <button id="rateFormClearBtn" onclick="clearRateForm()" style="display:none;font-size:11px;font-weight:700;color:#6b7280;background:#f3f4f6;border:none;border-radius:6px;padding:4px 10px;cursor:pointer">
+                    ✕ Clear
+                </button>
             </div>
             <div style="padding:18px">
+                {{-- Editing indicator --}}
+                <div id="editingBadge" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:12px;font-weight:700;color:#1d4ed8">
+                    ✏️ Editing: <span id="editingLabel"></span>
+                </div>
                 <form action="{{ route('admin.module-data.exchange.store') }}" method="POST">
                     @csrf
                     <div style="margin-bottom:14px">
                         <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:6px">From Wallet *</label>
-                        <select name="from_wallet" required style="width:100%;padding:9px 12px;border:1px solid #e5e7eb;border-radius:9px;font-size:13px;font-weight:600;color:#111;background:#fff">
+                        <select id="rf_from" name="from_wallet" required style="width:100%;padding:9px 12px;border:1px solid #e5e7eb;border-radius:9px;font-size:13px;font-weight:600;color:#111;background:#fff">
                             @foreach($wallets as $w)
                             <option value="{{ $w }}">{{ strtoupper($w) }}</option>
                             @endforeach
@@ -390,7 +405,7 @@ window.addEventListener('DOMContentLoaded',function(){
                     </div>
                     <div style="margin-bottom:14px">
                         <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:6px">To Wallet *</label>
-                        <select name="to_wallet" required style="width:100%;padding:9px 12px;border:1px solid #e5e7eb;border-radius:9px;font-size:13px;font-weight:600;color:#111;background:#fff">
+                        <select id="rf_to" name="to_wallet" required style="width:100%;padding:9px 12px;border:1px solid #e5e7eb;border-radius:9px;font-size:13px;font-weight:600;color:#111;background:#fff">
                             @foreach($wallets as $w)
                             <option value="{{ $w }}">{{ strtoupper($w) }}</option>
                             @endforeach
@@ -398,13 +413,13 @@ window.addEventListener('DOMContentLoaded',function(){
                     </div>
                     <div style="margin-bottom:14px">
                         <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:6px">Exchange Rate *</label>
-                        <input type="number" name="rate" required step="0.0001" placeholder="e.g. 1.0000"
+                        <input id="rf_rate" type="number" name="rate" required step="0.0001" placeholder="e.g. 1.0000"
                             style="width:100%;padding:9px 12px;border:1px solid #e5e7eb;border-radius:9px;font-size:13px;color:#111;box-sizing:border-box">
                         <p style="font-size:11px;color:#9ca3af;margin:4px 0 0">Units of TO_WALLET per 1 unit of FROM_WALLET</p>
                     </div>
                     <div style="margin-bottom:18px">
                         <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:6px">Service Fee (%)</label>
-                        <input type="number" name="fee_percentage" step="0.01" value="1.00" min="0" max="100"
+                        <input id="rf_fee" type="number" name="fee_percentage" step="0.01" value="1.00" min="0" max="100"
                             style="width:100%;padding:9px 12px;border:1px solid #e5e7eb;border-radius:9px;font-size:13px;color:#111;box-sizing:border-box">
                     </div>
                     <button type="submit" style="width:100%;padding:12px;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer">
@@ -413,6 +428,33 @@ window.addEventListener('DOMContentLoaded',function(){
                 </form>
             </div>
         </div>
+        <script>
+        function editRate(from, to, rate, fee) {
+            // Pre-fill dropdowns
+            document.getElementById('rf_from').value = from;
+            document.getElementById('rf_to').value   = to;
+            document.getElementById('rf_rate').value  = rate;
+            document.getElementById('rf_fee').value   = fee;
+            // Show indicator
+            document.getElementById('editingBadge').style.display = 'block';
+            document.getElementById('editingLabel').textContent = from.toUpperCase() + ' → ' + to.toUpperCase();
+            document.getElementById('rateFormTitle').textContent  = 'Edit Rate';
+            document.getElementById('rateFormClearBtn').style.display = 'block';
+            // Scroll to form
+            document.getElementById('rateFormCard').scrollIntoView({behavior:'smooth', block:'center'});
+            document.getElementById('rateFormCard').style.border = '2px solid #2563eb';
+        }
+        function clearRateForm() {
+            document.getElementById('rf_from').selectedIndex = 0;
+            document.getElementById('rf_to').selectedIndex   = 1;
+            document.getElementById('rf_rate').value  = '';
+            document.getElementById('rf_fee').value   = '1.00';
+            document.getElementById('editingBadge').style.display  = 'none';
+            document.getElementById('rateFormTitle').textContent   = 'Add / Update Rate';
+            document.getElementById('rateFormClearBtn').style.display = 'none';
+            document.getElementById('rateFormCard').style.border = '1px solid #e5e7eb';
+        }
+        </script>
     </div>
 
     {{-- Wallet Overview --}}
