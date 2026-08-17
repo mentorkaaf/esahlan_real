@@ -26,12 +26,12 @@ class HrAttendanceController extends Controller
 
         $shifts = HrShift::where('is_active', true)->get();
 
-        // Summary
+        // Summary — eager load already filtered by date, so use ->first() not ->where('date',...)
         $summary = [
-            'present' => $employees->filter(fn($e) => $e->attendance->where('date', $date)->where('status', 'present')->count())->count(),
-            'late'    => $employees->filter(fn($e) => $e->attendance->where('date', $date)->where('status', 'late')->count())->count(),
-            'absent'  => $employees->filter(fn($e) => $e->attendance->where('date', $date)->whereIn('status', ['absent'])->count() || !$e->attendance->where('date', $date)->count())->count(),
-            'leave'   => $employees->filter(fn($e) => $e->attendance->where('date', $date)->where('status', 'leave')->count())->count(),
+            'present' => $employees->filter(fn($e) => $e->attendance->first()?->status === 'present')->count(),
+            'late'    => $employees->filter(fn($e) => $e->attendance->first()?->status === 'late')->count(),
+            'absent'  => $employees->filter(fn($e) => ($e->attendance->first()?->status ?? 'absent') === 'absent' || !$e->attendance->count())->count(),
+            'leave'   => $employees->filter(fn($e) => $e->attendance->first()?->status === 'leave')->count(),
         ];
 
         return view('hr.attendance.daily', compact('employees', 'date', 'd', 'shifts', 'summary'));
