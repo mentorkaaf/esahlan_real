@@ -438,7 +438,7 @@ window.addEventListener('DOMContentLoaded',function(){
     {{-- ── Wallet Logos ── --}}
     @php
         $walletDefs = [
-            'evc'     => ['EVC+ / Sahal / Zaad', '#00A8E8'],
+            'evc'     => ['EVC Plus',             '#00A8E8'],
             'edahab'  => ['eDahab Merchant',      '#2E7D32'],
             'jeep'    => ['Jeep Money',            '#0D47A1'],
             'premier' => ['Premier Wallet',        '#1A237E'],

@@ -91,7 +91,7 @@ class _WalletDef {
 }
 
 const _wallets = [
-  _WalletDef('evc',     'EVC+/Sahal/Zaad/Jeeb', 'EVC',     Color(0xFF00A8E8), Color(0xFFE6F6FD)),
+  _WalletDef('evc',     'EVC Plus',             'EVC',     Color(0xFF00A8E8), Color(0xFFE6F6FD)),
   _WalletDef('edahab',  'eDahab Merchant',       'eDahab',  Color(0xFF2E7D32), Color(0xFFE8F5E9)),
   _WalletDef('jeep',    'Jeep Money',            'Jeep',    Color(0xFF0D47A1), Color(0xFFE3F2FD)),
   _WalletDef('premier', 'Premier Wallet',        'Premier', Color(0xFF1A237E), Color(0xFFEDE7F6)),
