@@ -25,6 +25,7 @@ class DatabaseSeeder extends Seeder
             ModulePerformanceMetricSeeder::class,
             EGrocerySeeder::class,
             EGroceryCatalogSeeder::class,
+            // EGroceryOrderDemoSeeder::class,  // run manually: php artisan db:seed --class=EGroceryOrderDemoSeeder
         ]);
     }
 }

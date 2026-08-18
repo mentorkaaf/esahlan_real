@@ -806,18 +806,73 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::get('/shop',                      [$ctrl, 'shopIndex'])->name('shop');
             Route::get('/wholesale',                 [$ctrl, 'wholesaleIndex'])->name('wholesale');
 
-            // eGrocery — dedicated admin
+            // eGrocery — full management suite
             Route::prefix('egrocery')->name('egrocery.')->group(function () {
                 $eg = \App\Http\Controllers\Admin\AdminEGroceryController::class;
-                Route::get('/',                         [$eg, 'index'])->name('index');
-                Route::post('/categories',              [$eg, 'categoryStore'])->name('category.store');
-                Route::match(['PATCH','POST'], '/categories/{id}', [$eg, 'categoryUpdate'])->name('category.update');
-                Route::delete('/categories/{id}',       [$eg, 'categoryDestroy'])->name('category.destroy');
-                Route::post('/products',                [$eg, 'productStore'])->name('product.store');
-                Route::match(['PATCH','POST'], '/products/{id}', [$eg, 'productUpdate'])->name('product.update');
-                Route::delete('/products/{id}',         [$eg, 'productDestroy'])->name('product.destroy');
-                Route::post('/products/{id}/toggle',    [$eg, 'productToggle'])->name('product.toggle');
-                Route::patch('/orders/{id}/status',     [$eg, 'orderUpdateStatus'])->name('order.status');
+
+                // Dashboard
+                Route::get('/',  [$eg, 'index'])->name('index');
+
+                // Categories
+                Route::get('/categories',                    [$eg, 'categories'])->name('categories');
+                Route::post('/categories',                   [$eg, 'categoryStore'])->name('category.store');
+                Route::post('/categories/{id}',              [$eg, 'categoryUpdate'])->name('category.update');
+                Route::post('/categories/{id}/toggle',       [$eg, 'categoryToggle'])->name('category.toggle');
+                Route::post('/categories/sort',              [$eg, 'categorySortUpdate'])->name('category.sort');
+                Route::delete('/categories/{id}',            [$eg, 'categoryDestroy'])->name('category.destroy');
+
+                // Products
+                Route::get('/products',                      [$eg, 'products'])->name('products');
+                Route::get('/products/create',               [$eg, 'productCreate'])->name('product.create');
+                Route::post('/products',                     [$eg, 'productStore'])->name('product.store');
+                Route::get('/products/{id}/edit',            [$eg, 'productEdit'])->name('product.edit');
+                Route::post('/products/{id}',                [$eg, 'productUpdate'])->name('product.update');
+                Route::post('/products/{id}/toggle',         [$eg, 'productToggle'])->name('product.toggle');
+                Route::post('/products/{id}/quick-edit',     [$eg, 'productQuickEdit'])->name('product.quick-edit');
+                Route::delete('/products/{id}',              [$eg, 'productDestroy'])->name('product.destroy');
+                Route::post('/products/bulk',                [$eg, 'productBulkAction'])->name('product.bulk');
+                Route::get('/products/export',               [$eg, 'productCsvExport'])->name('product.export');
+                Route::get('/products/template',             [$eg, 'productCsvTemplate'])->name('product.template');
+                Route::post('/products/import',              [$eg, 'productCsvImport'])->name('product.import');
+
+                // Inventory
+                Route::get('/inventory',                     [$eg, 'inventory'])->name('inventory');
+                Route::post('/inventory/adjust',             [$eg, 'inventoryAdjust'])->name('inventory.adjust');
+                Route::get('/inventory/variant-search',      [$eg, 'inventoryVariantSearch'])->name('inventory.variant-search');
+
+                // Marketing
+                Route::get('/marketing',                     [$eg, 'marketing'])->name('marketing');
+                Route::post('/marketing/banners',            [$eg, 'bannerStore'])->name('banner.store');
+                Route::post('/marketing/banners/{id}',       [$eg, 'bannerUpdate'])->name('banner.update');
+                Route::post('/marketing/banners/{id}/toggle',[$eg, 'bannerToggle'])->name('banner.toggle');
+                Route::delete('/marketing/banners/{id}',     [$eg, 'bannerDestroy'])->name('banner.destroy');
+                Route::post('/marketing/sections',           [$eg, 'sectionStore'])->name('section.store');
+                Route::post('/marketing/sections/{id}',      [$eg, 'sectionUpdate'])->name('section.update');
+                Route::post('/marketing/sections/{id}/products', [$eg, 'sectionProductsUpdate'])->name('section.products');
+                Route::post('/marketing/sections/{id}/toggle',   [$eg, 'sectionToggle'])->name('section.toggle');
+                Route::delete('/marketing/sections/{id}',    [$eg, 'sectionDestroy'])->name('section.destroy');
+                Route::post('/marketing/flash-deals',        [$eg, 'flashDealStore'])->name('flash.store');
+                Route::delete('/marketing/flash-deals/{id}', [$eg, 'flashDealDestroy'])->name('flash.destroy');
+                Route::get('/marketing/product-search',      [$eg, 'marketingProductSearch'])->name('marketing.product-search');
+                Route::get('/marketing/variant-search',      [$eg, 'marketingVariantSearch'])->name('marketing.variant-search');
+
+                // Orders
+                Route::get('/orders',                        [$eg, 'orders'])->name('orders');
+                Route::get('/orders/{id}',                   [$eg, 'orderShow'])->name('order.show');
+                Route::post('/orders/{id}/status',           [$eg, 'orderUpdateStatus'])->name('order.status');
+                Route::post('/orders/{id}/driver',           [$eg, 'orderAssignDriver'])->name('order.driver');
+                Route::post('/orders/{id}/picked',           [$eg, 'orderPickedQty'])->name('order.picked');
+                Route::post('/orders/{id}/substitute',       [$eg, 'orderSubstitute'])->name('order.substitute');
+                Route::get('/orders/{id}/print',             [$eg, 'orderPrint'])->name('order.print');
+
+                // Settings
+                Route::get('/settings',                      [$eg, 'settings'])->name('settings');
+                Route::post('/settings/zones',               [$eg, 'zoneStore'])->name('zone.store');
+                Route::post('/settings/zones/{id}',          [$eg, 'zoneUpdate'])->name('zone.update');
+                Route::delete('/settings/zones/{id}',        [$eg, 'zoneDestroy'])->name('zone.destroy');
+                Route::post('/settings/slots',               [$eg, 'slotStore'])->name('slot.store');
+                Route::post('/settings/slots/{id}',          [$eg, 'slotUpdate'])->name('slot.update');
+                Route::delete('/settings/slots/{id}',        [$eg, 'slotDestroy'])->name('slot.destroy');
             });
             Route::post('/products',                  [$ctrl, 'productStore'])->name('product.store');
             Route::patch('/products/{product}',       [$ctrl, 'productUpdate'])->name('product.update');
