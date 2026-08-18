@@ -46,7 +46,7 @@ class EGroceryOrderDemoSeeder extends Seeder
             'cancelled',
         ];
 
-        $paymentMethods = ['cash', 'waafipay', 'cash', 'cash', 'waafipay'];
+        $paymentMethods = ['cash', 'evc', 'cash', 'cash', 'evc'];
 
         DB::table('egrocery_orders')->whereRaw("order_no LIKE 'DEMO-%'")->delete();
 
@@ -54,7 +54,7 @@ class EGroceryOrderDemoSeeder extends Seeder
             $orderNo = 'DEMO-' . str_pad($i + 1, 4, '0', STR_PAD_LEFT);
             $method  = $paymentMethods[$i % count($paymentMethods)];
             $payStatus = in_array($status, ['delivered', 'out_for_delivery']) && $method === 'waafipay'
-                ? 'paid' : ($status === 'cancelled' ? 'refunded' : 'pending');
+                ? 'paid' : ($status === 'cancelled' ? 'refunded' : 'unpaid');
             $createdAt = Carbon::now()->subHours(rand(1, 72));
             $updatedAt = $createdAt->copy()->addMinutes(rand(5, 120));
 
