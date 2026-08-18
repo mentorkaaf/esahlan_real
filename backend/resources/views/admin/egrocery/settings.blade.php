@@ -89,45 +89,42 @@
             </thead>
             <tbody>
                 @php
-                    $days = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
-                    $slotsByDay = $slots->groupBy('day_of_week');
+                    $dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+                    $slotsByOffset = $slots->groupBy('day_offset');
                 @endphp
-                @forelse($days as $day)
-                    @if($slotsByDay->has($day))
-                        @foreach($slotsByDay[$day] as $sl)
-                        <tr>
-                            <td style="font-weight:700;text-transform:capitalize;">{{ $loop->first ? $day : '' }}</td>
-                            <td>
-                                <span style="background:#f1f5f9;padding:4px 10px;border-radius:6px;font-size:13px;font-weight:600;">
-                                    {{ \Carbon\Carbon::parse($sl->start_time)->format('H:i') }} — {{ \Carbon\Carbon::parse($sl->end_time)->format('H:i') }}
-                                </span>
-                            </td>
-                            <td style="text-align:center;">
-                                <span class="badge badge-info">{{ $sl->capacity }} orders</span>
-                            </td>
-                            <td>
-                                @if($sl->is_active)
-                                    <span class="badge badge-success">Active</span>
-                                @else
-                                    <span class="badge badge-secondary">Inactive</span>
-                                @endif
-                            </td>
-                            <td>
-                                <div style="display:flex;gap:6px;">
-                                    <button onclick="openSlotModal({{ $sl->toJson() }})" class="btn btn-sm" style="background:#eff6ff;color:#2563eb;" title="Edit"><i class="fas fa-pen"></i></button>
-                                    <form method="POST" action="{{ route('admin.module-data.egrocery.settings.slot.destroy', $sl->id) }}" onsubmit="return confirm('Delete this slot?')">
-                                        @csrf @method('DELETE')
-                                        <button type="submit" class="btn btn-sm" style="background:#fef2f2;color:#dc2626;" title="Delete"><i class="fas fa-trash"></i></button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                        @endforeach
-                    @endif
-                @endforelse
-                @if($slots->isEmpty())
+                @forelse($slots->sortBy('day_offset') as $sl)
+                <tr>
+                    <td style="font-weight:700;">
+                        {{ $dayNames[$sl->day_offset] ?? 'Day '.$sl->day_offset }}
+                    </td>
+                    <td>
+                        <span style="background:#f1f5f9;padding:4px 10px;border-radius:6px;font-size:13px;font-weight:600;">
+                            {{ $sl->label }} · {{ \Carbon\Carbon::parse($sl->start_time)->format('H:i') }} — {{ \Carbon\Carbon::parse($sl->end_time)->format('H:i') }}
+                        </span>
+                    </td>
+                    <td style="text-align:center;">
+                        <span class="badge badge-info">{{ $sl->capacity }} orders</span>
+                    </td>
+                    <td>
+                        @if($sl->is_active)
+                            <span class="badge badge-success">Active</span>
+                        @else
+                            <span class="badge badge-secondary">Inactive</span>
+                        @endif
+                    </td>
+                    <td>
+                        <div style="display:flex;gap:6px;">
+                            <button onclick="openSlotModal({{ $sl->toJson() }})" class="btn btn-sm" style="background:#eff6ff;color:#2563eb;" title="Edit"><i class="fas fa-pen"></i></button>
+                            <form method="POST" action="{{ route('admin.module-data.egrocery.settings.slot.destroy', $sl->id) }}" onsubmit="return confirm('Delete this slot?')">
+                                @csrf @method('DELETE')
+                                <button type="submit" class="btn btn-sm" style="background:#fef2f2;color:#dc2626;" title="Delete"><i class="fas fa-trash"></i></button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                @empty
                 <tr><td colspan="5" style="text-align:center;color:#9ca3af;padding:32px;">No delivery slots yet.</td></tr>
-                @endif
+                @endforelse
             </tbody>
         </table>
     </div>
@@ -200,10 +197,14 @@
             @csrf
             <input type="hidden" name="_method" id="slotMethod" value="POST">
             <div>
+                <label class="form-label">Label <span style="color:red">*</span></label>
+                <input type="text" name="label" id="slotLabel" class="form-control" required placeholder="Morning, Afternoon, Evening…">
+            </div>
+            <div>
                 <label class="form-label">Day of Week <span style="color:red">*</span></label>
-                <select name="day_of_week" id="slotDay" class="form-control" required>
-                    @foreach(['monday','tuesday','wednesday','thursday','friday','saturday','sunday'] as $d)
-                    <option value="{{ $d }}">{{ ucfirst($d) }}</option>
+                <select name="day_offset" id="slotDay" class="form-control" required>
+                    @foreach(['0'=>'Sunday','1'=>'Monday','2'=>'Tuesday','3'=>'Wednesday','4'=>'Thursday','5'=>'Friday','6'=>'Saturday'] as $offset => $dayName)
+                    <option value="{{ $offset }}">{{ $dayName }}</option>
                     @endforeach
                 </select>
             </div>
@@ -270,7 +271,8 @@ function openSlotModal(slot) {
         document.getElementById('slotModalTitle').innerHTML = '<i class="fas fa-pen" style="color:#10b981;margin-right:8px;"></i>Edit Slot';
         form.action = slotStoreUrl.replace('/store', '/' + slot.id);
         document.getElementById('slotMethod').value = 'PUT';
-        document.getElementById('slotDay').value = slot.day_of_week;
+        document.getElementById('slotLabel').value = slot.label || '';
+        document.getElementById('slotDay').value = slot.day_offset ?? 1;
         document.getElementById('slotStart').value = slot.start_time ? slot.start_time.substring(0,5) : '';
         document.getElementById('slotEnd').value = slot.end_time ? slot.end_time.substring(0,5) : '';
         document.getElementById('slotCapacity').value = slot.capacity;

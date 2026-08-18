@@ -78,7 +78,7 @@
                                 <td style="padding:8px 12px;"><input type="text" name="variants[{{ $i }}][label]" value="{{ $v->label }}" class="form-control" style="min-width:100px;" required></td>
                                 <td style="padding:8px 12px;">
                                     <select name="variants[{{ $i }}][unit_id]" class="form-control" style="min-width:80px;">
-                                        @foreach($units as $u)<option value="{{ $u->id }}" {{ $v->unit_id==$u->id?'selected':'' }}>{{ $u->symbol ?: $u->name }}</option>@endforeach
+                                        @foreach($units as $u)<option value="{{ $u->id }}" {{ $v->unit_id==$u->id?'selected':'' }}>{{ $u->abbreviation ?: $u->name }}</option>@endforeach
                                     </select>
                                 </td>
                                 <td style="padding:8px 12px;"><input type="number" name="variants[{{ $i }}][unit_qty]" value="{{ $v->unit_qty }}" class="form-control" style="width:65px;" step="0.001" min="0"></td>
@@ -128,7 +128,7 @@
                 <div>
                     <label class="form-label">Base Unit *</label>
                     <select name="base_unit_id" class="form-control" required>
-                        @foreach($units as $u)<option value="{{ $u->id }}" {{ old('base_unit_id',$product->base_unit_id??'') == $u->id ? 'selected' : '' }}>{{ $u->name }} ({{ $u->symbol }})</option>@endforeach
+                        @foreach($units as $u)<option value="{{ $u->id }}" {{ old('base_unit_id',$product->base_unit_id??'') == $u->id ? 'selected' : '' }}>{{ $u->name }} ({{ $u->abbreviation }})</option>@endforeach
                     </select>
                 </div>
                 <div style="padding:12px;background:#f8fafc;border-radius:8px;display:flex;flex-direction:column;gap:10px;">
@@ -176,7 +176,7 @@ const units = @json($units);
 
 function addVariant() {
     const i = variantIdx++;
-    const unitOpts = units.map(u => `<option value="${u.id}">${u.symbol || u.name}</option>`).join('');
+    const unitOpts = units.map(u => `<option value="${u.id}">${u.abbreviation || u.name}</option>`).join('');
     const row = document.createElement('tr');
     row.className = 'variant-row';
     row.dataset.idx = i;

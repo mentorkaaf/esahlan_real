@@ -707,9 +707,9 @@ class AdminEGroceryController extends Controller
     {
         $order = EGroceryOrder::with([
             'user:id,name,phone,email,fcm_token',
-            'items.product:id,name,slug',
-            'items.variant:id,label',
-            'items.substitution:id,label',
+            'items.variant.product:id,name,slug',
+            'items.variant:id,label,product_id',
+            'items.substitutionVariant:id,label',
             'deliverySlot',
         ])->findOrFail($id);
 
@@ -817,7 +817,7 @@ class AdminEGroceryController extends Controller
 
     public function orderPrint($id)
     {
-        $order = EGroceryOrder::with(['items.product', 'items.variant', 'user'])->findOrFail($id);
+        $order = EGroceryOrder::with(['items.variant.product', 'items.variant', 'user'])->findOrFail($id);
         return view('admin.egrocery.order_print', compact('order'));
     }
 
@@ -828,7 +828,7 @@ class AdminEGroceryController extends Controller
     public function settings()
     {
         $zones     = EGroceryDeliveryZone::orderBy('name')->get();
-        $slots     = EGroceryDeliverySlot::orderBy('day_of_week')->orderBy('start_time')->get();
+        $slots     = EGroceryDeliverySlot::orderBy('day_offset')->orderBy('start_time')->get();
         $districts = District::orderBy('name')->get(['id', 'name']);
         return view('admin.egrocery.settings', compact('zones', 'slots', 'districts'));
     }
@@ -872,12 +872,12 @@ class AdminEGroceryController extends Controller
     public function slotStore(Request $r)
     {
         $d = $r->validate([
-            'day_of_week' => 'required|in:monday,tuesday,wednesday,thursday,friday,saturday,sunday',
-            'start_time'  => 'required|date_format:H:i',
-            'end_time'    => 'required|date_format:H:i|after:start_time',
-            'capacity'    => 'required|integer|min:1',
-            'label'       => 'nullable|string|max:100',
-            'is_active'   => 'nullable|boolean',
+            'label'      => 'required|string|max:100',
+            'day_offset' => 'required|integer|min:0|max:6',
+            'start_time' => 'required|date_format:H:i',
+            'end_time'   => 'required|date_format:H:i|after:start_time',
+            'capacity'   => 'required|integer|min:1',
+            'is_active'  => 'nullable|boolean',
         ]);
         EGroceryDeliverySlot::create(array_merge($d, ['is_active' => $r->boolean('is_active', true)]));
         return back()->with('success', 'Slot added.');
@@ -1041,8 +1041,8 @@ class AdminEGroceryController extends Controller
                   ->where('o.created_at', '>=', $from)
                   ->whereNotIn('o.status', ['cancelled']);
             })
-            ->selectRaw('s.id, CONCAT(s.day_of_week, " ", s.start_time, "-", s.end_time) as label, s.capacity, COUNT(o.id) as booked')
-            ->groupBy('s.id', 's.day_of_week', 's.start_time', 's.end_time', 's.capacity')
+            ->selectRaw('s.id, CONCAT(s.label, " (", s.start_time, "-", s.end_time, ")") as label, s.capacity, COUNT(o.id) as booked')
+            ->groupBy('s.id', 's.label', 's.start_time', 's.end_time', 's.capacity')
             ->get();
 
         // Cancellation reasons

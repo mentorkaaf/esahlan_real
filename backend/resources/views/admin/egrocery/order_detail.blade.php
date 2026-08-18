@@ -54,7 +54,7 @@ $statusColors = [
                     <tbody>
                         @foreach($order->items as $item)
                         <tr>
-                            <td style="font-weight:600;">{{ $item->name_snapshot ?? $item->product?->name }}</td>
+                            <td style="font-weight:600;">{{ $item->name_snapshot ?? $item->variant?->product?->name }}</td>
                             <td style="color:#64748b;">{{ $item->unit_label_snapshot ?? $item->variant?->label }}</td>
                             <td style="text-align:center;font-weight:700;">{{ $item->qty }}</td>
                             <td style="text-align:center;">
