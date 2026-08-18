@@ -1426,7 +1426,7 @@ class _ExchangeReceiptSheetState extends State<_ExchangeReceiptSheet> {
                         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
                       ),
                       child: Column(children: [
-                        // eSahlan logo circle
+                        // eSahlan logo
                         Container(
                           width: 68, height: 68,
                           decoration: BoxDecoration(
@@ -1434,10 +1434,13 @@ class _ExchangeReceiptSheetState extends State<_ExchangeReceiptSheet> {
                             shape: BoxShape.circle,
                             boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 12)],
                           ),
-                          child: Center(child: Text('e', style: TextStyle(
-                            fontSize: 36, fontWeight: FontWeight.w900,
-                            color: AppColors.primary,
-                          ))),
+                          child: ClipOval(
+                            child: Image.asset(
+                              'assets/images/logo.png',
+                              width: 68, height: 68,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
                         ),
                         const SizedBox(height: 10),
                         Text('eSahlan Exchange', style: const TextStyle(
