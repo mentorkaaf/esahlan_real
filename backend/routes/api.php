@@ -331,10 +331,13 @@ Route::prefix('v1')->group(function () {
     Route::get('ewholesale/products',                    [EWholesaleController::class, 'products']);
     Route::post('ewholesale/inquire',                    [EWholesaleController::class, 'inquire']);    // alias Flutter uses
 
-    // eGrocery
-    Route::get('egrocery/categories',                    [EGroceryController::class, 'categories']);
-    Route::get('egrocery/products',                      [EGroceryController::class, 'products']);
-    Route::get('egrocery/products/{id}',                 [EGroceryController::class, 'productDetail']);
+    // eGrocery v2 (public)
+    Route::get('egrocery/home',                          [\App\Http\Controllers\Api\EGrocery\EGroceryHomeController::class, 'index']);
+    Route::get('egrocery/categories',                    [\App\Http\Controllers\Api\EGrocery\EGroceryCatalogController::class, 'categories']);
+    Route::get('egrocery/categories/{id}',               [\App\Http\Controllers\Api\EGrocery\EGroceryCatalogController::class, 'category']);
+    Route::get('egrocery/products',                      [\App\Http\Controllers\Api\EGrocery\EGroceryCatalogController::class, 'products']);
+    Route::get('egrocery/products/{slug}',               [\App\Http\Controllers\Api\EGrocery\EGroceryCatalogController::class, 'product']);
+    Route::get('egrocery/search/suggest',                [\App\Http\Controllers\Api\EGrocery\EGroceryCatalogController::class, 'suggest']);
 
     // eTicket
     Route::get('eticket/airlines',                       [ETicketController::class, 'airlines']);
@@ -748,6 +751,31 @@ Route::prefix('v1')->group(function () {
             Route::post('eshop/coupon/validate',    [EShopController::class, 'validateCoupon']);
             Route::post('eshop/products/{id}/reviews', [EShopController::class, 'submitReview']);
             Route::post('ewholesale/order',     [EWholesaleController::class, 'inquire']);
+            // eGrocery v2 (authed)
+            Route::prefix('egrocery')->group(function () {
+                Route::get('favorites',                      [\App\Http\Controllers\Api\EGrocery\EGroceryUserController::class, 'favorites']);
+                Route::post('favorites',                     [\App\Http\Controllers\Api\EGrocery\EGroceryUserController::class, 'addFavorite']);
+                Route::delete('favorites/{productId}',       [\App\Http\Controllers\Api\EGrocery\EGroceryUserController::class, 'removeFavorite']);
+                Route::get('lists',                          [\App\Http\Controllers\Api\EGrocery\EGroceryUserController::class, 'lists']);
+                Route::post('lists',                         [\App\Http\Controllers\Api\EGrocery\EGroceryUserController::class, 'createList']);
+                Route::get('lists/{id}',                     [\App\Http\Controllers\Api\EGrocery\EGroceryUserController::class, 'showList']);
+                Route::put('lists/{id}',                     [\App\Http\Controllers\Api\EGrocery\EGroceryUserController::class, 'updateList']);
+                Route::delete('lists/{id}',                  [\App\Http\Controllers\Api\EGrocery\EGroceryUserController::class, 'deleteList']);
+                Route::post('lists/{id}/items',              [\App\Http\Controllers\Api\EGrocery\EGroceryUserController::class, 'addListItem']);
+                Route::patch('lists/{listId}/items/{itemId}',[\App\Http\Controllers\Api\EGrocery\EGroceryUserController::class, 'updateListItem']);
+                Route::delete('lists/{listId}/items/{itemId}',[\App\Http\Controllers\Api\EGrocery\EGroceryUserController::class, 'deleteListItem']);
+                Route::post('lists/{id}/add-all-to-cart',   [\App\Http\Controllers\Api\EGrocery\EGroceryUserController::class, 'listAddAllToCart']);
+                Route::post('cart/validate',                 [\App\Http\Controllers\Api\EGrocery\EGroceryUserController::class, 'cartValidate']);
+                Route::get('checkout/slots',                 [\App\Http\Controllers\Api\EGrocery\EGroceryOrderController::class, 'slots']);
+                Route::post('orders',                        [\App\Http\Controllers\Api\EGrocery\EGroceryOrderController::class, 'checkout']);
+                Route::get('orders',                         [\App\Http\Controllers\Api\EGrocery\EGroceryOrderController::class, 'orders']);
+                Route::get('orders/{id}',                    [\App\Http\Controllers\Api\EGrocery\EGroceryOrderController::class, 'orderShow']);
+                Route::post('orders/{id}/cancel',            [\App\Http\Controllers\Api\EGrocery\EGroceryOrderController::class, 'cancelOrder']);
+                Route::post('orders/{id}/reorder',           [\App\Http\Controllers\Api\EGrocery\EGroceryOrderController::class, 'reorder']);
+                Route::post('orders/{orderId}/items/{itemId}/substitution', [\App\Http\Controllers\Api\EGrocery\EGroceryOrderController::class, 'respondToSubstitution']);
+                Route::post('products/{id}/reviews',         [\App\Http\Controllers\Api\EGrocery\EGroceryOrderController::class, 'submitReview']);
+            });
+            // Legacy
             Route::post('egrocery/order',       [EGroceryController::class, 'createOrder']);
             Route::post('eticket/book',         [ETicketController::class, 'book']);
             Route::get('eticket/my-bookings',   [ETicketController::class, 'myBookings']);
