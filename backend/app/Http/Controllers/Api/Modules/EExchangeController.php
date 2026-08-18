@@ -76,7 +76,7 @@ class EExchangeController extends Controller
             ->where('user_id', $request->user()->id)
             ->orderByDesc('created_at')
             ->limit(20)
-            ->get(['id', 'from_wallet', 'to_wallet', 'sent_amount', 'converted_amount', 'fee_amount', 'status', 'created_at', 'reference']);
+            ->get(['id', 'from_wallet', 'to_wallet', 'sent_amount', 'converted_amount', 'fee_amount', 'rate', 'status', 'created_at', 'reference', 'recipient_phone']);
         return response()->json(['success' => true, 'data' => $orders]);
     }
 
