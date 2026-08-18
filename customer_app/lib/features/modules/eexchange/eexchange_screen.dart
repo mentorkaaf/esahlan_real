@@ -1,5 +1,9 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:saver_gallery/saver_gallery.dart';
+import 'package:intl/intl.dart' as intl;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/module_api_service.dart';
@@ -63,12 +67,18 @@ class _ExchangeOrder {
   final String toWallet;
   final double sentAmount;
   final double receivedAmount;
+  final double feeAmount;
+  final double rate;
   final String status;
   final String? reference;
+  final String? recipientPhone;
   final DateTime createdAt;
-  _ExchangeOrder({required this.id, required this.fromWallet, required this.toWallet,
-    required this.sentAmount, required this.receivedAmount, required this.status,
-    this.reference, required this.createdAt});
+  _ExchangeOrder({
+    required this.id, required this.fromWallet, required this.toWallet,
+    required this.sentAmount, required this.receivedAmount, required this.feeAmount,
+    required this.rate, required this.status, this.reference, this.recipientPhone,
+    required this.createdAt,
+  });
   factory _ExchangeOrder.fromJson(Map<String, dynamic> j) => _ExchangeOrder(
     id: j['id'] as int,
     // DB stores uppercase (EVC, PREMIER) — normalize to lowercase for wallet lookup
@@ -76,8 +86,11 @@ class _ExchangeOrder {
     toWallet:   (j['to_wallet']   as String? ?? '').toLowerCase(),
     sentAmount:     double.tryParse(j['sent_amount']?.toString()     ?? '0') ?? 0,
     receivedAmount: double.tryParse((j['converted_amount'] ?? j['received_amount'])?.toString() ?? '0') ?? 0,
+    feeAmount: double.tryParse(j['fee_amount']?.toString() ?? '0') ?? 0,
+    rate:      double.tryParse(j['rate']?.toString()       ?? '1') ?? 1,
     status:    j['status']    as String? ?? 'pending',
     reference: j['reference'] as String?,
+    recipientPhone: j['recipient_phone'] as String?,
     createdAt: DateTime.tryParse(j['created_at']?.toString() ?? '') ?? DateTime.now(),
   );
 }
@@ -177,18 +190,19 @@ class _EExchangeScreenState extends ConsumerState<EExchangeScreen>
             ),
           ),
         ],
-        bottom: TabBar(
-          controller: _tabCtrl,
-          labelColor: AppColors.primary,
-          unselectedLabelColor: AppColors.textGrey,
-          indicatorColor: AppColors.primary,
-          indicatorWeight: 2.5,
-          labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
-          tabs: [
-            const Tab(text: 'Local'),
-            if (cryptoEnabled) const Tab(text: 'Crypto'),
-          ],
-        ),
+        // TabBar only shown when BOTH tabs exist (crypto enabled)
+        // When crypto is disabled, only Local exists — no need for a tab label
+        bottom: cryptoEnabled
+            ? TabBar(
+                controller: _tabCtrl,
+                labelColor: AppColors.primary,
+                unselectedLabelColor: AppColors.textGrey,
+                indicatorColor: AppColors.primary,
+                indicatorWeight: 2.5,
+                labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                tabs: const [Tab(text: 'Local'), Tab(text: 'Crypto')],
+              )
+            : null,
       ),
       body: TabBarView(
         controller: _tabCtrl,
@@ -297,11 +311,18 @@ class _LocalExchangeTabState extends ConsumerState<_LocalExchangeTab> {
       return const Center(child: CircularProgressIndicator(strokeWidth: 2));
     }
 
+    final allAccounts = accountsAsync.valueOrNull ?? [];
+
+    // ── Zero accounts gate — must add at least 2 accounts to exchange ──────
+    if (allAccounts.isEmpty) {
+      return _buildNoAccountsGate();
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
-        // ── Missing accounts banner ────────────────────────────────────
+        // ── Missing accounts banner (has some but not the selected ones) ──
         if (!_hasFromAccount || !_hasToAccount)
           _buildAddAccountBanner(!_hasFromAccount ? _fromWallet : _toWallet),
 
@@ -346,6 +367,86 @@ class _LocalExchangeTabState extends ConsumerState<_LocalExchangeTab> {
       ]),
     );
   }
+
+  // ── No Accounts Gate — shown when user has zero saved accounts ───────────
+
+  Widget _buildNoAccountsGate() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
+
+        // Icon
+        Container(
+          width: 80, height: 80,
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.1),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.account_balance_wallet_rounded,
+              size: 40, color: AppColors.primary),
+        ),
+        const SizedBox(height: 20),
+
+        Text('Add Accounts to Start',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900,
+                color: context.colors.navyText),
+            textAlign: TextAlign.center),
+        const SizedBox(height: 10),
+
+        Text(
+          'To exchange money, you need to save at least 2 wallet accounts — '
+          'one to send from, and one to receive to.',
+          style: const TextStyle(fontSize: 13, color: AppColors.textGrey, height: 1.6),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 28),
+
+        // Steps
+        _gateStep('1', 'Tap "My Accounts" in the top right', Icons.account_balance_wallet_rounded),
+        const SizedBox(height: 12),
+        _gateStep('2', 'Add your EVC Plus, eDahab, Premier, or other wallet phone number', Icons.phone_android_rounded),
+        const SizedBox(height: 12),
+        _gateStep('3', 'Add a second account from a different wallet', Icons.swap_horiz_rounded),
+        const SizedBox(height: 32),
+
+        // CTA button
+        GestureDetector(
+          onTap: widget.onAddAccounts,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                  colors: [AppColors.primary, Color(0xFFFF6B00)],
+                  begin: Alignment.centerLeft, end: Alignment.centerRight),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 16, offset: const Offset(0, 6))],
+            ),
+            child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Icon(Icons.add_circle_rounded, color: Colors.white, size: 20),
+              SizedBox(width: 8),
+              Text('Add My Accounts', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
+            ]),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _gateStep(String num, String text, IconData icon) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Container(
+        width: 28, height: 28,
+        decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.12), shape: BoxShape.circle),
+        child: Center(child: Text(num, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: AppColors.primary))),
+      ),
+      const SizedBox(width: 12),
+      Icon(icon, size: 18, color: AppColors.textGrey),
+      const SizedBox(width: 8),
+      Expanded(child: Text(text, style: const TextStyle(fontSize: 13, color: AppColors.textGrey, height: 1.4))),
+    ],
+  );
 
   // ── Missing account banner ────────────────────────────────────────────────
 
@@ -490,26 +591,39 @@ class _LocalExchangeTabState extends ConsumerState<_LocalExchangeTab> {
 
   Widget _buildWalletPills(String selected, void Function(String) onSelect) {
     return Row(mainAxisSize: MainAxisSize.min, children: _wallets.map((w) {
-      final sel = selected == w.id;
+      final sel      = selected == w.id;
       final hasSaved = _accountFor(w.id) != null;
+      // Only wallets with saved accounts are selectable
       return GestureDetector(
-        onTap: () => onSelect(w.id),
+        onTap: hasSaved ? () => onSelect(w.id) : null,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
           margin: const EdgeInsets.only(left: 5),
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: sel ? w.color : (hasSaved ? w.bgColor : Colors.grey.shade100),
+            color: sel
+                ? w.color
+                : (hasSaved ? w.bgColor : Colors.grey.shade100),
             borderRadius: BorderRadius.circular(8),
+            border: !hasSaved
+                ? Border.all(color: Colors.grey.shade200, width: 1)
+                : null,
           ),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
             Text(w.shortName,
                 style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800,
-                    color: sel ? Colors.white : (hasSaved ? w.color : AppColors.textGrey))),
+                    color: sel
+                        ? Colors.white
+                        : (hasSaved ? w.color : Colors.grey.shade400))),
             if (hasSaved && !sel) ...[
               const SizedBox(width: 3),
               Container(width: 5, height: 5,
                   decoration: BoxDecoration(color: w.color, shape: BoxShape.circle)),
+            ],
+            // Lock icon for wallets without saved account
+            if (!hasSaved) ...[
+              const SizedBox(width: 3),
+              Icon(Icons.lock_rounded, size: 8, color: Colors.grey.shade400),
             ],
           ]),
         ),
@@ -717,7 +831,10 @@ class _LocalExchangeTabState extends ConsumerState<_LocalExchangeTab> {
         statusIcon  = Icons.access_time_rounded;
     }
 
-    return Padding(
+    return InkWell(
+      onTap: () => _showReceiptDialog(order),
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
       child: Row(children: [
         // Wallet logo with overlay
@@ -754,6 +871,23 @@ class _LocalExchangeTabState extends ConsumerState<_LocalExchangeTab> {
           Text('sent', style: TextStyle(fontSize: 10, color: Colors.grey.shade400, fontWeight: FontWeight.w500)),
         ]),
       ]),
+    ));
+  }
+
+  // ── Receipt / Voucher Dialog ──────────────────────────────────────────────
+
+  void _showReceiptDialog(_ExchangeOrder order) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ExchangeReceiptSheet(
+        order: order,
+        onSendAgain: () {
+          Navigator.pop(context);
+          // Pre-select wallets to match order
+        },
+      ),
     );
   }
 
@@ -1156,4 +1290,329 @@ class _ExchangeSuccessScreen extends StatelessWidget {
       Text(value, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: color ?? AppColors.secondary)),
     ]),
   );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Exchange Receipt / Voucher Bottom Sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ExchangeReceiptSheet extends StatefulWidget {
+  final _ExchangeOrder order;
+  final VoidCallback onSendAgain;
+  const _ExchangeReceiptSheet({required this.order, required this.onSendAgain});
+
+  @override
+  State<_ExchangeReceiptSheet> createState() => _ExchangeReceiptSheetState();
+}
+
+class _ExchangeReceiptSheetState extends State<_ExchangeReceiptSheet> {
+  final _receiptKey = GlobalKey();
+  bool _downloading = false;
+
+  _ExchangeOrder get o => widget.order;
+
+  // Status helpers
+  Color get _statusColor {
+    switch (o.status) {
+      case 'completed':  return const Color(0xFF2E7D32);
+      case 'processing': return const Color(0xFF1565C0);
+      case 'failed':     return const Color(0xFFB71C1C);
+      default:           return const Color(0xFFF57C00);
+    }
+  }
+  String get _statusLabel {
+    switch (o.status) {
+      case 'completed':  return 'Exchange Completed';
+      case 'processing': return 'Processing…';
+      case 'failed':     return 'Exchange Failed';
+      default:           return 'Pending';
+    }
+  }
+  IconData get _statusIcon {
+    switch (o.status) {
+      case 'completed':  return Icons.check_circle_rounded;
+      case 'processing': return Icons.autorenew_rounded;
+      case 'failed':     return Icons.cancel_rounded;
+      default:           return Icons.access_time_rounded;
+    }
+  }
+
+  Future<void> _downloadReceipt() async {
+    setState(() => _downloading = true);
+    try {
+      final boundary = _receiptKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) return;
+      final image = await boundary.toImage(pixelRatio: 3.0);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData == null) return;
+      final Uint8List pngBytes = byteData.buffer.asUint8List();
+      final result = await SaverGallery.saveImage(
+        pngBytes,
+        quality: 95,
+        fileName: 'esahlan_receipt_${o.reference ?? o.id}.png',
+        androidRelativePath: 'Pictures/eSahlan',
+        skipIfExists: false,
+      );
+      if (mounted) {
+        final success = result.isSuccess;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(success ? '✓ Receipt saved to gallery' : 'Could not save — check permissions'),
+          backgroundColor: success ? const Color(0xFF2E7D32) : Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _downloading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final fromW = _wallet(o.fromWallet);
+    final toW   = _wallet(o.toWallet);
+    final dateFmt = intl.DateFormat('dd MMM yyyy  HH:mm').format(o.createdAt.toLocal());
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.88,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      builder: (_, controller) => Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFFF7F8FC),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(children: [
+          // Handle bar
+          Padding(
+            padding: const EdgeInsets.only(top: 12, bottom: 4),
+            child: Container(width: 40, height: 4,
+                decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(99))),
+          ),
+
+          Expanded(child: SingleChildScrollView(
+            controller: controller,
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+            child: Column(children: [
+
+              // ── Receipt card (captured for download) ──────────────────────
+              RepaintBoundary(
+                key: _receiptKey,
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 20, offset: const Offset(0, 4))],
+                  ),
+                  child: Column(children: [
+
+                    // Top gradient header
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 28),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [const Color(0xFF1A2340), const Color(0xFF243060)],
+                          begin: Alignment.topLeft, end: Alignment.bottomRight,
+                        ),
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                      ),
+                      child: Column(children: [
+                        // eSahlan logo circle
+                        Container(
+                          width: 68, height: 68,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 12)],
+                          ),
+                          child: Center(child: Text('e', style: TextStyle(
+                            fontSize: 36, fontWeight: FontWeight.w900,
+                            color: AppColors.primary,
+                          ))),
+                        ),
+                        const SizedBox(height: 10),
+                        Text('eSahlan Exchange', style: const TextStyle(
+                          color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+                        const SizedBox(height: 16),
+
+                        // Status badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: _statusColor.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(99),
+                            border: Border.all(color: _statusColor.withValues(alpha: 0.4)),
+                          ),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            Icon(_statusIcon, size: 14, color: _statusColor),
+                            const SizedBox(width: 6),
+                            Text(_statusLabel, style: TextStyle(color: _statusColor, fontWeight: FontWeight.w700, fontSize: 13)),
+                          ]),
+                        ),
+                        const SizedBox(height: 14),
+
+                        // Big amount received
+                        Text('\$${o.receivedAmount.toStringAsFixed(2)}',
+                            style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w900)),
+                        const SizedBox(height: 4),
+                        Text('Amount Received', style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12)),
+
+                        if (o.reference != null) ...[
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text('Ref ID: ${o.reference}',
+                                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.5)),
+                          ),
+                        ],
+                      ]),
+                    ),
+
+                    // ── Wallet icons row ─────────────────────────────────
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+                      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                        // From wallet
+                        Column(children: [
+                          _WalletLogo(wallet: fromW, size: 44),
+                          const SizedBox(height: 6),
+                          Text(fromW.shortName, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                        ]),
+                        // Arrow
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Icon(Icons.arrow_forward_rounded, color: AppColors.primary, size: 24),
+                        ),
+                        // To wallet
+                        Column(children: [
+                          _WalletLogo(wallet: toW, size: 44),
+                          const SizedBox(height: 6),
+                          Text(toW.shortName, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                        ]),
+                      ]),
+                    ),
+
+                    // ── Detail rows ──────────────────────────────────────
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                      child: Column(children: [
+                        _receiptRow('Date',           dateFmt),
+                        _divider(),
+                        _receiptRow('From Wallet',    fromW.name),
+                        _divider(),
+                        _receiptRow('To Wallet',      toW.name),
+                        if (o.recipientPhone != null && o.recipientPhone!.isNotEmpty) ...[
+                          _divider(),
+                          _receiptRow('Recipient',    o.recipientPhone!),
+                        ],
+                        _divider(),
+                        _receiptRow('Amount Sent',    '\$${o.sentAmount.toStringAsFixed(2)}'),
+                        if (o.feeAmount > 0) ...[
+                          _divider(),
+                          _receiptRow('Fee',          '\$${o.feeAmount.toStringAsFixed(2)}'),
+                        ],
+                        _divider(),
+                        _receiptRow('Amount Received', '\$${o.receivedAmount.toStringAsFixed(2)}',
+                            valueColor: AppColors.primary, bold: true),
+                        if (o.rate != 1.0) ...[
+                          _divider(),
+                          _receiptRow('Rate', '1 USD = ${o.rate.toStringAsFixed(4)}'),
+                        ],
+
+                        // Watermark footer inside card
+                        const SizedBox(height: 20),
+                        Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                          Icon(Icons.verified_rounded, size: 14, color: Colors.grey.shade400),
+                          const SizedBox(width: 5),
+                          Text('esahlan.com', style: TextStyle(fontSize: 11, color: Colors.grey.shade400, fontWeight: FontWeight.w600)),
+                        ]),
+                      ]),
+                    ),
+                  ]),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // ── Action buttons ────────────────────────────────────────
+              Row(children: [
+                // Send Again
+                Expanded(child: GestureDetector(
+                  onTap: widget.onSendAgain,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)],
+                    ),
+                    child: Column(children: [
+                      Icon(Icons.send_rounded, color: AppColors.primary, size: 22),
+                      const SizedBox(height: 6),
+                      Text('Send Again', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 13)),
+                    ]),
+                  ),
+                )),
+                const SizedBox(width: 12),
+                // Download
+                Expanded(child: GestureDetector(
+                  onTap: _downloading ? null : _downloadReceipt,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF1A2340), Color(0xFF243060)],
+                        begin: Alignment.topLeft, end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 12)],
+                    ),
+                    child: _downloading
+                        ? const Center(child: SizedBox(width: 22, height: 22,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)))
+                        : const Column(children: [
+                            Icon(Icons.download_rounded, color: Colors.white, size: 22),
+                            SizedBox(height: 6),
+                            Text('Download', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
+                          ]),
+                  ),
+                )),
+              ]),
+
+              const SizedBox(height: 12),
+            ]),
+          )),
+        ]),
+      ),
+    );
+  }
+
+  Widget _receiptRow(String label, String value, {Color? valueColor, bool bold = false}) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 9),
+    child: Row(children: [
+      Text(label, style: const TextStyle(color: Color(0xFF8A8F9D), fontSize: 13)),
+      const Spacer(),
+      Text(value, style: TextStyle(
+        fontSize: 13, fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
+        color: valueColor ?? const Color(0xFF1A2340),
+      )),
+    ]),
+  );
+
+  Widget _divider() => Divider(height: 1, color: Colors.grey.shade100);
 }

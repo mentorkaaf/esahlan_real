@@ -83,6 +83,7 @@ dependencies:
   connectivity_plus: ^6.1.3
   permission_handler: ^11.4.0
   path_provider: ^2.1.0
+  saver_gallery: ^3.0.6
   # cached_video_player_plus removed — replaced by media_kit
 
   # Realtime (Laravel Reverb — speaks the Pusher protocol over plain WebSocket)
