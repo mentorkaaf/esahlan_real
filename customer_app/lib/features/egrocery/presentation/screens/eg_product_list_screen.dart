@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../data/models/egrocery_models.dart';
 import '../../ui/eg_theme.dart';
 import '../../ui/eg_widgets.dart';
 import '../providers/egrocery_providers.dart';

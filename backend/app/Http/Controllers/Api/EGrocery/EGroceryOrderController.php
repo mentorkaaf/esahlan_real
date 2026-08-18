@@ -80,7 +80,7 @@ class EGroceryOrderController extends Controller
             'address_id'        => 'nullable|integer',
             'slot_id'           => 'nullable|integer|exists:egrocery_delivery_slots,id',
             'scheduled_date'    => 'nullable|date',
-            'payment_method'    => 'required|in:cash,wallet,evc',
+            'payment_method'    => 'required|in:cod,cash,wallet,evc,mobile_pay,waafi_pay',
             'substitution_pref' => 'nullable|in:call_me,best_match,refund',
             'note'              => 'nullable|string|max:500',
             'lines'             => 'required|array|min:1',

@@ -47,8 +47,8 @@ class EGroceryRepository {
     });
     return (
       products: _list(r.data['data'], EGProduct.fromJson),
-      total: r.data['meta']?['total'] ?? 0,
-      lastPage: r.data['meta']?['last_page'] ?? 1,
+      total: (r.data['meta']?['total'] ?? 0) as int,
+      lastPage: (r.data['meta']?['last_page'] ?? 1) as int,
     );
   }
 
@@ -143,6 +143,7 @@ class EGroceryRepository {
     String? substitutionPref,
     String? note,
     String? coupon,
+    String? paymentReference,
   }) async {
     final r = await ApiClient.instance.post('$_base/orders', data: {
       'payment_method': paymentMethod,
@@ -153,8 +154,19 @@ class EGroceryRepository {
       if (substitutionPref != null) 'substitution_pref': substitutionPref,
       if (note != null) 'note': note,
       if (coupon != null) 'coupon': coupon,
+      if (paymentReference != null) 'payment_reference': paymentReference,
     });
     return EGOrder.fromJson(r.data['data']);
+  }
+
+  /// Attach a mobile-pay proof token to an already-placed order (fire & forget).
+  Future<void> attachMobilePayProof(String orderNo, String proofToken) async {
+    try {
+      await ApiClient.instance.post(
+        '$_base/orders/$orderNo/mobile-pay-proof',
+        data: {'proof_token': proofToken},
+      );
+    } catch (_) {}
   }
 
   // ── Orders ─────────────────────────────────────────────────────────────────
@@ -163,7 +175,7 @@ class EGroceryRepository {
     final r = await ApiClient.instance.get('$_base/orders', queryParameters: {'page': page});
     return (
       orders: _list(r.data['data'], EGOrder.fromJson),
-      lastPage: r.data['meta']?['last_page'] ?? 1,
+      lastPage: (r.data['meta']?['last_page'] ?? 1) as int,
     );
   }
 

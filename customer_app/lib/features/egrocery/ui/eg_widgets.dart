@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/widgets/network_image_widget.dart';
@@ -6,9 +6,9 @@ import '../data/models/egrocery_models.dart';
 import '../presentation/providers/egrocery_providers.dart';
 import 'eg_theme.dart';
 
-// ══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // ShimmerBox
-// ══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class EGShimmerBox extends StatefulWidget {
   final double width;
@@ -57,9 +57,9 @@ class _EGShimmerBoxState extends State<EGShimmerBox> with SingleTickerProviderSt
   }
 }
 
-// ══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // SectionHeader
-// ══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class EGSectionHeader extends StatelessWidget {
   final String title;
@@ -80,9 +80,9 @@ class EGSectionHeader extends StatelessWidget {
       );
 }
 
-// ══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // PricePair
-// ══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class EGPricePair extends StatelessWidget {
   final EGVariant variant;
@@ -102,9 +102,9 @@ class EGPricePair extends StatelessWidget {
       );
 }
 
-// ══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // QtyStepper
-// ══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class EGQtyStepper extends StatelessWidget {
   final double qty;
@@ -151,9 +151,9 @@ class EGQtyStepper extends StatelessWidget {
       );
 }
 
-// ══════════════════════════════════════════════════════════════════
-// ProductCard — animated add → stepper morph
-// ══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ProductCard â€” animated add â†’ stepper morph
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class EGProductCard extends ConsumerWidget {
   final EGProduct product;
@@ -185,8 +185,8 @@ class EGProductCard extends ConsumerWidget {
           Stack(children: [
             ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(EGTheme.rCard)),
-              child: NetworkImageWidget(
-                imageUrl: product.image ?? '',
+              child: NetImage(
+                url: product.image ?? '',
                 height: 120,
                 width: width,
                 fit: BoxFit.cover,
@@ -209,7 +209,7 @@ class EGProductCard extends ConsumerWidget {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                   decoration: BoxDecoration(color: EGTheme.orange, borderRadius: BorderRadius.circular(20)),
-                  child: const Text('⚡', style: TextStyle(fontSize: 11)),
+                  child: const Text('âš¡', style: TextStyle(fontSize: 11)),
                 ),
               ),
           ]),
@@ -265,9 +265,9 @@ class _AddBtn extends StatelessWidget {
       );
 }
 
-// ══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // BannerSlider
-// ══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class EGBannerSlider extends StatefulWidget {
   final List<EGBanner> banners;
@@ -319,7 +319,7 @@ class _EGBannerSliderState extends State<EGBannerSlider> {
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(EGTheme.rCard),
-                child: NetworkImageWidget(imageUrl: b.image, height: widget.height, fit: BoxFit.cover),
+                child: NetImage(url: b.image, height: widget.height, fit: BoxFit.cover),
               ),
             );
           },
@@ -348,9 +348,9 @@ class _EGBannerSliderState extends State<EGBannerSlider> {
   }
 }
 
-// ══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // CategoryTile
-// ══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class EGCategoryTile extends StatelessWidget {
   final EGCategory category;
@@ -378,7 +378,7 @@ class EGCategoryTile extends StatelessWidget {
                   : (category.image != null
                       ? ClipRRect(
                           borderRadius: BorderRadius.circular(14),
-                          child: NetworkImageWidget(imageUrl: category.image!, height: 56, width: 56, fit: BoxFit.cover))
+                          child: NetImage(url: category.image!, height: 56, width: 56, fit: BoxFit.cover))
                       : Icon(Icons.category, color: selected ? EGTheme.orange : EGTheme.textGrey, size: 26)),
             ),
             const SizedBox(height: 6),
@@ -394,9 +394,9 @@ class EGCategoryTile extends StatelessWidget {
       );
 }
 
-// ══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // FlashDealCard (with countdown chip + sold-progress bar)
-// ══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class EGFlashDealCard extends ConsumerStatefulWidget {
   final EGProduct product;
@@ -472,7 +472,7 @@ class _EGFlashDealCardState extends ConsumerState<EGFlashDealCard> {
         Stack(children: [
           ClipRRect(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(EGTheme.rCard)),
-            child: NetworkImageWidget(imageUrl: widget.product.image ?? '', height: 110, width: 180, fit: BoxFit.cover),
+            child: NetImage(url: widget.product.image ?? '', height: 110, width: 180, fit: BoxFit.cover),
           ),
           Positioned(
             top: 8,
@@ -484,7 +484,7 @@ class _EGFlashDealCardState extends ConsumerState<EGFlashDealCard> {
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
-                const Text('⚡', style: TextStyle(fontSize: 10)),
+                const Text('âš¡', style: TextStyle(fontSize: 10)),
                 const SizedBox(width: 3),
                 Text(_countdownLabel, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
               ]),
@@ -539,9 +539,9 @@ class _EGFlashDealCardState extends ConsumerState<EGFlashDealCard> {
   }
 }
 
-// ══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // EmptyState
-// ══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class EGEmptyState extends StatelessWidget {
   final String emoji;
@@ -576,9 +576,9 @@ class EGEmptyState extends StatelessWidget {
       );
 }
 
-// ══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // Cart Badge (for AppBar)
-// ══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class EGCartBadge extends ConsumerWidget {
   final VoidCallback? onTap;
@@ -605,3 +605,5 @@ class EGCartBadge extends ConsumerWidget {
     );
   }
 }
+
+

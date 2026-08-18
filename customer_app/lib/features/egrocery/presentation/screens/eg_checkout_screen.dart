@@ -6,6 +6,11 @@ import '../../data/repositories/egrocery_repository.dart';
 import '../../ui/eg_theme.dart';
 import '../../ui/eg_widgets.dart';
 import '../providers/egrocery_providers.dart';
+import '../../../../features/payment/payment_method_section.dart';
+import '../../../../features/payment/mobile_pay_sheet.dart';
+import '../../../../features/payment/waafi_pay_sheet.dart';
+import '../../../../shared/widgets/wallet_pin_dialog.dart';
+import '../../../../features/wallet/presentation/providers/wallet_provider.dart';
 
 class EGCheckoutScreen extends ConsumerStatefulWidget {
   final EGCartValidateResult? validated;
@@ -18,7 +23,9 @@ class EGCheckoutScreen extends ConsumerStatefulWidget {
 }
 
 class _EGCheckoutScreenState extends ConsumerState<EGCheckoutScreen> {
-  String _payment = 'cash';
+  String _payment = 'cod';
+  String? _waafiReference;
+  String? _mobileProofToken;
   EGDeliverySlot? _slot;
   String? _subPref;
   bool _loading = false;
@@ -46,6 +53,37 @@ class _EGCheckoutScreenState extends ConsumerState<EGCheckoutScreen> {
     final lines = ref.read(egCartProvider);
     if (lines.isEmpty) return;
 
+    // ── Payment flows that require user action BEFORE placing order ───────────
+    _waafiReference = null;
+    _mobileProofToken = null;
+
+    final total = widget.validated?.total ?? 0.0;
+
+    if (_payment == 'mobile_pay') {
+      final result = await showMobilePaySheet(
+        context,
+        amount: total,
+        description: 'eGrocery Order',
+      );
+      if (result?.success != true) return;
+      _waafiReference = result!.account != null
+          ? 'mobile_pay_${result.account!.id}'
+          : 'mobile_pay';
+      _mobileProofToken = result.proofToken;
+    } else if (_payment == 'waafi_pay') {
+      final result = await showWaafiPaySheet(
+        context,
+        amount: total,
+        type: 'order',
+        description: 'eGrocery Order',
+      );
+      if (result?.success != true) return;
+      _waafiReference = result!.reference;
+    } else if (_payment == 'wallet') {
+      final pinOk = await showWalletPinDialog(context);
+      if (!pinOk) return;
+    }
+
     setState(() => _loading = true);
     try {
       final order = await EGroceryRepository().placeOrder(
@@ -56,7 +94,15 @@ class _EGCheckoutScreenState extends ConsumerState<EGCheckoutScreen> {
         substitutionPref: _subPref,
         note: _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
         coupon: widget.coupon,
+        paymentReference: _waafiReference,
       );
+
+      // Attach mobile pay proof asynchronously (non-blocking)
+      if (_mobileProofToken != null) {
+        EGroceryRepository().attachMobilePayProof(order.orderNo, _mobileProofToken!);
+      }
+
+      if (_payment == 'wallet') ref.invalidate(walletProvider);
       ref.read(egCartProvider.notifier).clear();
       if (mounted) {
         context.pushReplacement('/egrocery/order-success', extra: order);
@@ -70,7 +116,7 @@ class _EGCheckoutScreenState extends ConsumerState<EGCheckoutScreen> {
             content: Text('⚠️ Some items are no longer available. Cart updated.'),
             backgroundColor: EGTheme.red,
           ));
-          context.pop(); // Back to cart
+          context.pop();
         }
       } else if (msg.contains('SLOT_FULL')) {
         if (mounted) {
@@ -135,24 +181,14 @@ class _EGCheckoutScreenState extends ConsumerState<EGCheckoutScreen> {
           const SizedBox(height: 12),
 
           // ── Payment Method ────────────────────────────────────────────────
-          _SectionCard(title: '💳 Payment', child: Column(children: [
-            ...[
-              ('cash', Icons.money, 'Cash on Delivery'),
-              ('evc', Icons.phone_android, 'EVC Plus'),
-              ('wallet', Icons.account_balance_wallet, 'Wallet'),
-            ].map((e) => RadioListTile<String>(
-              value: e.$1,
-              groupValue: _payment,
-              onChanged: (v) => setState(() => _payment = v!),
-              title: Row(children: [
-                Icon(e.$2, size: 18, color: EGTheme.orange),
-                const SizedBox(width: 8),
-                Text(e.$3, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-              ]),
-              activeColor: EGTheme.orange,
-              contentPadding: EdgeInsets.zero,
-            )),
-          ])),
+          _SectionCard(
+            title: '💳 Payment',
+            child: PaymentMethodSection(
+              selected: _payment,
+              onChanged: (v) => setState(() => _payment = v),
+              showCod: true,
+            ),
+          ),
 
           const SizedBox(height: 12),
 
