@@ -23,6 +23,7 @@ class DatabaseSeeder extends Seeder
             MovingExtraServiceSeeder::class,
             ExchangeRateSeeder::class,
             ModulePerformanceMetricSeeder::class,
+            EGrocerySeeder::class,
         ]);
     }
 }
