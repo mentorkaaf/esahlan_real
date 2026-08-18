@@ -8,6 +8,7 @@ use App\Models\EGrocery\{
     EGroceryShoppingList, EGroceryShoppingListItem,
     EGroceryDeliveryZone, EGroceryFlashDeal
 };
+use App\Models\{Coupon, CouponUsage};
 use App\Services\EGrocery\PricingService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -292,8 +293,88 @@ class EGroceryUserController extends Controller
 
         // Delivery fee for user's zone
         $deliveryFee = $this->resolveDeliveryFee($request);
-        $discount    = 0; // coupon not implemented yet — placeholder
-        $total       = round($subtotal + $deliveryFee - $discount, 2);
+
+        // Coupon validation
+        $couponCode   = $request->input('coupon') ? strtoupper(trim($request->input('coupon'))) : null;
+        $discount     = 0.0;
+        $couponError  = null;
+        $appliedCoupon = null;
+
+        if ($couponCode) {
+            $moduleId = DB::table('modules')->where('slug', 'egrocery')->value('id') ?: 10;
+            $coupon = Coupon::where('code', $couponCode)
+                ->where('module_id', $moduleId)
+                ->where('is_active', true)
+                ->first();
+
+            if (!$coupon) {
+                $couponError = 'INVALID_COUPON';
+            } elseif ($coupon->starts_at && now()->lt($coupon->starts_at)) {
+                $couponError = 'COUPON_NOT_STARTED';
+            } elseif ($coupon->ends_at && now()->gt($coupon->ends_at)) {
+                $couponError = 'COUPON_EXPIRED';
+            } elseif ($coupon->usage_limit && $coupon->used_count >= $coupon->usage_limit) {
+                $couponError = 'COUPON_LIMIT_REACHED';
+            } elseif ($coupon->min_order_amount && $subtotal < $coupon->min_order_amount) {
+                $couponError = 'COUPON_MIN_ORDER:' . $coupon->min_order_amount;
+            } else {
+                // Check per-user limit
+                if ($coupon->usage_per_user) {
+                    $userUsage = CouponUsage::where('coupon_id', $coupon->id)
+                        ->where('user_id', $request->user()?->id)
+                        ->count();
+                    if ($userUsage >= $coupon->usage_per_user) {
+                        $couponError = 'COUPON_USER_LIMIT_REACHED';
+                    }
+                }
+
+                if (!$couponError) {
+                    // Check category restriction
+                    if ($coupon->category_ids) {
+                        $allowedCatIds = (array)$coupon->category_ids;
+                        $variantCatIds = EGroceryProductVariant::with('product:id,category_id')
+                            ->whereIn('id', collect($corrected)->pluck('variant_id'))
+                            ->get()
+                            ->pluck('product.category_id')
+                            ->unique()
+                            ->values()
+                            ->toArray();
+                        if (empty(array_intersect($allowedCatIds, $variantCatIds))) {
+                            $couponError = 'COUPON_CATEGORY_MISMATCH';
+                        }
+                    }
+                }
+
+                if (!$couponError) {
+                    // Apply discount
+                    if ($coupon->type === 'percentage') {
+                        $discount = round($subtotal * ($coupon->value / 100), 2);
+                        if ($coupon->max_discount) {
+                            $discount = min($discount, (float)$coupon->max_discount);
+                        }
+                    } else {
+                        $discount = min((float)$coupon->value, $subtotal);
+                    }
+                    $appliedCoupon = [
+                        'code'     => $coupon->code,
+                        'title'    => $coupon->title,
+                        'type'     => $coupon->type,
+                        'value'    => $coupon->value,
+                        'discount' => $discount,
+                    ];
+                }
+            }
+        }
+
+        $discount = round($discount, 2);
+
+        // Free delivery after discount
+        $zone = $this->findZoneForUser($request);
+        if ($zone?->free_over && $subtotal >= $zone->free_over) {
+            $deliveryFee = 0;
+        }
+
+        $total = round($subtotal + $deliveryFee - $discount, 2);
 
         // Free-delivery progress
         $freeOver = $this->resolveFreeOver($request);
@@ -302,14 +383,16 @@ class EGroceryUserController extends Controller
         return response()->json([
             'success' => true,
             'data'    => [
-                'lines'            => $corrected,
-                'changed'          => $changed,
-                'warnings'         => $warnings,
-                'subtotal'         => $subtotal,
-                'delivery_fee'     => $deliveryFee,
-                'discount'         => $discount,
-                'total'            => $total,
-                'free_over'        => $freeOver,
+                'lines'                  => $corrected,
+                'changed'                => $changed,
+                'warnings'               => $warnings,
+                'subtotal'               => $subtotal,
+                'delivery_fee'           => $deliveryFee,
+                'discount'               => $discount,
+                'coupon'                 => $appliedCoupon,
+                'coupon_error'           => $couponError,
+                'total'                  => $total,
+                'free_over'              => $freeOver,
                 'free_delivery_progress' => $freeProgress,
             ],
         ]);

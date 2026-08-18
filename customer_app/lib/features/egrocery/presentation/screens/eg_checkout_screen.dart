@@ -10,7 +10,8 @@ import '../providers/egrocery_providers.dart';
 class EGCheckoutScreen extends ConsumerStatefulWidget {
   final EGCartValidateResult? validated;
   final String? subPref;
-  const EGCheckoutScreen({super.key, this.validated, this.subPref});
+  final String? coupon;
+  const EGCheckoutScreen({super.key, this.validated, this.subPref, this.coupon});
 
   @override
   ConsumerState<EGCheckoutScreen> createState() => _EGCheckoutScreenState();
@@ -54,6 +55,7 @@ class _EGCheckoutScreenState extends ConsumerState<EGCheckoutScreen> {
         scheduledDate: _slot?.date,
         substitutionPref: _subPref,
         note: _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
+        coupon: widget.coupon,
       );
       ref.read(egCartProvider.notifier).clear();
       if (mounted) {

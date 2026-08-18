@@ -415,6 +415,8 @@ class EGCartValidateResult {
   final double total;
   final double? freeOver;
   final double? freeDeliveryProgress;
+  final Map<String, dynamic>? coupon;
+  final String? couponError;
 
   const EGCartValidateResult({
     required this.lines,
@@ -426,6 +428,8 @@ class EGCartValidateResult {
     required this.total,
     this.freeOver,
     this.freeDeliveryProgress,
+    this.coupon,
+    this.couponError,
   });
 
   factory EGCartValidateResult.fromJson(Map<String, dynamic> j) {
@@ -453,6 +457,8 @@ class EGCartValidateResult {
       total: _d(j['total']),
       freeOver: j['free_over'] != null ? _d(j['free_over']) : null,
       freeDeliveryProgress: j['free_delivery_progress'] != null ? _d(j['free_delivery_progress']) : null,
+      coupon: j['coupon'] != null ? Map<String, dynamic>.from(j['coupon']) : null,
+      couponError: j['coupon_error'] as String?,
     );
   }
 }

@@ -873,6 +873,20 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
                 Route::post('/settings/slots',               [$eg, 'slotStore'])->name('slot.store');
                 Route::post('/settings/slots/{id}',          [$eg, 'slotUpdate'])->name('slot.update');
                 Route::delete('/settings/slots/{id}',        [$eg, 'slotDestroy'])->name('slot.destroy');
+
+                // Coupons
+                Route::get('/coupons',                       [$eg, 'coupons'])->name('coupons');
+                Route::post('/coupons',                      [$eg, 'couponStore'])->name('coupon.store');
+                Route::post('/coupons/{id}',                 [$eg, 'couponUpdate'])->name('coupon.update');
+                Route::post('/coupons/{id}/toggle',          [$eg, 'couponToggle'])->name('coupon.toggle');
+                Route::delete('/coupons/{id}',               [$eg, 'couponDestroy'])->name('coupon.destroy');
+
+                // Reports
+                Route::get('/reports',                       [$eg, 'reports'])->name('reports');
+
+                // Reviews moderation
+                Route::get('/reviews',                       [$eg, 'reviews'])->name('reviews');
+                Route::post('/reviews/{id}/toggle',          [$eg, 'reviewToggle'])->name('review.toggle');
             });
             Route::post('/products',                  [$ctrl, 'productStore'])->name('product.store');
             Route::patch('/products/{product}',       [$ctrl, 'productUpdate'])->name('product.update');

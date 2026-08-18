@@ -311,6 +311,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               return EGCheckoutScreen(
                 validated: extra?['validated'] as EGCartValidateResult?,
                 subPref: extra?['sub_pref'] as String?,
+                coupon: extra?['coupon'] as String?,
               );
             },
           ),

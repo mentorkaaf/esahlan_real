@@ -7,11 +7,11 @@ use App\Models\EGrocery\{
     EGroceryCategory, EGroceryBrand, EGroceryUnit, EGroceryProduct,
     EGroceryProductVariant, EGroceryStockMovement, EGroceryBanner,
     EGrocerySection, EGroceryFlashDeal, EGroceryOrder, EGroceryOrderItem,
-    EGroceryDeliveryZone, EGroceryDeliverySlot
+    EGroceryDeliveryZone, EGroceryDeliverySlot, EGroceryReview
 };
 use App\Services\EGrocery\{CatalogService, StockService};
 use App\Services\FcmService;
-use App\Models\{District, User};
+use App\Models\{District, User, Coupon, CouponUsage};
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\{DB, Cache};
 use Illuminate\Support\Str;
@@ -897,5 +897,214 @@ class AdminEGroceryController extends Controller
     {
         EGroceryDeliverySlot::findOrFail($id)->delete();
         return back()->with('success', 'Slot deleted.');
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 9. COUPONS
+    // ═══════════════════════════════════════════════════════════════
+
+    private function egroceryModuleId(): int
+    {
+        return (int) DB::table('modules')->where('slug', 'egrocery')->value('id') ?: 10;
+    }
+
+    public function coupons()
+    {
+        $moduleId   = $this->egroceryModuleId();
+        $coupons    = Coupon::where('module_id', $moduleId)->latest()->paginate(20);
+        $categories = EGroceryCategory::where('is_active', true)->orderBy('name')->get();
+        return view('admin.egrocery.coupons', compact('coupons', 'categories'));
+    }
+
+    public function couponStore(Request $r)
+    {
+        $data = $r->validate([
+            'code'             => 'required|string|max:50|unique:coupons,code',
+            'title'            => 'required|string|max:200',
+            'description'      => 'nullable|string',
+            'type'             => 'required|in:percentage,fixed',
+            'value'            => 'required|numeric|min:0',
+            'min_order_amount' => 'nullable|numeric|min:0',
+            'max_discount'     => 'nullable|numeric|min:0',
+            'usage_limit'      => 'nullable|integer|min:1',
+            'usage_per_user'   => 'nullable|integer|min:1',
+            'category_ids'     => 'nullable|array',
+            'category_ids.*'   => 'integer|exists:egrocery_categories,id',
+            'starts_at'        => 'nullable|date',
+            'ends_at'          => 'nullable|date|after_or_equal:starts_at',
+            'is_active'        => 'nullable|boolean',
+        ]);
+
+        Coupon::create(array_merge($data, [
+            'module_id'   => $this->egroceryModuleId(),
+            'module_slug' => 'egrocery',
+            'code'        => strtoupper($data['code']),
+            'category_ids'=> !empty($data['category_ids']) ? $data['category_ids'] : null,
+            'is_active'   => $r->boolean('is_active', true),
+        ]));
+
+        return back()->with('success', 'Coupon created.');
+    }
+
+    public function couponUpdate(Request $r, $id)
+    {
+        $coupon = Coupon::findOrFail($id);
+        $data = $r->validate([
+            'title'            => 'required|string|max:200',
+            'description'      => 'nullable|string',
+            'type'             => 'required|in:percentage,fixed',
+            'value'            => 'required|numeric|min:0',
+            'min_order_amount' => 'nullable|numeric|min:0',
+            'max_discount'     => 'nullable|numeric|min:0',
+            'usage_limit'      => 'nullable|integer|min:1',
+            'usage_per_user'   => 'nullable|integer|min:1',
+            'category_ids'     => 'nullable|array',
+            'category_ids.*'   => 'integer|exists:egrocery_categories,id',
+            'starts_at'        => 'nullable|date',
+            'ends_at'          => 'nullable|date',
+            'is_active'        => 'nullable|boolean',
+        ]);
+        $coupon->update(array_merge($data, [
+            'category_ids' => !empty($data['category_ids']) ? $data['category_ids'] : null,
+            'is_active'    => $r->boolean('is_active'),
+        ]));
+        return back()->with('success', 'Coupon updated.');
+    }
+
+    public function couponDestroy($id)
+    {
+        Coupon::findOrFail($id)->delete();
+        return back()->with('success', 'Coupon deleted.');
+    }
+
+    public function couponToggle($id)
+    {
+        $c = Coupon::findOrFail($id);
+        $c->update(['is_active' => !$c->is_active]);
+        return response()->json(['is_active' => $c->is_active]);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 10. REPORTS
+    // ═══════════════════════════════════════════════════════════════
+
+    public function reports(Request $r)
+    {
+        $period = $r->input('period', '30d');
+        $from = match($period) {
+            '7d'  => now()->subDays(7),
+            '30d' => now()->subDays(30),
+            '90d' => now()->subDays(90),
+            default => now()->subDays(30),
+        };
+
+        // Sales by day
+        $salesByDay = EGroceryOrder::where('status', 'delivered')
+            ->where('created_at', '>=', $from)
+            ->selectRaw('DATE(created_at) as date, COUNT(*) as orders, SUM(total) as revenue')
+            ->groupBy('date')
+            ->orderBy('date')
+            ->get();
+
+        // Top products
+        $topProducts = DB::table('egrocery_order_items as oi')
+            ->join('egrocery_orders as o', 'o.id', '=', 'oi.order_id')
+            ->join('egrocery_product_variants as v', 'v.id', '=', 'oi.variant_id')
+            ->join('egrocery_products as p', 'p.id', '=', 'v.product_id')
+            ->where('o.status', 'delivered')
+            ->where('o.created_at', '>=', $from)
+            ->selectRaw('p.id, p.name, SUM(oi.qty) as units, SUM(oi.line_total) as revenue, AVG(v.cost_price) as avg_cost')
+            ->groupBy('p.id', 'p.name')
+            ->orderByDesc('revenue')
+            ->limit(20)
+            ->get();
+
+        // Category share
+        $categoryShare = DB::table('egrocery_order_items as oi')
+            ->join('egrocery_orders as o', 'o.id', '=', 'oi.order_id')
+            ->join('egrocery_product_variants as v', 'v.id', '=', 'oi.variant_id')
+            ->join('egrocery_products as p', 'p.id', '=', 'v.product_id')
+            ->join('egrocery_categories as cat', 'cat.id', '=', 'p.category_id')
+            ->where('o.status', 'delivered')
+            ->where('o.created_at', '>=', $from)
+            ->selectRaw('cat.name, SUM(oi.line_total) as revenue')
+            ->groupBy('cat.id', 'cat.name')
+            ->orderByDesc('revenue')
+            ->get();
+
+        // Slot utilisation
+        $slotUtil = DB::table('egrocery_delivery_slots as s')
+            ->leftJoin('egrocery_orders as o', function ($j) use ($from) {
+                $j->on('o.delivery_slot_id', '=', 's.id')
+                  ->where('o.created_at', '>=', $from)
+                  ->whereNotIn('o.status', ['cancelled']);
+            })
+            ->selectRaw('s.id, CONCAT(s.day_of_week, " ", s.start_time, "-", s.end_time) as label, s.capacity, COUNT(o.id) as booked')
+            ->groupBy('s.id', 's.day_of_week', 's.start_time', 's.end_time', 's.capacity')
+            ->get();
+
+        // Cancellation reasons
+        $cancelReasons = EGroceryOrder::where('status', 'cancelled')
+            ->where('created_at', '>=', $from)
+            ->selectRaw('COALESCE(cancelled_reason, "No reason given") as reason, COUNT(*) as count')
+            ->groupBy('reason')
+            ->orderByDesc('count')
+            ->get();
+
+        // Summary stats
+        $stats = EGroceryOrder::where('created_at', '>=', $from)
+            ->selectRaw('
+                COUNT(*) as total_orders,
+                SUM(CASE WHEN status="delivered" THEN 1 ELSE 0 END) as delivered,
+                SUM(CASE WHEN status="cancelled" THEN 1 ELSE 0 END) as cancelled,
+                SUM(CASE WHEN status="delivered" THEN total ELSE 0 END) as revenue
+            ')
+            ->first();
+
+        if ($r->input('export') === 'csv') {
+            return $this->exportReportsCsv($salesByDay, $topProducts);
+        }
+
+        return view('admin.egrocery.reports', compact(
+            'period', 'salesByDay', 'topProducts', 'categoryShare',
+            'slotUtil', 'cancelReasons', 'stats'
+        ));
+    }
+
+    private function exportReportsCsv($salesByDay, $topProducts)
+    {
+        $csv = "Date,Orders,Revenue\n";
+        foreach ($salesByDay as $row) {
+            $csv .= "{$row->date},{$row->orders},{$row->revenue}\n";
+        }
+        $csv .= "\nProduct,Units,Revenue\n";
+        foreach ($topProducts as $row) {
+            $csv .= "\"{$row->name}\",{$row->units},{$row->revenue}\n";
+        }
+        return response($csv, 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="egrocery-report-' . date('Y-m-d') . '.csv"',
+        ]);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 11. RATINGS MODERATION
+    // ═══════════════════════════════════════════════════════════════
+
+    public function reviews(Request $r)
+    {
+        $reviews = EGroceryReview::with('user:id,name', 'product:id,name')
+            ->when($r->input('filter') === 'approved', fn ($q) => $q->where('is_approved', true))
+            ->when($r->input('filter') === 'pending',  fn ($q) => $q->where('is_approved', false))
+            ->latest()
+            ->paginate(25);
+        return view('admin.egrocery.reviews', compact('reviews'));
+    }
+
+    public function reviewToggle($id)
+    {
+        $review = EGroceryReview::findOrFail($id);
+        $review->update(['is_approved' => !$review->is_approved]);
+        return response()->json(['is_approved' => $review->is_approved]);
     }
 }

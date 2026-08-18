@@ -7,6 +7,7 @@ use App\Models\EGrocery\{
     EGroceryOrder, EGroceryOrderItem, EGroceryProductVariant,
     EGroceryDeliverySlot, EGroceryDeliveryZone, EGroceryFlashDeal, EGroceryReview
 };
+use App\Models\{Coupon, CouponUsage};
 use App\Services\EGrocery\{PricingService, StockService};
 use App\Services\FcmService;
 use App\Services\RealtimeService;
@@ -197,7 +198,46 @@ class EGroceryOrderController extends Controller
                     $deliveryFee = 0;
                 }
 
-                $total    = round($subtotal + $deliveryFee, 2);
+                // ── Coupon ────────────────────────────────────────────────
+                $couponDiscount = 0.0;
+                $appliedCoupon  = null;
+                $couponCode     = $request->input('coupon') ? strtoupper(trim($request->input('coupon'))) : null;
+
+                if ($couponCode) {
+                    $moduleId = DB::table('modules')->where('slug', 'egrocery')->value('id') ?: 10;
+                    $coupon = Coupon::where('code', $couponCode)
+                        ->where('module_id', $moduleId)
+                        ->where('is_active', true)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if ($coupon
+                        && (!$coupon->starts_at || now()->gte($coupon->starts_at))
+                        && (!$coupon->ends_at   || now()->lte($coupon->ends_at))
+                        && (!$coupon->usage_limit || $coupon->used_count < $coupon->usage_limit)
+                        && (!$coupon->min_order_amount || $subtotal >= $coupon->min_order_amount)
+                    ) {
+                        $userUsageCount = $coupon->usage_per_user
+                            ? CouponUsage::where('coupon_id', $coupon->id)->where('user_id', $user->id)->count()
+                            : 0;
+
+                        if (!$coupon->usage_per_user || $userUsageCount < $coupon->usage_per_user) {
+                            if ($coupon->type === 'percentage') {
+                                $couponDiscount = round($subtotal * ($coupon->value / 100), 2);
+                                if ($coupon->max_discount) {
+                                    $couponDiscount = min($couponDiscount, (float)$coupon->max_discount);
+                                }
+                            } else {
+                                $couponDiscount = min((float)$coupon->value, $subtotal);
+                            }
+                            $appliedCoupon = $coupon;
+                            $coupon->increment('used_count');
+                        }
+                    }
+                }
+
+                $discount = round($couponDiscount, 2);
+                $total    = round($subtotal + $deliveryFee - $discount, 2);
                 $orderNo  = 'EGR-' . strtoupper(Str::random(8));
 
                 // Create order
@@ -209,7 +249,7 @@ class EGroceryOrderController extends Controller
                     'payment_method'    => $request->payment_method,
                     'payment_status'    => 'unpaid',
                     'subtotal'          => $subtotal,
-                    'discount'          => 0,
+                    'discount'          => $discount,
                     'delivery_fee'      => $deliveryFee,
                     'total'             => $total,
                     'delivery_slot_id'  => $request->slot_id,
@@ -223,6 +263,16 @@ class EGroceryOrderController extends Controller
                     $item['order_id'] = $order->id;
                 }
                 EGroceryOrderItem::insert($itemsData);
+
+                // Record coupon usage
+                if ($appliedCoupon) {
+                    CouponUsage::create([
+                        'coupon_id'       => $appliedCoupon->id,
+                        'user_id'         => $user->id,
+                        'order_id'        => $order->id,
+                        'discount_amount' => $discount,
+                    ]);
+                }
 
                 // Decrement stock
                 foreach ($request->lines as $line) {

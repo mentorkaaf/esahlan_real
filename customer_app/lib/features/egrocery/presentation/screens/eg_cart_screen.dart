@@ -21,6 +21,9 @@ class _EGCartScreenState extends ConsumerState<EGCartScreen> {
   Timer? _validateDebounce;
   String? _changedBanner;
   String _subPref = 'best_match';
+  final _couponCtrl = TextEditingController();
+  String? _couponCode;
+  String? _couponError;
 
   @override
   void initState() {
@@ -41,13 +44,20 @@ class _EGCartScreenState extends ConsumerState<EGCartScreen> {
     }
     setState(() => _validating = true);
     try {
-      final result = await EGroceryRepository().validateCart(lines: lines);
+      final result = await EGroceryRepository().validateCart(
+        lines: lines,
+        coupon: _couponCode,
+      );
       if (!mounted) return;
       if (result.changed) {
         ref.read(egCartProvider.notifier).applyValidation(result);
         setState(() => _changedBanner = 'Some items were updated based on current stock & prices.');
       }
-      setState(() { _validated = result; _validating = false; });
+      setState(() {
+        _validated = result;
+        _validating = false;
+        _couponError = result.couponError;
+      });
     } catch (_) {
       if (mounted) setState(() => _validating = false);
     }
@@ -56,6 +66,7 @@ class _EGCartScreenState extends ConsumerState<EGCartScreen> {
   @override
   void dispose() {
     _validateDebounce?.cancel();
+    _couponCtrl.dispose();
     super.dispose();
   }
 
@@ -97,7 +108,7 @@ class _EGCartScreenState extends ConsumerState<EGCartScreen> {
 
               Expanded(child: ListView.builder(
                 padding: const EdgeInsets.all(12),
-                itemCount: lines.length + 1, // +1 for options card
+                itemCount: lines.length + 2, // +1 options card, +1 coupon card
                 itemBuilder: (_, i) {
                   if (i < lines.length) {
                     return _CartLineItem(
@@ -112,8 +123,24 @@ class _EGCartScreenState extends ConsumerState<EGCartScreen> {
                       },
                     );
                   }
-                  // Options card
-                  return _OptionsCard(subPref: _subPref, onSubPrefChanged: (v) => setState(() => _subPref = v));
+                  if (i == lines.length) {
+                    return _OptionsCard(subPref: _subPref, onSubPrefChanged: (v) => setState(() => _subPref = v));
+                  }
+                  // Coupon card
+                  return _CouponCard(
+                    controller: _couponCtrl,
+                    applied: _validated?.coupon,
+                    error: _couponError,
+                    onApply: () {
+                      setState(() { _couponCode = _couponCtrl.text.trim().isEmpty ? null : _couponCtrl.text.trim().toUpperCase(); });
+                      _validate();
+                    },
+                    onRemove: () {
+                      _couponCtrl.clear();
+                      setState(() { _couponCode = null; _couponError = null; });
+                      _validate();
+                    },
+                  );
                 },
               )),
 
@@ -164,6 +191,7 @@ class _EGCartScreenState extends ConsumerState<EGCartScreen> {
                         context.push('/egrocery/checkout', extra: {
                           'validated': _validated,
                           'sub_pref': _subPref,
+                          'coupon': _couponCode,
                         });
                       },
                       style: ElevatedButton.styleFrom(
@@ -261,6 +289,96 @@ class _OptionsCard extends StatelessWidget {
           )),
         ]),
       );
+}
+
+class _CouponCard extends StatelessWidget {
+  final TextEditingController controller;
+  final Map<String, dynamic>? applied;
+  final String? error;
+  final VoidCallback onApply;
+  final VoidCallback onRemove;
+  const _CouponCard({required this.controller, this.applied, this.error, required this.onApply, required this.onRemove});
+
+  String _friendlyError(String? e) {
+    if (e == null) return '';
+    if (e.startsWith('COUPON_MIN_ORDER:')) return 'Min order: \$${e.split(':').last}';
+    return switch (e) {
+      'INVALID_COUPON'            => 'Invalid coupon code',
+      'COUPON_EXPIRED'            => 'Coupon has expired',
+      'COUPON_NOT_STARTED'        => 'Coupon is not active yet',
+      'COUPON_LIMIT_REACHED'      => 'Coupon usage limit reached',
+      'COUPON_USER_LIMIT_REACHED' => 'You have already used this coupon',
+      'COUPON_CATEGORY_MISMATCH'  => 'Coupon not valid for these products',
+      _                           => 'Coupon could not be applied',
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isApplied = applied != null;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(EGTheme.rCard)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('🎟️ Coupon Code', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+        const SizedBox(height: 8),
+        if (isApplied)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: EGTheme.green.withOpacity(0.08),
+              border: Border.all(color: EGTheme.green.withOpacity(0.4)),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(children: [
+              const Icon(Icons.check_circle, color: EGTheme.green, size: 18),
+              const SizedBox(width: 8),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(applied!['code'] ?? '', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: EGTheme.green)),
+                Text(applied!['title'] ?? '', style: const TextStyle(fontSize: 11, color: EGTheme.textGrey)),
+              ])),
+              Text('-\$${(applied!['discount'] as num).toStringAsFixed(2)}',
+                  style: const TextStyle(fontWeight: FontWeight.w800, color: EGTheme.green, fontSize: 14)),
+              const SizedBox(width: 8),
+              GestureDetector(onTap: onRemove, child: const Icon(Icons.close, size: 18, color: EGTheme.textGrey)),
+            ]),
+          )
+        else
+          Row(children: [
+            Expanded(
+              child: TextField(
+                controller: controller,
+                textCapitalization: TextCapitalization.characters,
+                decoration: InputDecoration(
+                  hintText: 'Enter coupon code',
+                  hintStyle: const TextStyle(color: EGTheme.textGrey, fontSize: 14),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: EGTheme.shimmer)),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: EGTheme.orange)),
+                  errorText: error != null ? _friendlyError(error) : null,
+                  errorStyle: const TextStyle(fontSize: 11, color: EGTheme.red),
+                ),
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, letterSpacing: 1),
+                onSubmitted: (_) => onApply(),
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: onApply,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: EGTheme.orange,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                elevation: 0,
+              ),
+              child: const Text('Apply', style: TextStyle(fontWeight: FontWeight.w700)),
+            ),
+          ]),
+      ]),
+    );
+  }
 }
 
 class _TotalRow extends StatelessWidget {
