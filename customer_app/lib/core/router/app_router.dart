@@ -93,6 +93,14 @@ import '../../features/modules/edata/edata_screen.dart';
 import '../../features/modules/eexchange/eexchange_screen.dart';
 import '../../features/modules/eticket/eticket_screen.dart';
 import '../../features/modules/egrocery/egrocery_screen.dart';
+import '../../features/egrocery/presentation/screens/eg_home_screen.dart';
+import '../../features/egrocery/presentation/screens/eg_product_list_screen.dart';
+import '../../features/egrocery/presentation/screens/eg_product_detail_screen.dart';
+import '../../features/egrocery/presentation/screens/eg_search_screen.dart';
+import '../../features/egrocery/presentation/screens/eg_cart_screen.dart';
+import '../../features/egrocery/presentation/screens/eg_checkout_screen.dart';
+import '../../features/egrocery/presentation/screens/eg_orders_screen.dart';
+import '../../features/egrocery/data/models/egrocery_models.dart';
 import '../../features/modules/ewholesale/ewholesale_screen.dart';
 import '../../features/modules/elaundry/elaundry_screen.dart';
 import '../../features/modules/ehealth/ehealth_screen.dart';
@@ -278,7 +286,45 @@ final routerProvider = Provider<GoRouter>((ref) {
               flightId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
             ),
           ),
-          GoRoute(path: '/egrocery',   builder: (_, __) => const EGroceryScreen()),
+          // eGrocery v2
+          GoRoute(path: '/egrocery',         builder: (_, __) => const EGHomeScreen()),
+          GoRoute(path: '/egrocery/search',  builder: (_, __) => const EGSearchScreen()),
+          GoRoute(path: '/egrocery/cart',    builder: (_, __) => const EGCartScreen()),
+          GoRoute(
+            path: '/egrocery/products',
+            builder: (_, state) {
+              final p = state.uri.queryParameters;
+              return EGProductListScreen(
+                categoryId: p['category'] != null ? int.tryParse(p['category']!) : null,
+                title: p['title'],
+              );
+            },
+          ),
+          GoRoute(
+            path: '/egrocery/product/:slug',
+            builder: (_, state) => EGProductDetailScreen(slug: state.pathParameters['slug']!),
+          ),
+          GoRoute(
+            path: '/egrocery/checkout',
+            builder: (_, state) {
+              final extra = state.extra as Map<String, dynamic>?;
+              return EGCheckoutScreen(
+                validated: extra?['validated'] as EGCartValidateResult?,
+                subPref: extra?['sub_pref'] as String?,
+              );
+            },
+          ),
+          GoRoute(
+            path: '/egrocery/order-success',
+            builder: (_, state) => EGOrderSuccessScreen(order: state.extra as EGOrder),
+          ),
+          GoRoute(path: '/egrocery/orders', builder: (_, __) => const EGOrdersScreen()),
+          GoRoute(
+            path: '/egrocery/orders/:id',
+            builder: (_, state) => EGOrderDetailScreen(orderId: int.tryParse(state.pathParameters['id']!) ?? 0),
+          ),
+          // Legacy fallback
+          GoRoute(path: '/egrocery-legacy', builder: (_, __) => const EGroceryScreen()),
           GoRoute(path: '/ewholesale', builder: (_, __) => const EWholesaleScreen()),
           GoRoute(path: '/elaundry',   builder: (_, __) => const ELaundryScreen()),
           GoRoute(path: '/ehealth',    builder: (_, __) => const EHealthScreen()),
