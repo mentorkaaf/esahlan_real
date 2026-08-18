@@ -76,12 +76,12 @@ tbody tr:nth-child(even) td { background: #f9f9f9; }
         @foreach($order->items as $item)
         <tr>
             <td><span class="check"></span></td>
-            <td style="font-weight:600;">{{ $item->product_name ?? $item->product?->name }}</td>
-            <td style="color:#555;">{{ $item->variant_label ?? $item->variant?->label }}</td>
+            <td style="font-weight:600;">{{ $item->name_snapshot ?? $item->product?->name }}</td>
+            <td style="color:#555;">{{ $item->unit_label_snapshot ?? $item->variant?->label }}</td>
             <td style="text-align:center;font-weight:700;">{{ $item->qty }}</td>
             <td style="text-align:center;border:1px solid #ccc;min-width:50px;">&nbsp;</td>
-            <td style="text-align:right;">${{ number_format($item->unit_price, 2) }}</td>
-            <td style="text-align:right;font-weight:700;">${{ number_format($item->subtotal, 2) }}</td>
+            <td style="text-align:right;">${{ number_format($item->unit_price_snapshot, 2) }}</td>
+            <td style="text-align:right;font-weight:700;">${{ number_format($item->line_total, 2) }}</td>
         </tr>
         @endforeach
     </tbody>

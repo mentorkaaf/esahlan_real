@@ -54,8 +54,8 @@ $statusColors = [
                     <tbody>
                         @foreach($order->items as $item)
                         <tr>
-                            <td style="font-weight:600;">{{ $item->product_name ?? $item->product?->name }}</td>
-                            <td style="color:#64748b;">{{ $item->variant_label ?? $item->variant?->label }}</td>
+                            <td style="font-weight:600;">{{ $item->name_snapshot ?? $item->product?->name }}</td>
+                            <td style="color:#64748b;">{{ $item->unit_label_snapshot ?? $item->variant?->label }}</td>
                             <td style="text-align:center;font-weight:700;">{{ $item->qty }}</td>
                             <td style="text-align:center;">
                                 @if(in_array($order->status, ['picking','ready','out_for_delivery','delivered']))
@@ -69,12 +69,12 @@ $statusColors = [
                                 <span style="color:#9ca3af;">{{ $item->picked_qty ?? '—' }}</span>
                                 @endif
                             </td>
-                            <td>${{ number_format($item->unit_price, 2) }}</td>
-                            <td style="font-weight:700;">${{ number_format($item->subtotal, 2) }}</td>
+                            <td>${{ number_format($item->unit_price_snapshot, 2) }}</td>
+                            <td style="font-weight:700;">${{ number_format($item->line_total, 2) }}</td>
                             <td>
-                                @if($item->sub_status && $item->sub_status !== 'none')
-                                <span class="badge {{ $item->sub_status === 'proposed' ? 'badge-warning' : ($item->sub_status === 'accepted' ? 'badge-success' : 'badge-danger') }}">
-                                    {{ ucfirst($item->sub_status) }}{{ $item->substitution ? ': '.$item->substitution->label : '' }}
+                                @if($item->substitution_status && $item->substitution_status !== 'none')
+                                <span class="badge {{ $item->substitution_status === 'proposed' ? 'badge-warning' : ($item->substitution_status === 'accepted' ? 'badge-success' : 'badge-danger') }}">
+                                    {{ ucfirst($item->substitution_status) }}{{ $item->substitutionVariant ? ': '.$item->substitutionVariant->label : '' }}
                                 </span>
                                 @elseif(in_array($order->status, ['picking','confirmed']))
                                 <button onclick="proposeSub({{ $item->id }})" class="btn btn-sm" style="background:#fef3c7;color:#d97706;font-size:11px;"><i class="fas fa-rotate"></i> Propose Sub</button>
