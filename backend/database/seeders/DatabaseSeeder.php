@@ -24,6 +24,7 @@ class DatabaseSeeder extends Seeder
             ExchangeRateSeeder::class,
             ModulePerformanceMetricSeeder::class,
             EGrocerySeeder::class,
+            EGroceryCatalogSeeder::class,
         ]);
     }
 }
