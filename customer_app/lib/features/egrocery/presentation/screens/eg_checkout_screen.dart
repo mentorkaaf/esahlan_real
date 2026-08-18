@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -125,7 +126,20 @@ class _EGCheckoutScreenState extends ConsumerState<EGCheckoutScreen> {
         }
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $msg'), backgroundColor: EGTheme.red));
+          // Extract actual server validation message if available
+          String display = msg;
+          if (e is DioException && e.response?.data != null) {
+            final d = e.response!.data;
+            if (d is Map) {
+              final errors = d['errors'];
+              if (errors is Map) {
+                display = errors.values.expand((v) => v is List ? v : [v]).join('\n');
+              } else if (d['message'] != null) {
+                display = d['message'].toString();
+              }
+            }
+          }
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(display), backgroundColor: EGTheme.red));
         }
       }
     }

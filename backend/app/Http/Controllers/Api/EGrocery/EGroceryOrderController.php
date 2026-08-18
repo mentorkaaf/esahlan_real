@@ -76,6 +76,7 @@ class EGroceryOrderController extends Controller
      */
     public function checkout(Request $request): JsonResponse
     {
+        \Log::info('[EGrocery checkout] input', $request->all());
         $request->validate([
             'address_id'        => 'nullable|integer',
             'slot_id'           => 'nullable|integer|exists:egrocery_delivery_slots,id',
