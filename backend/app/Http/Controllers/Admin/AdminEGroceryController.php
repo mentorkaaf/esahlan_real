@@ -199,7 +199,7 @@ class AdminEGroceryController extends Controller
     {
         $categories = EGroceryCategory::orderBy('name')->get(['id', 'name', 'parent_id']);
         $brands     = EGroceryBrand::orderBy('name')->get(['id', 'name']);
-        $units      = EGroceryUnit::orderBy('name')->get(['id', 'name', 'symbol']);
+        $units      = EGroceryUnit::orderBy('name')->get(['id', 'name', 'abbreviation']);
         return view('admin.egrocery.product_form', compact('categories', 'brands', 'units'));
     }
 
@@ -208,7 +208,7 @@ class AdminEGroceryController extends Controller
         $product    = EGroceryProduct::with('activeVariants.unit')->findOrFail($id);
         $categories = EGroceryCategory::orderBy('name')->get(['id', 'name', 'parent_id']);
         $brands     = EGroceryBrand::orderBy('name')->get(['id', 'name']);
-        $units      = EGroceryUnit::orderBy('name')->get(['id', 'name', 'symbol']);
+        $units      = EGroceryUnit::orderBy('name')->get(['id', 'name', 'abbreviation']);
         return view('admin.egrocery.product_form', compact('product', 'categories', 'brands', 'units'));
     }
 
