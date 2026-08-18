@@ -47,27 +47,29 @@ class AdminEGroceryController extends Controller
             $chartDays->push(['day' => $d, 'cnt' => $chart14->get($d)?->cnt ?? 0, 'revenue' => $chart14->get($d)?->revenue ?? 0]);
         }
 
-        // Top 10 products 30d
+        // Top 10 products 30d — items → variants → products
         $topProducts = DB::table('egrocery_order_items as oi')
             ->join('egrocery_orders as o', 'o.id', '=', 'oi.order_id')
-            ->join('egrocery_products as p', 'p.id', '=', 'oi.product_id')
+            ->join('egrocery_product_variants as v', 'v.id', '=', 'oi.variant_id')
+            ->join('egrocery_products as p', 'p.id', '=', 'v.product_id')
             ->where('o.created_at', '>=', now()->subDays(30))
-            ->groupBy('oi.product_id', 'p.name')
-            ->orderByRaw('SUM(oi.subtotal) DESC')
+            ->groupBy('p.id', 'p.name')
+            ->orderByRaw('SUM(oi.line_total) DESC')
             ->limit(10)
-            ->selectRaw('p.name, SUM(oi.qty) as total_qty, SUM(oi.subtotal) as total_rev')
+            ->selectRaw('p.name, SUM(oi.qty) as total_qty, SUM(oi.line_total) as total_rev')
             ->get();
 
         // Category revenue 30d
         $catRevenue = DB::table('egrocery_order_items as oi')
             ->join('egrocery_orders as o', 'o.id', '=', 'oi.order_id')
-            ->join('egrocery_products as p', 'p.id', '=', 'oi.product_id')
+            ->join('egrocery_product_variants as v', 'v.id', '=', 'oi.variant_id')
+            ->join('egrocery_products as p', 'p.id', '=', 'v.product_id')
             ->join('egrocery_categories as c', 'c.id', '=', 'p.category_id')
             ->where('o.created_at', '>=', now()->subDays(30))
             ->where('o.payment_status', 'paid')
             ->groupBy('c.id', 'c.name', 'c.icon')
-            ->selectRaw('c.name, c.icon, SUM(oi.subtotal) as revenue')
-            ->orderByRaw('SUM(oi.subtotal) DESC')->limit(6)->get();
+            ->selectRaw('c.name, c.icon, SUM(oi.line_total) as revenue')
+            ->orderByRaw('SUM(oi.line_total) DESC')->limit(6)->get();
 
         // Needs attention
         $lowStockItems = EGroceryProductVariant::with('product:id,name,slug')
@@ -1006,14 +1008,14 @@ class AdminEGroceryController extends Controller
             ->orderBy('date')
             ->get();
 
-        // Top products
+        // Top products (variant → product join)
         $topProducts = DB::table('egrocery_order_items as oi')
             ->join('egrocery_orders as o', 'o.id', '=', 'oi.order_id')
             ->join('egrocery_product_variants as v', 'v.id', '=', 'oi.variant_id')
             ->join('egrocery_products as p', 'p.id', '=', 'v.product_id')
             ->where('o.status', 'delivered')
             ->where('o.created_at', '>=', $from)
-            ->selectRaw('p.id, p.name, SUM(oi.qty) as units, SUM(oi.line_total) as revenue, AVG(v.cost_price) as avg_cost')
+            ->selectRaw('p.id, p.name, SUM(oi.qty) as units, SUM(oi.line_total) as revenue, COALESCE(AVG(v.cost), 0) as avg_cost')
             ->groupBy('p.id', 'p.name')
             ->orderByDesc('revenue')
             ->limit(20)
