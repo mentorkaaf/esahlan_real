@@ -126,7 +126,7 @@ class AdminExchangeController extends Controller
             'updated_at' => now(),
         ]);
 
-        // Real-time push to the user's Flutter app
+        // Real-time push to the user's Flutter app (Reverb WebSocket)
         \App\Services\RealtimeService::toUser($order->user_id, 'exchange.order_updated', [
             'id'          => $id,
             'status'      => $request->status,
@@ -135,6 +135,29 @@ class AdminExchangeController extends Controller
             'sent_amount' => $order->sent_amount,
             'reference'   => $order->reference,
         ]);
+
+        // FCM push notification — sent even when app is in background/killed
+        $statusLabels = [
+            'pending'    => ['🕐 Order Pending',     'Your exchange order #' . $order->reference . ' is pending.'],
+            'processing' => ['⚙️ Order Processing',  'Your exchange order #' . $order->reference . ' is being processed.'],
+            'completed'  => ['✅ Exchange Completed', 'Your exchange of $' . number_format($order->sent_amount, 2) . ' (' . $order->from_wallet . ' → ' . $order->to_wallet . ') is complete.'],
+            'failed'     => ['❌ Exchange Failed',    'Your exchange order #' . $order->reference . ' could not be completed. Please contact support.'],
+        ];
+        [$notifTitle, $notifBody] = $statusLabels[$request->status] ?? ['eExchange Update', 'Your order status changed to ' . ucfirst($request->status)];
+
+        $fcmToken = DB::table('users')->where('id', $order->user_id)->value('fcm_token');
+        if ($fcmToken) {
+            \App\Services\FcmService::sendToToken(
+                $fcmToken,
+                $notifTitle,
+                $notifBody,
+                ['type' => 'exchange_order', 'order_id' => (string) $id, 'status' => $request->status],
+                null,
+                'esahlan_high_v3',
+                null,
+                $order->user_id,
+            );
+        }
 
         return back()->with('success', 'Order status updated to ' . ucfirst($request->status));
     }
