@@ -92,7 +92,7 @@ class EGroceryHomeController extends Controller
         // Flash deal meta keyed by variant_id
         $flashMeta = [];
         if ($section->type === 'flash_deal') {
-            $section->flashDeals->each(function ($fd) use (&$flashMeta) {
+            $section->flashDeals->each(function ($fd) use (&$flashMeta, $section) {
                 $flashMeta[$fd->variant_id] = [
                     'deal_price' => $fd->deal_price,
                     'qty_limit'  => $fd->qty_limit,
