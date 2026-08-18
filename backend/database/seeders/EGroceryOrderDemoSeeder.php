@@ -24,9 +24,11 @@ class EGroceryOrderDemoSeeder extends Seeder
             return;
         }
 
-        // Get a real user to assign orders to (or create minimal stub)
-        $userId = DB::table('users')->where('role', '!=', 'admin')->value('id')
-            ?? DB::table('users')->value('id');
+        // Get a real user to assign orders to
+        $adminRoleId = DB::table('roles')->where('name', 'admin')->value('id');
+        $userId = $adminRoleId
+            ? (DB::table('users')->where('role_id', '!=', $adminRoleId)->value('id') ?? DB::table('users')->value('id'))
+            : DB::table('users')->value('id');
 
         if (!$userId) {
             $this->command->warn('No users found — create a user first.');
@@ -66,16 +68,15 @@ class EGroceryOrderDemoSeeder extends Seeder
                 $line = round($qty * $price, 2);
                 $subtotal += $line;
                 $items[] = [
-                    'variant_id'    => $v->id,
-                    'product_id'    => $v->product_id,
-                    'product_name'  => $v->product_name,
-                    'variant_label' => $v->label,
-                    'qty'           => $qty,
-                    'unit_price'    => $price,
-                    'subtotal'      => $line,
-                    'picked_qty'    => in_array($status, ['ready','out_for_delivery','delivered']) ? $qty : null,
-                    'created_at'    => $createdAt,
-                    'updated_at'    => $updatedAt,
+                    'variant_id'             => $v->id,
+                    'name_snapshot'          => $v->product_name,
+                    'unit_label_snapshot'    => $v->label,
+                    'unit_price_snapshot'    => $price,
+                    'qty'                    => $qty,
+                    'line_total'             => $line,
+                    'picked_qty'             => in_array($status, ['ready','out_for_delivery','delivered']) ? $qty : null,
+                    'created_at'             => $createdAt,
+                    'updated_at'             => $updatedAt,
                 ];
             }
             $subtotal = round($subtotal, 2);
