@@ -55,7 +55,7 @@
                     <td>
                         <div style="display:flex;gap:6px;">
                             <button onclick="openZoneModal({{ $z->toJson() }})" class="btn btn-sm" style="background:#eff6ff;color:#2563eb;" title="Edit"><i class="fas fa-pen"></i></button>
-                            <form method="POST" action="{{ route('admin.module-data.egrocery.settings.zone.destroy', $z->id) }}" onsubmit="return confirm('Delete this zone?')">
+                            <form method="POST" action="{{ route('admin.module-data.egrocery.zone.destroy', $z->id) }}" onsubmit="return confirm('Delete this zone?')">
                                 @csrf @method('DELETE')
                                 <button type="submit" class="btn btn-sm" style="background:#fef2f2;color:#dc2626;" title="Delete"><i class="fas fa-trash"></i></button>
                             </form>
@@ -115,7 +115,7 @@
                     <td>
                         <div style="display:flex;gap:6px;">
                             <button onclick="openSlotModal({{ $sl->toJson() }})" class="btn btn-sm" style="background:#eff6ff;color:#2563eb;" title="Edit"><i class="fas fa-pen"></i></button>
-                            <form method="POST" action="{{ route('admin.module-data.egrocery.settings.slot.destroy', $sl->id) }}" onsubmit="return confirm('Delete this slot?')">
+                            <form method="POST" action="{{ route('admin.module-data.egrocery.slot.destroy', $sl->id) }}" onsubmit="return confirm('Delete this slot?')">
                                 @csrf @method('DELETE')
                                 <button type="submit" class="btn btn-sm" style="background:#fef2f2;color:#dc2626;" title="Delete"><i class="fas fa-trash"></i></button>
                             </form>
@@ -237,8 +237,8 @@
 </div>
 
 <script>
-const zoneStoreUrl = '{{ route("admin.module-data.egrocery.settings.zone.store") }}';
-const slotStoreUrl = '{{ route("admin.module-data.egrocery.settings.slot.store") }}';
+const zoneStoreUrl = '{{ route("admin.module-data.egrocery.zone.store") }}';
+const slotStoreUrl = '{{ route("admin.module-data.egrocery.slot.store") }}';
 
 function openZoneModal(zone) {
     const form = document.getElementById('zoneForm');
