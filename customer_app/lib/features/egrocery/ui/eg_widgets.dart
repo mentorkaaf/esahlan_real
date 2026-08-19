@@ -190,14 +190,14 @@ class EGProductCard extends ConsumerWidget {
             ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
               child: Container(
-                height: 130,
+                height: 105,
                 width: width,
                 color: const Color(0xFFF7F7F7),
                 child: NetImage(
                   url: product.image ?? '',
-                  height: 130,
+                  height: 105,
                   width: width,
-                  fit: BoxFit.cover,
+                  fit: BoxFit.contain,
                   errorWidget: Container(
                     color: const Color(0xFFF2F2F2),
                     child: const Center(child: Icon(Icons.image_outlined, size: 36, color: Color(0xFFCCCCCC))),

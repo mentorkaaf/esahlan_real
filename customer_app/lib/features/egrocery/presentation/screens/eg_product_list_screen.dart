@@ -130,7 +130,7 @@ class _EGProductListScreenState extends ConsumerState<EGProductListScreen> {
                             crossAxisCount: 2,
                             crossAxisSpacing: 12,
                             mainAxisSpacing: 12,
-                            childAspectRatio: 0.72,
+                            childAspectRatio: 0.78,
                           ),
                           itemCount: state.products.length + (state.isLoadingMore ? 2 : 0),
                           itemBuilder: (_, i) {
@@ -165,7 +165,7 @@ class _EGProductListScreenState extends ConsumerState<EGProductListScreen> {
 
   Widget _buildSkeleton() => GridView.builder(
         padding: const EdgeInsets.all(12),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 0.72),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 0.78),
         itemCount: 6,
         itemBuilder: (_, __) => EGShimmerBox(width: 160, height: 220, radius: EGTheme.rCard),
       );
