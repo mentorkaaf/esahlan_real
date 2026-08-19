@@ -781,6 +781,14 @@ class AdminEGroceryController extends Controller
             'delivered_at'     => $r->status === 'delivered' ? now() : $order->delivered_at,
         ]);
 
+        // Sync status to main orders table
+        \App\Models\Order::where('order_number', $order->order_no)->update([
+            'status'       => $r->status,
+            'confirmed_at' => $r->status === 'confirmed' ? now() : null,
+            'delivered_at' => $r->status === 'delivered' ? now() : null,
+            'cancelled_at' => $r->status === 'cancelled'  ? now() : null,
+        ]);
+
         // Reverb broadcast
         try {
             $payload = ['order_id' => $order->id, 'status' => $r->status, 'order_no' => $order->order_no];

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\User;
 use App\Models\Vendor;
+use App\Models\EGrocery\EGroceryOrder;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
@@ -42,6 +43,18 @@ class DashboardController extends Controller
         $totalRevenue   = Order::where('status', 'delivered')->sum('total_amount');
         $todayRevenue   = Order::where('status', 'delivered')->whereDate('created_at', today())->sum('total_amount');
         $monthlyRevenue = Order::where('status', 'delivered')->where('created_at', '>=', $thisMonth)->sum('total_amount');
+
+        // ── eGrocery (separate table — not yet in orders; avoid double-count after mirror) ──
+        $mirroredEgNos = Order::where('module_slug', 'egrocery')->pluck('order_number')->toArray();
+        $egQ = EGroceryOrder::whereNotIn('order_no', $mirroredEgNos);
+        $totalOrders    += (clone $egQ)->count();
+        $todayOrders    += (clone $egQ)->whereDate('created_at', today())->count();
+        $pendingOrders  += (clone $egQ)->where('status', 'pending')->count();
+        $deliveredOrders+= (clone $egQ)->where('status', 'delivered')->count();
+        $cancelledOrders+= (clone $egQ)->where('status', 'cancelled')->count();
+        $totalRevenue   += (float)(clone $egQ)->where('status', 'delivered')->sum('total');
+        $todayRevenue   += (float)(clone $egQ)->where('status', 'delivered')->whereDate('created_at', today())->sum('total');
+        $monthlyRevenue += (float)(clone $egQ)->where('status', 'delivered')->where('created_at', '>=', $thisMonth)->sum('total');
 
         $totalCommission   = Order::where('status', 'delivered')->sum('commission');
         $monthlyCommission = Order::where('status', 'delivered')->where('created_at', '>=', $thisMonth)->sum('commission');
@@ -95,6 +108,19 @@ class DashboardController extends Controller
             ->groupBy('module')
             ->orderByDesc('revenue')
             ->get();
+
+        // Add unmirrored eGrocery revenue to module breakdown
+        $egRevenue = (float) EGroceryOrder::whereNotIn('order_no', $mirroredEgNos)->where('status', 'delivered')->sum('total');
+        $egCount   = EGroceryOrder::whereNotIn('order_no', $mirroredEgNos)->where('status', 'delivered')->count();
+        if ($egRevenue > 0 || $egCount > 0) {
+            $existing = $moduleRevenue->firstWhere('module', 'egrocery');
+            if ($existing) {
+                $existing->revenue += $egRevenue;
+                $existing->count   += $egCount;
+            } else {
+                $moduleRevenue->push((object)['module' => 'egrocery', 'revenue' => $egRevenue, 'count' => $egCount]);
+            }
+        }
 
         // ── Order status breakdown ────────────────────────────────────────
         $orderStatusBreakdown = Order::selectRaw('status, COUNT(*) as count')

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Order;
+use App\Models\EGrocery\EGroceryOrder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 
@@ -83,6 +84,23 @@ class AdminAnalyticsController extends Controller
             $commissionMonth = (float) ($rev->commission_month ?? 0);
             $commissionTotal = (float) ($rev->commission_total ?? 0);
 
+            // ── Add unmirrored eGrocery revenue ──────────────────────────────
+            $mirroredEgNos = Order::where('module_slug', 'egrocery')->pluck('order_number')->toArray();
+            $egRev = DB::table('egrocery_orders')
+                ->whereNotIn('order_no', $mirroredEgNos)
+                ->where('status', 'delivered')
+                ->selectRaw('
+                    SUM(CASE WHEN DATE(created_at) = ? THEN total ELSE 0 END) as today,
+                    SUM(CASE WHEN created_at >= ? THEN total ELSE 0 END)       as week,
+                    SUM(CASE WHEN created_at >= ? THEN total ELSE 0 END)       as month,
+                    SUM(total)                                                  as total
+                ', [$startToday, $start7d, $startMonth])
+                ->first();
+            $revenueToday  += (float)($egRev->today ?? 0);
+            $revenueWeek   += (float)($egRev->week  ?? 0);
+            $revenueMonth  += (float)($egRev->month ?? 0);
+            $revenueTotal  += (float)($egRev->total ?? 0);
+
             // ── Revenue by module ────────────────────────────────────────────
             $revenueByModule = Order::where('status', 'delivered')
                 ->selectRaw('COALESCE(module_slug, "ecommerce") as module, SUM(total_amount) as revenue, COUNT(*) as orders')
@@ -90,6 +108,18 @@ class AdminAnalyticsController extends Controller
                 ->orderByDesc('revenue')
                 ->get()
                 ->map(fn($r) => ['module' => strtoupper($r->module), 'revenue' => (float)$r->revenue, 'orders' => (int)$r->orders]);
+
+            // Merge unmirrored eGrocery into module breakdown
+            $egModRevenue = (float) DB::table('egrocery_orders')->whereNotIn('order_no', $mirroredEgNos)->where('status', 'delivered')->sum('total');
+            $egModOrders  = (int)   DB::table('egrocery_orders')->whereNotIn('order_no', $mirroredEgNos)->where('status', 'delivered')->count();
+            $egModEntry   = $revenueByModule->firstWhere('module', 'EGROCERY');
+            if ($egModEntry) {
+                $idx = $revenueByModule->search(fn($r) => $r['module'] === 'EGROCERY');
+                $revenueByModule[$idx]['revenue'] += $egModRevenue;
+                $revenueByModule[$idx]['orders']  += $egModOrders;
+            } elseif ($egModRevenue > 0 || $egModOrders > 0) {
+                $revenueByModule->push(['module' => 'EGROCERY', 'revenue' => $egModRevenue, 'orders' => $egModOrders]);
+            }
 
             // ── Daily revenue (last 30 days) ─────────────────────────────────
             $dailyRevenue = Order::where('status', 'delivered')

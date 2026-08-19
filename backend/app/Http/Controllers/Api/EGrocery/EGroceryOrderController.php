@@ -7,7 +7,7 @@ use App\Models\EGrocery\{
     EGroceryOrder, EGroceryOrderItem, EGroceryProductVariant,
     EGroceryDeliverySlot, EGroceryDeliveryZone, EGroceryFlashDeal, EGroceryReview
 };
-use App\Models\{Coupon, CouponUsage};
+use App\Models\{Coupon, CouponUsage, Order};
 use App\Services\EGrocery\{PricingService, StockService};
 use App\Services\FcmService;
 use App\Services\RealtimeService;
@@ -270,6 +270,23 @@ class EGroceryOrderController extends Controller
                         'discount_amount' => $discount,
                     ]);
                 }
+
+                // Mirror to main orders table (for admin dashboard / analytics / orders page)
+                Order::create([
+                    'order_number'   => $orderNo,
+                    'user_id'        => $user->id,
+                    'module_slug'    => 'egrocery',
+                    'module_id'      => 'egrocery',
+                    'status'         => 'pending',
+                    'payment_status' => 'unpaid',
+                    'payment_method' => $request->payment_method ?? 'cash',
+                    'subtotal'       => $subtotal,
+                    'delivery_fee'   => $deliveryFee,
+                    'discount_amount'=> $discount,
+                    'total_amount'   => $total,
+                    'placed_at'      => now(),
+                    'meta'           => ['egrocery_order_id' => $order->id],
+                ]);
 
                 // Decrement stock
                 foreach ($request->lines as $line) {
