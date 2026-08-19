@@ -5,6 +5,7 @@ import '../../data/models/egrocery_models.dart';
 import '../../ui/eg_theme.dart';
 import '../../ui/eg_widgets.dart';
 import '../providers/egrocery_providers.dart';
+import '../../../../core/widgets/network_image_widget.dart';
 
 class EGProductListScreen extends ConsumerStatefulWidget {
   final int? categoryId;
@@ -200,33 +201,117 @@ class _ListTileCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final v = product.defaultVariant;
     if (v == null) return const SizedBox();
+    final cartLine = ref.watch(egCartProvider).firstWhere(
+      (l) => l.variantId == v.id,
+      orElse: () => EGCartLine(variantId: -1, qty: 0),
+    );
+    final inCart = cartLine.variantId != -1 && cartLine.qty > 0;
+    final hasDiscount = v.discountPct > 0;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(EGTheme.rCard)),
-        child: Row(children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: Image.network(product.image ?? '', width: 72, height: 72, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(width: 72, height: 72, color: EGTheme.shimmer)),
-          ),
-          const SizedBox(width: 12),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(product.name, style: EGTheme.productName, maxLines: 2),
-            const SizedBox(height: 4),
-            Text(v.label, style: EGTheme.caption),
-            const SizedBox(height: 6),
-            EGPricePair(variant: v),
-          ])),
-          EGQtyStepper(
-            qty: ref.watch(egCartProvider).firstWhere((l) => l.variantId == v.id, orElse: () => EGCartLine(variantId: -1, qty: 0)).qty,
-            onChanged: (q) {
-              if (q == 0) ref.read(egCartProvider.notifier).remove(v.id);
-              else ref.read(egCartProvider.notifier).setQty(v.id, q);
-            },
-          ),
-        ]),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 14, offset: const Offset(0, 4)),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(children: [
+            // Image
+            Stack(children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  width: 80,
+                  height: 80,
+                  color: const Color(0xFFF5F5F5),
+                  child: NetImage(
+                    url: product.image ?? '',
+                    width: 80,
+                    height: 80,
+                    fit: BoxFit.cover,
+                    errorWidget: const Center(child: Icon(Icons.image_outlined, size: 28, color: Color(0xFFCCCCCC))),
+                  ),
+                ),
+              ),
+              if (hasDiscount)
+                Positioned(
+                  top: 4, left: 4,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                    decoration: BoxDecoration(color: EGTheme.red, borderRadius: BorderRadius.circular(6)),
+                    child: Text('-${v.discountPct}%', style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
+                  ),
+                ),
+            ]),
+            const SizedBox(width: 14),
+            // Info
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(product.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF1A1A1A), height: 1.3)),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(color: const Color(0xFFF5F5F5), borderRadius: BorderRadius.circular(6)),
+                  child: Text(v.label, style: const TextStyle(fontSize: 10, color: Color(0xFF888888), fontWeight: FontWeight.w500)),
+                ),
+                const SizedBox(height: 8),
+                Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('\$${v.effectivePrice.toStringAsFixed(2)}',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800,
+                        color: hasDiscount ? EGTheme.red : EGTheme.textDark)),
+                    if (hasDiscount && v.originalPrice != null)
+                      Text('\$${v.originalPrice!.toStringAsFixed(2)}',
+                        style: const TextStyle(fontSize: 11, color: Color(0xFFAAAAAA),
+                          decoration: TextDecoration.lineThrough, decorationColor: Color(0xFFAAAAAA))),
+                  ]),
+                  const Spacer(),
+                  // Stepper or Add button
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    transitionBuilder: (child, anim) => ScaleTransition(scale: anim, child: child),
+                    child: inCart
+                        ? EGQtyStepper(
+                            key: ValueKey('ls-${v.id}'),
+                            qty: cartLine.qty,
+                            isWeightBased: product.isWeightBased,
+                            step: product.isWeightBased ? 0.25 : 1,
+                            onChanged: (q) {
+                              if (q == 0) ref.read(egCartProvider.notifier).remove(v.id);
+                              else ref.read(egCartProvider.notifier).setQty(v.id, q);
+                            },
+                          )
+                        : GestureDetector(
+                            key: ValueKey('la-${v.id}'),
+                            onTap: () => ref.read(egCartProvider.notifier).addOrIncrement(v, product),
+                            child: Container(
+                              width: 34, height: 34,
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFFFF8C00), Color(0xFFFF5F00)],
+                                  begin: Alignment.topLeft, end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(11),
+                                boxShadow: [BoxShadow(color: EGTheme.orange.withOpacity(0.35), blurRadius: 8, offset: const Offset(0, 3))],
+                              ),
+                              child: const Icon(Icons.add_rounded, color: Colors.white, size: 20),
+                            ),
+                          ),
+                  ),
+                ]),
+              ]),
+            ),
+          ]),
+        ),
       ),
     );
   }

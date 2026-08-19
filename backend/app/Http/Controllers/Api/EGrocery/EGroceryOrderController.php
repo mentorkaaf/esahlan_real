@@ -193,10 +193,7 @@ class EGroceryOrderController extends Controller
                     throw new \DomainException('MIN_ORDER_NOT_MET:' . $minOrder);
                 }
 
-                // Free delivery
-                if ($zone?->free_over && $subtotal >= $zone->free_over) {
-                    $deliveryFee = 0;
-                }
+                // No free-delivery threshold with eParcel-based pricing
 
                 // ── Coupon ────────────────────────────────────────────────
                 $couponDiscount = 0.0;
