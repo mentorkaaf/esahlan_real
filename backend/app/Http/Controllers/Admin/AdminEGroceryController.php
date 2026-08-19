@@ -361,12 +361,29 @@ class AdminEGroceryController extends Controller
     {
         $r->validate(['ids' => 'required|array', 'action' => 'required|in:activate,deactivate,delete']);
         $q = EGroceryProduct::whereIn('id', $r->ids);
-        match ($r->action) {
-            'activate'   => $q->update(['is_active' => true]),
-            'deactivate' => $q->update(['is_active' => false]),
-            'delete'     => $q->delete(),
-        };
-        return back()->with('success', count($r->ids) . ' products updated.');
+        if ($r->action === 'delete') {
+            // Deactivate products that have orders (FK constraint), delete the rest
+            $hasOrders = \DB::table('egrocery_order_items')
+                ->join('egrocery_product_variants', 'egrocery_order_items.variant_id', '=', 'egrocery_product_variants.id')
+                ->whereIn('egrocery_product_variants.product_id', $r->ids)
+                ->pluck('egrocery_product_variants.product_id')
+                ->unique()->values()->toArray();
+            $canDelete = array_diff($r->ids, $hasOrders);
+            if (!empty($canDelete)) {
+                EGroceryProduct::whereIn('id', $canDelete)->delete();
+            }
+            if (!empty($hasOrders)) {
+                EGroceryProduct::whereIn('id', $hasOrders)->update(['is_active' => false]);
+            }
+            $msg = count($canDelete) . ' deleted, ' . count($hasOrders) . ' deactivated (have orders).';
+        } else {
+            match ($r->action) {
+                'activate'   => $q->update(['is_active' => true]),
+                'deactivate' => $q->update(['is_active' => false]),
+            };
+            $msg = count($r->ids) . ' products updated.';
+        }
+        return back()->with('success', $msg);
     }
 
     public function productQuickEdit(Request $r, $id)

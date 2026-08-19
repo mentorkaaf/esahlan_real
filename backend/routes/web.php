@@ -821,19 +821,19 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
                 Route::post('/categories/sort',              [$eg, 'categorySortUpdate'])->name('category.sort');
                 Route::delete('/categories/{id}',            [$eg, 'categoryDestroy'])->name('category.destroy');
 
-                // Products
+                // Products — static routes BEFORE {id} to avoid param capture
                 Route::get('/products',                      [$eg, 'products'])->name('products');
                 Route::get('/products/create',               [$eg, 'productCreate'])->name('product.create');
+                Route::get('/products/export',               [$eg, 'productCsvExport'])->name('product.export');
+                Route::get('/products/template',             [$eg, 'productCsvTemplate'])->name('product.template');
                 Route::post('/products',                     [$eg, 'productStore'])->name('product.store');
+                Route::post('/products/bulk',                [$eg, 'productBulkAction'])->name('product.bulk');
+                Route::post('/products/import',              [$eg, 'productCsvImport'])->name('product.import');
                 Route::get('/products/{id}/edit',            [$eg, 'productEdit'])->name('product.edit');
                 Route::post('/products/{id}',                [$eg, 'productUpdate'])->name('product.update');
                 Route::post('/products/{id}/toggle',         [$eg, 'productToggle'])->name('product.toggle');
                 Route::post('/products/{id}/quick-edit',     [$eg, 'productQuickEdit'])->name('product.quick-edit');
                 Route::delete('/products/{id}',              [$eg, 'productDestroy'])->name('product.destroy');
-                Route::post('/products/bulk',                [$eg, 'productBulkAction'])->name('product.bulk');
-                Route::get('/products/export',               [$eg, 'productCsvExport'])->name('product.export');
-                Route::get('/products/template',             [$eg, 'productCsvTemplate'])->name('product.template');
-                Route::post('/products/import',              [$eg, 'productCsvImport'])->name('product.import');
 
                 // Inventory
                 Route::get('/inventory',                     [$eg, 'inventory'])->name('inventory');
