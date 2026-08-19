@@ -272,21 +272,26 @@ class EGroceryOrderController extends Controller
                 }
 
                 // Mirror to main orders table (for admin dashboard / analytics / orders page)
-                Order::create([
-                    'order_number'   => $orderNo,
-                    'user_id'        => $user->id,
-                    'module_slug'    => 'egrocery',
-                    'module_id'      => 'egrocery',
-                    'status'         => 'pending',
-                    'payment_status' => 'unpaid',
-                    'payment_method' => $request->payment_method ?? 'cash',
-                    'subtotal'       => $subtotal,
-                    'delivery_fee'   => $deliveryFee,
-                    'discount_amount'=> $discount,
-                    'total_amount'   => $total,
-                    'placed_at'      => now(),
-                    'meta'           => ['egrocery_order_id' => $order->id],
-                ]);
+                try {
+                    Order::create([
+                        'order_number'    => $orderNo,
+                        'user_id'         => $user->id,
+                        'module_slug'     => 'egrocery',
+                        'module_id'       => 10, // modules.id for egrocery
+                        'status'          => 'pending',
+                        'payment_status'  => 'unpaid',
+                        'payment_method'  => $request->payment_method ?? 'cash',
+                        'subtotal'        => $subtotal,
+                        'delivery_fee'    => $deliveryFee,
+                        'discount_amount' => $discount,
+                        'total_amount'    => $total,
+                        'delivery_address'=> [],
+                        'placed_at'       => now(),
+                        'meta'            => ['egrocery_order_id' => $order->id],
+                    ]);
+                } catch (\Throwable) {
+                    // Mirror failure must never block order creation
+                }
 
                 // Decrement stock
                 foreach ($request->lines as $line) {
