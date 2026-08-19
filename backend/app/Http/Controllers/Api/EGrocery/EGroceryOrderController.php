@@ -490,10 +490,11 @@ class EGroceryOrderController extends Controller
     private function findZoneForUser($user): ?EGroceryDeliveryZone
     {
         $districtId = $user?->district_id;
-        if (!$districtId) return EGroceryDeliveryZone::where('is_active', true)->first();
+        // No district set → no zone (no min_order enforced, default delivery fee applies)
+        if (!$districtId) return null;
 
         return EGroceryDeliveryZone::where('is_active', true)->get()
-            ->first(fn ($z) => in_array($districtId, (array)($z->district_ids ?? [])))
-            ?? EGroceryDeliveryZone::where('is_active', true)->first();
+            ->first(fn ($z) => in_array($districtId, (array)($z->district_ids ?? [])));
+        // No fallback — if district doesn't match any zone, return null
     }
 }

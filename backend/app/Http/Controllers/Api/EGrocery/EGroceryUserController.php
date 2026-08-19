@@ -403,7 +403,7 @@ class EGroceryUserController extends Controller
     private function resolveDeliveryFee(Request $request): float
     {
         $zone = $this->findZoneForUser($request);
-        return $zone ? (float) $zone->delivery_fee : 2.00;
+        return $zone ? (float) ($zone->fee ?? $zone->delivery_fee ?? 2.00) : 2.00;
     }
 
     private function resolveFreeOver(Request $request): ?float
@@ -415,11 +415,10 @@ class EGroceryUserController extends Controller
     private function findZoneForUser(Request $request): ?EGroceryDeliveryZone
     {
         $districtId = $request->user()?->district_id;
-        if (!$districtId) return EGroceryDeliveryZone::where('is_active', true)->first();
+        if (!$districtId) return null;
 
         return EGroceryDeliveryZone::where('is_active', true)->get()
-            ->first(fn ($z) => in_array($districtId, (array)($z->district_ids ?? [])))
-            ?? EGroceryDeliveryZone::where('is_active', true)->first();
+            ->first(fn ($z) => in_array($districtId, (array)($z->district_ids ?? [])));
     }
 
     private function transformProductCard(EGroceryProduct $product, array $prices): array
