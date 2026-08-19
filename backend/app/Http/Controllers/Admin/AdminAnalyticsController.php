@@ -112,13 +112,17 @@ class AdminAnalyticsController extends Controller
             // Merge unmirrored eGrocery into module breakdown
             $egModRevenue = (float) DB::table('egrocery_orders')->whereNotIn('order_no', $mirroredEgNos)->where('status', 'delivered')->sum('total');
             $egModOrders  = (int)   DB::table('egrocery_orders')->whereNotIn('order_no', $mirroredEgNos)->where('status', 'delivered')->count();
-            $egModEntry   = $revenueByModule->firstWhere('module', 'EGROCERY');
-            if ($egModEntry) {
-                $idx = $revenueByModule->search(fn($r) => $r['module'] === 'EGROCERY');
-                $revenueByModule[$idx]['revenue'] += $egModRevenue;
-                $revenueByModule[$idx]['orders']  += $egModOrders;
-            } elseif ($egModRevenue > 0 || $egModOrders > 0) {
-                $revenueByModule->push(['module' => 'EGROCERY', 'revenue' => $egModRevenue, 'orders' => $egModOrders]);
+            if ($egModRevenue > 0 || $egModOrders > 0) {
+                $hasEntry = $revenueByModule->contains('module', 'EGROCERY');
+                if ($hasEntry) {
+                    $revenueByModule = $revenueByModule->map(fn($r) =>
+                        $r['module'] === 'EGROCERY'
+                            ? ['module' => 'EGROCERY', 'revenue' => $r['revenue'] + $egModRevenue, 'orders' => $r['orders'] + $egModOrders]
+                            : $r
+                    );
+                } else {
+                    $revenueByModule->push(['module' => 'EGROCERY', 'revenue' => $egModRevenue, 'orders' => $egModOrders]);
+                }
             }
 
             // ── Daily revenue (last 30 days) ─────────────────────────────────
