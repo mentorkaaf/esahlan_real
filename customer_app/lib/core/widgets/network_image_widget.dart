@@ -5,12 +5,19 @@ import 'package:flutter/material.dart';
 import '../../core/theme/theme_x.dart';
 
 /// Normalises a stored image URL.
-/// The backend now serves everything through the extension-less /api/v1/media
-/// proxy (CORS-safe + CDN-DYNAMIC). Legacy /api/img/ → /api/v1/img/ is kept as a
-/// safety net for any old cached responses.
+/// - Full https:// URLs are kept as-is (with legacy /api/img/ fix).
+/// - Relative storage paths (no scheme) are wrapped in the /api/v1/media proxy.
+const _kBase = 'https://esahlan.com';
+
 String fixImgUrl(String? url) {
   if (url == null || url.isEmpty) return '';
-  return url.replaceFirst('/api/img/', '/api/v1/img/');
+  // Already a full URL
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url.replaceFirst('/api/img/', '/api/v1/img/');
+  }
+  // Relative storage path → media proxy
+  final path = url.startsWith('/') ? url.substring(1) : url;
+  return '$_kBase/api/v1/media?f=${Uri.encodeComponent(path)}';
 }
 
 /// Append a width hint (?w=) so the backend returns a downscaled variant instead

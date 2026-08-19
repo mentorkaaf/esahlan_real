@@ -279,6 +279,7 @@ class AdminEGroceryController extends Controller
             ]);
         }
 
+        $this->clearEGroceryHomeCache();
         return redirect()->route('admin.module-data.egrocery.products')->with('success', 'Product created.');
     }
 
@@ -347,6 +348,7 @@ class AdminEGroceryController extends Controller
             if (!$defaultSet) $product->activeVariants()->first()?->update(['is_default' => true]);
         }
 
+        $this->clearEGroceryHomeCache();
         return redirect()->route('admin.module-data.egrocery.products')->with('success', 'Product updated.');
     }
 
@@ -354,6 +356,7 @@ class AdminEGroceryController extends Controller
     {
         $p = EGroceryProduct::findOrFail($id);
         $p->update(['is_active' => !$p->is_active]);
+        $this->clearEGroceryHomeCache();
         return back()->with('success', $p->is_active ? 'Product activated.' : 'Product deactivated.');
     }
 
@@ -383,6 +386,7 @@ class AdminEGroceryController extends Controller
             };
             $msg = count($r->ids) . ' products updated.';
         }
+        $this->clearEGroceryHomeCache();
         return back()->with('success', $msg);
     }
 
@@ -401,6 +405,7 @@ class AdminEGroceryController extends Controller
     public function productDestroy($id)
     {
         EGroceryProduct::findOrFail($id)->delete();
+        $this->clearEGroceryHomeCache();
         return back()->with('success', 'Product deleted.');
     }
 
@@ -558,6 +563,7 @@ class AdminEGroceryController extends Controller
             'image'     => $r->file('image')->store('egrocery/banners', 'public'),
             'is_active' => $r->boolean('is_active', true),
         ]));
+        $this->clearEGroceryHomeCache();
         return back()->with('success', 'Banner added.');
     }
 
@@ -579,12 +585,14 @@ class AdminEGroceryController extends Controller
             'image'     => $r->hasFile('image') ? $r->file('image')->store('egrocery/banners', 'public') : $banner->image,
             'is_active' => $r->boolean('is_active'),
         ]));
+        $this->clearEGroceryHomeCache();
         return back()->with('success', 'Banner updated.');
     }
 
     public function bannerDestroy($id)
     {
         EGroceryBanner::findOrFail($id)->delete();
+        $this->clearEGroceryHomeCache();
         return back()->with('success', 'Banner deleted.');
     }
 
@@ -608,6 +616,7 @@ class AdminEGroceryController extends Controller
             'is_active'  => 'nullable|boolean',
         ]);
         EGrocerySection::create(array_merge($d, ['is_active' => $r->boolean('is_active', true), 'layout' => $d['layout'] ?? 'grid']));
+        $this->clearEGroceryHomeCache();
         return back()->with('success', 'Section created.');
     }
 
@@ -624,6 +633,7 @@ class AdminEGroceryController extends Controller
             'is_active'  => 'nullable|boolean',
         ]);
         $section->update(array_merge($d, ['is_active' => $r->boolean('is_active')]));
+        $this->clearEGroceryHomeCache();
         return back()->with('success', 'Section updated.');
     }
 
@@ -634,6 +644,7 @@ class AdminEGroceryController extends Controller
         $sync = [];
         foreach ($r->input('product_ids', []) as $i => $pid) $sync[$pid] = ['sort_order' => $i];
         $section->products()->sync($sync);
+        $this->clearEGroceryHomeCache();
         return back()->with('success', 'Section products updated.');
     }
 
@@ -662,12 +673,14 @@ class AdminEGroceryController extends Controller
             ['section_id' => $r->section_id, 'variant_id' => $r->variant_id],
             ['deal_price' => $r->deal_price, 'qty_limit' => $r->qty_limit ?? null, 'qty_sold' => 0]
         );
+        $this->clearEGroceryHomeCache();
         return back()->with('success', 'Flash deal saved.');
     }
 
     public function flashDealDestroy($id)
     {
         EGroceryFlashDeal::findOrFail($id)->delete();
+        $this->clearEGroceryHomeCache();
         return back()->with('success', 'Flash deal removed.');
     }
 
@@ -1125,5 +1138,14 @@ class AdminEGroceryController extends Controller
         $review = EGroceryReview::findOrFail($id);
         $review->update(['is_approved' => !$review->is_approved]);
         return response()->json(['is_approved' => $review->is_approved]);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // Helper: clear home screen cache
+    // ═══════════════════════════════════════════════════════════════
+
+    private function clearEGroceryHomeCache(): void
+    {
+        Cache::forget('egrocery:home:v1');
     }
 }
