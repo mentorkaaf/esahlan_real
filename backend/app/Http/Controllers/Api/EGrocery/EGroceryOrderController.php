@@ -185,10 +185,9 @@ class EGroceryOrderController extends Controller
                     throw new \DomainException('PRICE_CHANGED:' . json_encode($priceErrors));
                 }
 
-                // Delivery fee
-                $zone        = $this->findZoneForUser($user);
-                $deliveryFee = $zone ? (float) ($zone->fee ?? $zone->delivery_fee ?? 2.00) : 2.00;
-                $minOrder    = $zone ? (float) $zone->min_order : 0;
+                // Delivery fee — eParcel pricing: Hamarweyne (id=4) → user's district
+                $deliveryFee = $this->egDeliveryFee($user->district_id ?? null);
+                $minOrder    = 0; // No minimum order — managed by admin if needed later
 
                 if ($subtotal < $minOrder) {
                     throw new \DomainException('MIN_ORDER_NOT_MET:' . $minOrder);
@@ -487,14 +486,19 @@ class EGroceryOrderController extends Controller
         ];
     }
 
-    private function findZoneForUser($user): ?EGroceryDeliveryZone
-    {
-        $districtId = $user?->district_id;
-        // No district set → no zone (no min_order enforced, default delivery fee applies)
-        if (!$districtId) return null;
+    // eGrocery delivery fee: Hamarweyne (id=4) → user's district via eParcel pricing
+    private const EG_BASE_DISTRICT = 4;
+    private const EG_DEFAULT_FEE   = 2.00;
 
-        return EGroceryDeliveryZone::where('is_active', true)->get()
-            ->first(fn ($z) => in_array($districtId, (array)($z->district_ids ?? [])));
-        // No fallback — if district doesn't match any zone, return null
+    private function egDeliveryFee(?int $districtId): float
+    {
+        if (!$districtId) return self::EG_DEFAULT_FEE;
+        $row = DB::table('delivery_zone_pricing')
+            ->where('module_id', 'eparcel')
+            ->where('from_district_id', self::EG_BASE_DISTRICT)
+            ->where('to_district_id', $districtId)
+            ->where('is_active', true)
+            ->first();
+        return $row ? (float) $row->base_price : self::EG_DEFAULT_FEE;
     }
 }

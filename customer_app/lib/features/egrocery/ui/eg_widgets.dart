@@ -170,63 +170,128 @@ class EGProductCard extends ConsumerWidget {
 
     final cartLine = cart.firstWhere((l) => l.variantId == variant.id, orElse: () => EGCartLine(variantId: -1, qty: 0));
     final inCart = cartLine.variantId != -1;
+    final hasDiscount = variant.discountPct > 0;
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: width,
         decoration: BoxDecoration(
-          color: EGTheme.card,
-          borderRadius: BorderRadius.circular(EGTheme.rCard),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 12, offset: const Offset(0, 4))],
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.07), blurRadius: 16, offset: const Offset(0, 4)),
+            BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 4, offset: const Offset(0, 1)),
+          ],
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Image + discount badge
+          // ── Image area ───────────────────────────────────────────────
           Stack(children: [
             ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(EGTheme.rCard)),
-              child: NetImage(
-                url: product.image ?? '',
-                height: 120,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              child: Container(
+                height: 130,
                 width: width,
-                fit: BoxFit.cover,
-              ),
-            ),
-            if (variant.discountPct > 0)
-              Positioned(
-                top: 8,
-                left: 8,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                  decoration: BoxDecoration(color: EGTheme.red, borderRadius: BorderRadius.circular(20)),
-                  child: Text('-${variant.discountPct}%', style: EGTheme.discountChip),
+                color: const Color(0xFFF7F7F7),
+                child: NetImage(
+                  url: product.image ?? '',
+                  height: 130,
+                  width: width,
+                  fit: BoxFit.cover,
+                  errorWidget: Container(
+                    color: const Color(0xFFF2F2F2),
+                    child: const Center(child: Icon(Icons.image_outlined, size: 36, color: Color(0xFFCCCCCC))),
+                  ),
                 ),
               ),
+            ),
+            // Discount badge
+            if (hasDiscount)
+              Positioned(
+                top: 8, left: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: EGTheme.red,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text('-${variant.discountPct}%',
+                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 0.3)),
+                ),
+              ),
+            // Flash deal badge
             if (variant.isFlashDeal)
               Positioned(
-                top: 8,
-                right: 8,
+                top: 8, right: 8,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                  decoration: BoxDecoration(color: EGTheme.orange, borderRadius: BorderRadius.circular(20)),
-                  child: const Text('âš¡', style: TextStyle(fontSize: 11)),
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF6B00),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text('⚡ Flash', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
                 ),
               ),
           ]),
-          // Info
+
+          // ── Info area ─────────────────────────────────────────────────
           Padding(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(product.name, style: EGTheme.productName, maxLines: 2, overflow: TextOverflow.ellipsis),
-              const SizedBox(height: 4),
-              Text(variant.label, style: EGTheme.caption),
-              const SizedBox(height: 6),
-              Row(children: [
-                EGPricePair(variant: variant),
+              // Product name
+              Text(
+                product.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1A1A1A),
+                  height: 1.3,
+                ),
+              ),
+              const SizedBox(height: 3),
+              // Variant label (unit)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF5F5F5),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  variant.label,
+                  style: const TextStyle(fontSize: 10, color: Color(0xFF888888), fontWeight: FontWeight.w500),
+                ),
+              ),
+              const SizedBox(height: 8),
+              // Price + Add button row
+              Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+                // Price column
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(
+                    '\$${variant.effectivePrice.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: hasDiscount ? EGTheme.red : EGTheme.textDark,
+                    ),
+                  ),
+                  if (hasDiscount && variant.originalPrice != null)
+                    Text(
+                      '\$${variant.originalPrice!.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFFAAAAAA),
+                        decoration: TextDecoration.lineThrough,
+                        decorationColor: Color(0xFFAAAAAA),
+                      ),
+                    ),
+                ]),
                 const Spacer(),
                 // Add / Stepper
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 200),
+                  transitionBuilder: (child, anim) => ScaleTransition(scale: anim, child: child),
                   child: inCart
                       ? EGQtyStepper(
                           key: ValueKey('stepper-${variant.id}'),
@@ -257,10 +322,18 @@ class _AddBtn extends StatelessWidget {
   Widget build(BuildContext context) => GestureDetector(
         onTap: onTap,
         child: Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(color: EGTheme.orange, borderRadius: BorderRadius.circular(10)),
-          child: const Icon(Icons.add, color: Colors.white, size: 18),
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFFFF8C00), Color(0xFFFF5F00)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(11),
+            boxShadow: [BoxShadow(color: EGTheme.orange.withOpacity(0.35), blurRadius: 8, offset: const Offset(0, 3))],
+          ),
+          child: const Icon(Icons.add_rounded, color: Colors.white, size: 20),
         ),
       );
 }

@@ -368,11 +368,8 @@ class EGroceryUserController extends Controller
 
         $discount = round($discount, 2);
 
-        // Free delivery after discount
-        $zone = $this->findZoneForUser($request);
-        if ($zone?->free_over && $subtotal >= $zone->free_over) {
-            $deliveryFee = 0;
-        }
+        // No free-delivery threshold in eParcel-based pricing (zone not used here)
+
 
         $total = round($subtotal + $deliveryFee - $discount, 2);
 
@@ -400,25 +397,30 @@ class EGroceryUserController extends Controller
 
     // ─────────────────────────────────────────────────────────────────────────
 
+    // eGrocery delivery fee comes from eParcel pricing: Hamarwayne (id=4) → user's district
+    private const EG_BASE_DISTRICT = 4; // Hamarweyne
+    private const EG_DEFAULT_FEE   = 2.00;
+
     private function resolveDeliveryFee(Request $request): float
     {
-        $zone = $this->findZoneForUser($request);
-        return $zone ? (float) ($zone->fee ?? $zone->delivery_fee ?? 2.00) : 2.00;
+        return $this->egDeliveryFee($request->user()?->district_id);
     }
 
     private function resolveFreeOver(Request $request): ?float
     {
-        $zone = $this->findZoneForUser($request);
-        return $zone?->free_over ? (float) $zone->free_over : null;
+        return null; // Free-over handled per-order via egFreeOver if needed
     }
 
-    private function findZoneForUser(Request $request): ?EGroceryDeliveryZone
+    private function egDeliveryFee(?int $districtId): float
     {
-        $districtId = $request->user()?->district_id;
-        if (!$districtId) return null;
-
-        return EGroceryDeliveryZone::where('is_active', true)->get()
-            ->first(fn ($z) => in_array($districtId, (array)($z->district_ids ?? [])));
+        if (!$districtId) return self::EG_DEFAULT_FEE;
+        $row = DB::table('delivery_zone_pricing')
+            ->where('module_id', 'eparcel')
+            ->where('from_district_id', self::EG_BASE_DISTRICT)
+            ->where('to_district_id', $districtId)
+            ->where('is_active', true)
+            ->first();
+        return $row ? (float) $row->base_price : self::EG_DEFAULT_FEE;
     }
 
     private function transformProductCard(EGroceryProduct $product, array $prices): array
