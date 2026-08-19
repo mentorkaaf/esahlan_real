@@ -126,16 +126,24 @@ class _EGCheckoutScreenState extends ConsumerState<EGCheckoutScreen> {
         }
       } else {
         if (mounted) {
-          // Extract actual server validation message if available
+          // Extract actual server error message if available
           String display = msg;
           if (e is DioException && e.response?.data != null) {
             final d = e.response!.data;
             if (d is Map) {
-              final errors = d['errors'];
-              if (errors is Map) {
-                display = errors.values.expand((v) => v is List ? v : [v]).join('\n');
-              } else if (d['message'] != null) {
-                display = d['message'].toString();
+              final code = d['code']?.toString() ?? '';
+              if (code == 'MIN_ORDER_NOT_MET') {
+                final minAmt = d['min_order'] ?? '';
+                display = 'Minimum order is \$$minAmt. Please add more items.';
+              } else if (code == 'PRICE_CHANGED') {
+                display = 'Some prices changed. Please review your cart.';
+              } else {
+                final errors = d['errors'];
+                if (errors is Map) {
+                  display = errors.values.expand((v) => v is List ? v : [v]).join('\n');
+                } else if (d['message'] != null) {
+                  display = d['message'].toString();
+                }
               }
             }
           }

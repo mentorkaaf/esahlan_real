@@ -187,7 +187,7 @@ class EGroceryOrderController extends Controller
 
                 // Delivery fee
                 $zone        = $this->findZoneForUser($user);
-                $deliveryFee = $zone ? (float) $zone->delivery_fee : 2.00;
+                $deliveryFee = $zone ? (float) ($zone->fee ?? $zone->delivery_fee ?? 2.00) : 2.00;
                 $minOrder    = $zone ? (float) $zone->min_order : 0;
 
                 if ($subtotal < $minOrder) {
