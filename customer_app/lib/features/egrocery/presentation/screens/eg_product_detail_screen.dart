@@ -5,6 +5,7 @@ import '../../data/models/egrocery_models.dart';
 import '../../ui/eg_theme.dart';
 import '../../ui/eg_widgets.dart';
 import '../providers/egrocery_providers.dart';
+import '../../../../core/widgets/network_image_widget.dart';
 
 class EGProductDetailScreen extends ConsumerStatefulWidget {
   final String slug;
@@ -66,10 +67,10 @@ class _EGProductDetailScreenState extends ConsumerState<EGProductDetailScreen> {
                       controller: _pageCtrl,
                       onPageChanged: (i) => setState(() => _imageIdx = i),
                       itemCount: allImages.length,
-                      itemBuilder: (_, i) => Image.network(
-                        allImages[i],
+                      itemBuilder: (_, i) => NetImage(
+                        url: allImages[i],
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(color: EGTheme.shimmer, child: const Center(child: Icon(Icons.image, size: 48, color: EGTheme.textGrey))),
+                        errorWidget: Container(color: EGTheme.shimmer, child: const Center(child: Icon(Icons.image, size: 48, color: EGTheme.textGrey))),
                       ),
                     ),
                     // Dot indicator

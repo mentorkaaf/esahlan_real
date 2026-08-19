@@ -86,6 +86,9 @@ class EGroceryProduct extends Model
 
     public function getFirstImageAttribute(): ?string
     {
-        return !empty($this->images) ? $this->images[0] : null;
+        if (empty($this->images)) return null;
+        $path = $this->images[0];
+        if (str_starts_with($path, 'http')) return $path;
+        return url('/api/v1/media?f=' . ltrim($path, '/'));
     }
 }

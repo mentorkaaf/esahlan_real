@@ -220,7 +220,7 @@ class EGroceryCatalogController extends Controller
                 'name_so'     => $product->name_so,
                 'slug'        => $product->slug,
                 'description' => $product->description,
-                'images'      => $product->images ?? [],
+                'images'      => collect($product->images ?? [])->map(fn($p) => url('/api/v1/media?f=' . ltrim($p, '/')))->values()->all(),
                 'category'    => $product->category,
                 'brand'       => $product->brand,
                 'avg_rating'  => (float) $product->avg_rating,
