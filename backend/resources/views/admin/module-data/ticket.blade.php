@@ -789,7 +789,7 @@
 .tmpl-apply-btn{width:100%;padding:10px;background:rgba(255,255,255,.2);border:1.5px solid rgba(255,255,255,.35);border-radius:9px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:background .15s;}
 .tmpl-apply-btn:hover{background:rgba(255,255,255,.3);}
 /* Schedule cards */
-.bulk-cards{display:flex;flex-direction:column;gap:12px;max-height:52vh;overflow-y:auto;padding:2px 2px 4px;}
+.bulk-cards{display:flex;flex-direction:column;gap:8px;max-height:62vh;overflow-y:auto;padding:2px 2px 4px;}
 .bulk-cards::-webkit-scrollbar{width:5px;}
 .bulk-cards::-webkit-scrollbar-track{background:#f4f5fa;border-radius:4px;}
 .bulk-cards::-webkit-scrollbar-thumb{background:#ccd;border-radius:4px;}
@@ -797,7 +797,7 @@
 .sched-card:hover{border-color:#c5cae9;}
 .sched-card-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#fafbff;border-bottom:1px solid #f0f1f5;}
 .sched-card-num{width:26px;height:26px;border-radius:7px;background:#1565C0;color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;}
-.sched-card-body{padding:14px;}
+.sched-card-body{padding:10px 14px;}
 .sched-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
 .sched-grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
 .sf label{font-size:11px;font-weight:700;color:#8A8A9A;display:block;margin-bottom:4px;}
@@ -817,13 +817,13 @@
 #bulkScheduleModal input[type="text"],
 #bulkScheduleModal select {
     display:block !important;
-    height:36px !important;
+    height:32px !important;
     width:100% !important;
     opacity:1 !important;
     visibility:visible !important;
-    padding:8px 10px !important;
-    border-radius:8px !important;
-    font-size:13px !important;
+    padding:5px 8px !important;
+    border-radius:7px !important;
+    font-size:12px !important;
     box-sizing:border-box !important;
     font-family:inherit !important;
     color:#1A1A2E !important;
@@ -1035,9 +1035,9 @@ const bulkRoutes   = {!! json_encode($_bulkRoutes) !!};
 
 let bulkRowIndex = 0;
 
-var IS = 'width:100%;padding:8px 10px;border:1.5px solid #b0b8d8;border-radius:8px;font-size:13px;color:#1A1A2E;background:#fff;box-sizing:border-box;font-family:inherit;display:block;height:36px;';
-var SS = 'width:100%;padding:8px 10px;border:1.5px solid #b0b8d8;border-radius:8px;font-size:13px;color:#1A1A2E;background:#fff;box-sizing:border-box;font-family:inherit;display:block;height:36px;';
-var LS = 'font-size:11px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;';
+var IS = 'width:100%;padding:5px 8px;border:1.5px solid #b0b8d8;border-radius:7px;font-size:12px;color:#1A1A2E;background:#fff;box-sizing:border-box;font-family:inherit;display:block;height:32px;';
+var SS = 'width:100%;padding:5px 8px;border:1.5px solid #b0b8d8;border-radius:7px;font-size:12px;color:#1A1A2E;background:#fff;box-sizing:border-box;font-family:inherit;display:block;height:32px;';
+var LS = 'font-size:10px;font-weight:700;color:#6b7280;display:block;margin-bottom:3px;';
 
 function bulkCardHtml(idx){
     const n = `flights[${idx}]`;
@@ -1060,7 +1060,7 @@ function bulkCardHtml(idx){
             +'<input type="hidden" name="'+n+'[to_code]" id="bulk-tcode-'+idx+'">'
             +'<input type="hidden" name="'+n+'[available_seats]" id="bulk-avail-'+idx+'">'
             /* Row 1: Airline + Route */
-            +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">'
+            +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:7px;">'
                 +'<div><label style="'+LS+'">✈ Airline *</label>'
                     +'<select name="'+n+'[airline_id]" onchange="bulkAutoFlightNum(this,'+idx+')" style="'+SS+'">'
                         +'<option value="">Select airline…</option>'+airlineOpts
@@ -1071,7 +1071,7 @@ function bulkCardHtml(idx){
                     +'</select></div>'
             +'</div>'
             /* Row 2: Departure + Arrival + Seats */
-            +'<div style="display:grid;grid-template-columns:1fr 1fr 120px;gap:10px;margin-bottom:10px;">'
+            +'<div style="display:grid;grid-template-columns:1fr 1fr 100px;gap:8px;margin-bottom:7px;">'
                 +'<div><label style="'+LS+'">📅 Departure *</label>'
                     +'<input type="datetime-local" name="'+n+'[departure_at]" id="bulk-dep-'+idx+'" required style="'+IS+'"></div>'
                 +'<div><label style="'+LS+'">🛬 Arrival *</label>'
