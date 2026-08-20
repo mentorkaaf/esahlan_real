@@ -84,8 +84,8 @@ class _EwKybScreenState extends ConsumerState<EwKybScreen> {
           const SizedBox(height: 8),
           Text(
             submittedAt != null
-              ? 'Submitted ${_fmtDate(submittedAt)}. We'll notify you within 1–2 business days.'
-              : 'Your application is under review. We\'ll notify you within 1–2 business days.',
+              ? 'Submitted ${_fmtDate(submittedAt)}. We\'ll notify you within 1-2 business days.'
+              : 'Your application is under review. We\'ll notify you within 1-2 business days.',
             textAlign: TextAlign.center,
             style: EwTheme.body,
           ),
@@ -188,7 +188,7 @@ class _EwKybScreenState extends ConsumerState<EwKybScreen> {
               : const Text('Submit for Review', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
           ),
           const SizedBox(height: 24),
-          Text('Review takes 1–2 business days. You'll receive a push notification.', textAlign: TextAlign.center, style: EwTheme.bodySmall),
+          Text('Review takes 1-2 business days. You\'ll receive a push notification.', textAlign: TextAlign.center, style: EwTheme.bodySmall),
           const SizedBox(height: 32),
         ]),
       ),

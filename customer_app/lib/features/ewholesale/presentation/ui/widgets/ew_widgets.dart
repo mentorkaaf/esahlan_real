@@ -195,7 +195,7 @@ class PriceTierTable extends StatelessWidget {
 
           final qtyLabel = tier.maxQty == null
             ? '${tier.minQty.toInt()}+ ${unit}s'
-            : '${tier.minQty.toInt()}–${tier.maxQty!.toInt()} ${unit}s';
+            : '${tier.minQty.toInt()}-${tier.maxQty!.toInt()} ${unit}s';
 
           // Saving vs the highest tier
           final highestPrice = tiers.first.unitPrice;
