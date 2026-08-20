@@ -1038,7 +1038,6 @@ function bulkCardHtml(idx){
             <input type="hidden" name="${n}[to_city]"       id="bulk-tc-${idx}">
             <input type="hidden" name="${n}[to_code]"       id="bulk-tcode-${idx}">
             <input type="hidden" name="${n}[available_seats]" id="bulk-avail-${idx}">
-            {{-- Row 1: Airline + Route --}}
             <div class="sched-grid-2">
                 <div class="sf">
                     <label>✈ Airline *</label>
@@ -1053,7 +1052,6 @@ function bulkCardHtml(idx){
                     </select>
                 </div>
             </div>
-            {{-- Row 2: Departure + Arrival + Seats --}}
             <div style="display:grid;grid-template-columns:1fr 1fr 120px;gap:10px;margin-bottom:10px;">
                 <div class="sf">
                     <label>📅 Departure *</label>
@@ -1068,7 +1066,6 @@ function bulkCardHtml(idx){
                     <input type="number" name="${n}[total_seats]" id="bulk-seats-${idx}" min="1" placeholder="150" value="150">
                 </div>
             </div>
-            {{-- Row 3: Prices --}}
             <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
                 <div class="price-sf eco-sf">
                     <label>Economy $</label>
