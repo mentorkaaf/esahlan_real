@@ -793,11 +793,11 @@
 .bulk-cards::-webkit-scrollbar{width:5px;}
 .bulk-cards::-webkit-scrollbar-track{background:#f4f5fa;border-radius:4px;}
 .bulk-cards::-webkit-scrollbar-thumb{background:#ccd;border-radius:4px;}
-.sched-card{border:1.5px solid #e8e9f0;border-radius:12px;overflow:hidden;transition:border-color .15s;}
+.sched-card{border:1.5px solid #e8e9f0;border-radius:12px;overflow:visible;transition:border-color .15s;flex-shrink:0;}
 .sched-card:hover{border-color:#c5cae9;}
-.sched-card-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#fafbff;border-bottom:1px solid #f0f1f5;}
+.sched-card-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#fafbff;border-bottom:1px solid #f0f1f5;border-radius:12px 12px 0 0;}
 .sched-card-num{width:26px;height:26px;border-radius:7px;background:#1565C0;color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;}
-.sched-card-body{padding:10px 14px;}
+.sched-card-body{padding:10px 14px 12px;}
 .sched-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
 .sched-grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
 .sf label{font-size:11px;font-weight:700;color:#8A8A9A;display:block;margin-bottom:4px;}
@@ -1052,7 +1052,7 @@ function bulkCardHtml(idx){
             +'</div>'
             +'<button type="button" class="del-card-btn" onclick="bulkRemoveRow('+idx+')" title="Remove"><i class="fas fa-trash-alt"></i></button>'
         +'</div>'
-        +'<div style="padding:14px;">'
+        +'<div style="padding:10px 14px 12px;">'
             +'<input type="hidden" name="'+n+'[flight_number]" id="bulk-fn-'+idx+'">'
             +'<input type="hidden" name="'+n+'[from_city]" id="bulk-fc-'+idx+'">'
             +'<input type="hidden" name="'+n+'[from_code]" id="bulk-fcode-'+idx+'">'
