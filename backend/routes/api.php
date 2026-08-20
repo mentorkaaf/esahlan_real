@@ -782,6 +782,7 @@ Route::prefix('v1')->group(function () {
                 Route::get('orders',                    [$portal, 'orders']);
                 Route::get('orders/{id}',               [$portal, 'orderShow']);
                 Route::post('orders/{id}/confirm',      [$portal, 'orderConfirm']);
+                Route::post('orders/{id}/status',       [$portal, 'orderUpdateStatus']);
                 Route::patch('orders/{id}/status',      [$portal, 'orderUpdateStatus']);
 
                 // Inquiries & Quotes

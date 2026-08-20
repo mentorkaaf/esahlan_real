@@ -5,6 +5,7 @@ import '../orders/orders_screen.dart';
 import '../products/products_screen.dart';
 import '../store/store_screen.dart';
 import '../wallet/wallet_screen.dart';
+import '../wholesale/wholesale_screen.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/vendor_repository.dart';
 import '../../core/theme/vc.dart';
@@ -27,10 +28,17 @@ class _MainShellState extends ConsumerState<MainShell> {
   late int _index;
   String _moduleSlug = 'efood';
 
-  static const _screens = [
+  static const _standardScreens = [
     DashboardScreen(),
     OrdersScreen(),
     ProductsScreen(),
+    StoreScreen(),
+    WalletScreen(),
+  ];
+
+  static const _wholesaleScreens = [
+    DashboardScreen(),
+    WholesaleScreen(),
     StoreScreen(),
     WalletScreen(),
   ];
@@ -51,14 +59,16 @@ class _MainShellState extends ConsumerState<MainShell> {
 
   @override
   Widget build(BuildContext context) {
-    final pending   = ref.watch(_pendingCountProvider);
+    final pending      = ref.watch(_pendingCountProvider);
     final pendingCount = pending.valueOrNull ?? 0;
-    final isEshop   = _moduleSlug == 'eshop';
-    final themeMode = ref.watch(themeModeProvider);
-    final isDark    = themeMode == ThemeMode.dark;
+    final isEshop      = _moduleSlug == 'eshop';
+    final isWholesale  = _moduleSlug == 'ewholesale';
+    final themeMode    = ref.watch(themeModeProvider);
+    final isDark       = themeMode == ThemeMode.dark;
+    final screens      = isWholesale ? _wholesaleScreens : _standardScreens;
 
     return Scaffold(
-      body: IndexedStack(index: _index, children: _screens),
+      body: IndexedStack(index: _index, children: screens),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: Theme.of(context).appBarTheme.backgroundColor,
@@ -70,7 +80,12 @@ class _MainShellState extends ConsumerState<MainShell> {
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
+              children: isWholesale ? [
+                _NavItem(icon: Icons.dashboard_rounded, label: 'Dashboard', index: 0, selected: _index, onTap: () => setState(() => _index = 0)),
+                _NavItem(icon: Icons.storefront_rounded, label: 'Wholesale', index: 1, selected: _index, onTap: () => setState(() => _index = 1)),
+                _NavItem(icon: Icons.store_rounded, label: 'Store', index: 2, selected: _index, onTap: () => setState(() => _index = 2)),
+                _NavItem(icon: Icons.account_balance_wallet_rounded, label: 'Wallet', index: 3, selected: _index, onTap: () => setState(() => _index = 3)),
+              ] : [
                 _NavItem(icon: Icons.dashboard_rounded, label: 'Dashboard', index: 0, selected: _index, onTap: () => setState(() => _index = 0)),
                 _NavBadgeItem(icon: Icons.receipt_long_rounded, label: 'Orders', index: 1, selected: _index, badge: pendingCount, onTap: () => setState(() => _index = 1)),
                 _NavItem(

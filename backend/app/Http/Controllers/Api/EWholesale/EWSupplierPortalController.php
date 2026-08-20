@@ -83,7 +83,7 @@ class EWSupplierPortalController extends Controller
             'about'             => $r->about,
             'warehouse_address' => $r->warehouse_address,
             'verification'      => 'pending',
-            'is_active'         => true,
+            'is_active'         => false,
         ]);
 
         EWActivityLog::record('supplier.self_registered', $supplier, [], $supplier->toArray(), 'supplier', $user->id);
@@ -398,7 +398,7 @@ class EWSupplierPortalController extends Controller
         return response()->json(['data' => $rfqs->through(fn($r) => [
             'id'           => $r->id,
             'title'        => $r->title,
-            'category'     => $r->category?->name,
+            'category_name'=> $r->category?->name,
             'buyer_name'   => $r->buyer?->business_name ?? '—',
             'qty'          => $r->qty,
             'unit'         => $r->unit,

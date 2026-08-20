@@ -115,8 +115,8 @@ class AdminEWholesaleController extends Controller
         $before = $supplier->only(['verification','is_active']);
 
         match($action) {
-            'verify'  => $supplier->update(['verification'=>'verified',  'verified_at'=>now()]),
-            'gold'    => $supplier->update(['verification'=>'gold',      'verified_at'=>now()]),
+            'verify'  => $supplier->update(['verification'=>'verified',  'verified_at'=>now(), 'is_active'=>true]),
+            'gold'    => $supplier->update(['verification'=>'gold',      'verified_at'=>now(), 'is_active'=>true]),
             'suspend' => $supplier->update(['verification'=>'unverified','is_active'=>false]),
             'activate'=> $supplier->update(['is_active'=>true]),
             default   => abort(422, 'Unknown action'),

@@ -74,24 +74,34 @@ class EWRfqApiController extends Controller
 
         return response()->json([
             'data' => $rfqs->getCollection()->map(fn($rfq) => [
-                'id'          => $rfq->id,
-                'title'       => $rfq->title,
-                'status'      => $rfq->status,
-                'qty'         => $rfq->qty,
-                'unit'        => $rfq->unit,
-                'target_price'=> $rfq->target_price,
-                'quotes_count'=> $rfq->quotes->count(),
-                'quotes'      => $rfq->quotes->map(fn($q) => [
-                    'id'            => $q->id,
-                    'supplier_name' => $q->supplier?->display_name,
-                    'unit_price'    => $q->unit_price,
-                    'qty_offered'   => $q->qty_offered,
-                    'lead_time_days'=> $q->lead_time_days,
-                    'status'        => $q->status,
-                    'valid_until'   => $q->valid_until?->toDateString(),
+                'id'            => $rfq->id,
+                'category_id'   => $rfq->category_id,
+                'category_name' => $rfq->category?->name,
+                'title'         => $rfq->title,
+                'description'   => $rfq->description,
+                'status'        => $rfq->status,
+                'qty'           => $rfq->qty,
+                'unit'          => $rfq->unit,
+                'target_price'  => $rfq->target_price,
+                'needed_by'     => $rfq->needed_by?->toDateString(),
+                'quotes_count'  => $rfq->quotes->count(),
+                'quotes'        => $rfq->quotes->map(fn($q) => [
+                    'id'             => $q->id,
+                    'rfq_id'         => $rfq->id,
+                    'supplier'       => $q->supplier ? [
+                        'id'           => $q->supplier->id,
+                        'display_name' => $q->supplier->display_name,
+                        'verification' => $q->supplier->verification,
+                    ] : null,
+                    'unit_price'     => $q->unit_price,
+                    'qty_offered'    => $q->qty_offered,
+                    'lead_time_days' => $q->lead_time_days,
+                    'status'         => $q->status,
+                    'note'           => $q->note,
+                    'created_at'     => $q->created_at->toIso8601String(),
                 ]),
-                'expires_at'  => $rfq->expires_at?->toIso8601String(),
-                'created_at'  => $rfq->created_at->toIso8601String(),
+                'expires_at'    => $rfq->expires_at?->toIso8601String(),
+                'created_at'    => $rfq->created_at->toIso8601String(),
             ]),
             'meta' => ['current_page'=>$rfqs->currentPage(),'last_page'=>$rfqs->lastPage(),'total'=>$rfqs->total()],
         ]);
@@ -149,8 +159,14 @@ class EWRfqApiController extends Controller
 
     private function buyer(Request $r): EWBuyer
     {
-        $b = EWBuyer::where('user_id', $r->user()->id)->first();
-        abort_unless($b, 404, 'Buyer profile not found.');
-        return $b;
+        return EWBuyer::firstOrCreate(
+            ['user_id' => $r->user()->id],
+            [
+                'business_name'   => $r->user()->name ?? 'My Business',
+                'business_type'   => 'other',
+                'kyb_status'      => 'none',
+                'price_list_tier' => 'standard',
+            ]
+        );
     }
 }

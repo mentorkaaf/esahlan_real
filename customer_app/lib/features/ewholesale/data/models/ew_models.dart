@@ -26,7 +26,7 @@ class EwHomePayload {
     verifiedSuppliers: _list(j['verifiedSuppliers'] ?? j['verified_suppliers'],  EwSupplierCard.fromJson),
     bestSellers:       _list(j['bestSellers'] ?? j['best_sellers'],               EwProduct.fromJson),
     newArrivals:       _list(j['newArrivals'] ?? j['new_arrivals'],               EwProduct.fromJson),
-    openRfqCount:      (j['openRfqCount'] ?? j['open_rfq_count'] ?? 0) as int,
+    openRfqCount:      _i(j['openRfqCount'] ?? j['open_rfq_count']),
   );
 }
 
@@ -155,30 +155,30 @@ class EwProduct {
   });
 
   factory EwProduct.fromJson(Map<String, dynamic> j) => EwProduct(
-    id:               j['id'] as int,
-    name:             j['name'] ?? '',
+    id:               _i(j['id'] ?? j['product_id']),
+    name:             j['name'] ?? j['product_name'] ?? '',
     slug:             j['slug'] ?? '',
     description:      j['description'],
-    images:           (j['images'] as List? ?? []).map((e) => e.toString()).toList(),
+    images:           (j['images'] as List? ?? (j['first_image'] != null ? [j['first_image']] : [])).map((e) => e.toString()).toList(),
     videoUrl:         j['video_url'],
     unit:             j['unit'] ?? 'piece',
-    unitsPerPack:     j['units_per_pack'] as int?,
-    moq:              _d(j['moq']),
-    leadTimeDays:     (j['lead_time_days'] ?? 0) as int,
+    unitsPerPack:     j['units_per_pack'] != null ? _i(j['units_per_pack']) : null,
+    moq:              _d(j['moq'] ?? j['min_qty']),
+    leadTimeDays:     _i(j['lead_time_days']),
     brand:            j['brand'],
     originCountry:    j['origin_country'],
     specs:            (j['specs'] as List? ?? [])
                         .map((s) => {'key': s['key']?.toString() ?? '', 'value': s['value']?.toString() ?? ''})
                         .toList(),
-    minPrice:         _d(j['min_price']),
+    minPrice:         _d(j['min_price'] ?? j['from_price']),
     maxPrice:         j['max_price'] != null ? _d(j['max_price']) : null,
     priceTiers:       _list(j['price_tiers'], EwPriceTier.fromJson),
     variants:         _list(j['variants'], EwVariant.fromJson),
     supplier:         j['supplier'] != null ? EwSupplierCard.fromJson(j['supplier']) : null,
     tierSummaryLabel: j['tier_summary_label'],
     status:           j['status'] ?? 'active',
-    dealEndsAt:       j['deal_ends_at'] != null ? DateTime.tryParse(j['deal_ends_at']) : null,
-    dealDiscount:     j['deal_discount'] != null ? _d(j['deal_discount']) : null,
+    dealEndsAt:       j['deal_ends_at'] != null ? DateTime.tryParse(j['deal_ends_at']) : (j['ends_at_iso'] != null ? DateTime.tryParse(j['ends_at_iso']) : null),
+    dealDiscount:     j['deal_discount'] != null ? _d(j['deal_discount']) : (j['percent_off'] != null ? _d(j['percent_off']) : null),
   );
 
   double priceForQty(double qty) {
@@ -218,9 +218,9 @@ class EwSupplierCard {
     banner:             j['banner'],
     verification:       j['verification'] ?? 'unverified',
     rating:             _d(j['rating']),
-    totalOrders:        (j['total_orders'] ?? 0) as int,
+    totalOrders:        _i(j['total_orders']),
     responseRate:       _d(j['response_rate']),
-    responseTimeAvg:    (j['response_time_avg'] ?? 0) as int,
+    responseTimeAvg:    _i(j['response_time_avg']),
     onTimeDeliveryRate: _d(j['on_time_delivery_rate'] ?? j['on_time'] ?? 0),
     about:              j['about'],
   );
@@ -332,8 +332,8 @@ class EwRfq {
     required this.createdAt, required this.expiresAt});
 
   factory EwRfq.fromJson(Map<String, dynamic> j) => EwRfq(
-    id:           j['id'] as int,
-    categoryId:   j['category_id'] as int,
+    id:           _i(j['id']),
+    categoryId:   _i(j['category_id']),
     categoryName: j['category_name'],
     title:        j['title'] ?? '',
     qty:          _d(j['qty']),
@@ -368,7 +368,7 @@ class EwRfqQuote {
     supplier:    j['supplier'] != null ? EwSupplierCard.fromJson(j['supplier']) : null,
     unitPrice:   _d(j['unit_price']),
     totalPrice:  j['total_price'] != null ? _d(j['total_price']) : null,
-    leadTimeDays: j['lead_time_days'] as int?,
+    leadTimeDays: j['lead_time_days'] != null ? _i(j['lead_time_days']) : null,
     status:      j['status'] ?? 'sent',
     note:        j['note'],
     createdAt:   DateTime.tryParse(j['created_at'] ?? '') ?? DateTime.now(),
@@ -432,22 +432,22 @@ class EwCartGroup {
   factory EwCartGroup.fromJson(Map<String, dynamic> j) {
     final lines = (j['lines'] as List? ?? []).map((l) {
       return EwCartLine(
-        productId:         l['product_id'] as int,
+        productId:         _i(l['product_id']),
         productName:       l['product_name'] ?? '',
         productImage:      l['product_image'],
-        variantId:         l['variant_id'] as int?,
+        variantId:         l['variant_id'] != null ? _i(l['variant_id']) : null,
         variantAttributes: (l['variant_attributes'] as Map<String, dynamic>? ?? {})
                               .map((k, v) => MapEntry(k, v.toString())),
         qty:        _d(l['qty']),
         unit:       l['unit'] ?? 'piece',
         unitPrice:  _d(l['unit_price']),
         moq:        _d(l['moq']),
-        supplierId: j['supplier_id'] as int,
+        supplierId: _i(j['supplier_id']),
       );
     }).toList();
 
     return EwCartGroup(
-      supplierId:             j['supplier_id'] as int,
+      supplierId:             _i(j['supplier_id']),
       supplierName:           j['supplier_name'] ?? '',
       supplierVerification:   j['supplier_verification'] ?? 'unverified',
       lines:                  lines,
@@ -579,7 +579,7 @@ class EwOrder {
     supplier:       j['supplier'] != null ? EwSupplierCard.fromJson(j['supplier']) : null,
     status:         j['status'] ?? 'pending_confirmation',
     paymentPlan:    j['payment_plan'] ?? 'prepaid',
-    depositPercent: (j['deposit_percent'] ?? 0) as int,
+    depositPercent: _i(j['deposit_percent']),
     total:          _d(j['total']),
     balanceDue:     _d(j['balance_due']),
     items:          _list(j['items'],     EwOrderItem.fromJson),
@@ -649,7 +649,7 @@ class EwSavedList {
   factory EwSavedList.fromJson(Map<String, dynamic> j) => EwSavedList(
     id:         j['id'] as int,
     name:       j['name'] ?? '',
-    itemsCount: (j['items_count'] ?? 0) as int,
+    itemsCount: _i(j['items_count']),
   );
 }
 
@@ -661,6 +661,8 @@ double _d(dynamic v) {
   if (v is int) return v.toDouble();
   return double.tryParse(v.toString()) ?? 0.0;
 }
+
+int _i(dynamic v) => (v as num?)?.toInt() ?? 0;
 
 List<T> _list<T>(dynamic raw, T Function(Map<String, dynamic>) fromJson) {
   if (raw == null) return [];
