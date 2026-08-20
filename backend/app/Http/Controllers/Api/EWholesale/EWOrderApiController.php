@@ -200,6 +200,12 @@ class EWOrderApiController extends Controller
                     ['order_no'=>$order->order_no,'total'=>$total,'buyer_name'=>$user->name]
                 ))->toOthers();
 
+                // FCM push to supplier
+                \App\Jobs\EWholesale\NotifySupplierJob::dispatch(
+                    $supplier->id, 'new_order',
+                    ['order_no'=>$order->order_no,'total'=>$total,'buyer_name'=>$user->name]
+                );
+
                 $createdOrders[] = ['order_id' => $order->id, 'order_no' => $order->order_no, 'total' => $total, 'status' => $order->fresh()->status];
             }
 
@@ -384,13 +390,21 @@ class EWOrderApiController extends Controller
             $paths[] = $file->store('ewholesale/disputes', 'public');
         }
 
+        $slaDays = (int) \App\Models\EWholesale\EWSetting::get('dispute_sla_hours', 72);
         EWDispute::create([
             'order_id'    => $order->id,
             'opened_by'   => $r->user()->id,
             'reason'      => $r->reason,
             'description' => $r->description,
             'attachments' => $paths ?: null,
+            'sla_deadline'=> now()->addHours($slaDays),
         ]);
+
+        // Notify supplier
+        \App\Jobs\EWholesale\NotifySupplierJob::dispatch(
+            $order->supplier_id, 'dispute_opened',
+            ['order_no' => $order->order_no]
+        );
 
         $order->update(['status' => 'disputed']);
         return response()->json(['message' => 'Dispute submitted. Our team will review within 24 hours.'], 201);

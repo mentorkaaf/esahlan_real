@@ -210,18 +210,19 @@ class AdminEWholesaleController extends Controller
     {
         // Outstanding credit per buyer, grouped by age bucket
         $ledger = EWCreditLedger::selectRaw('
-            account_id,
+            credit_account_id,
             SUM(CASE WHEN due_date >= NOW() THEN amount ELSE 0 END) AS current_amount,
             SUM(CASE WHEN due_date < NOW() AND due_date >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN amount ELSE 0 END) AS days_30,
             SUM(CASE WHEN due_date < DATE_SUB(NOW(), INTERVAL 30 DAY) AND due_date >= DATE_SUB(NOW(), INTERVAL 60 DAY) THEN amount ELSE 0 END) AS days_60,
             SUM(CASE WHEN due_date < DATE_SUB(NOW(), INTERVAL 60 DAY) THEN amount ELSE 0 END) AS days_60_plus
         ')
         ->where('amount', '>', 0)
-        ->groupBy('account_id')
+        ->where('type', 'charge')
+        ->groupBy('credit_account_id')
         ->get();
 
         $rows = $ledger->map(fn($r) => [
-            'account' => EWCreditAccount::with('buyer.user:id,name')->find($r->account_id ?? null),
+            'account' => EWCreditAccount::with('buyer.user:id,name')->find($r->credit_account_id ?? null),
             'current' => $r->current_amount,
             '30'      => $r->days_30,
             '60'      => $r->days_60,
@@ -670,5 +671,141 @@ class AdminEWholesaleController extends Controller
         };
 
         return response()->stream($callback, 200, $headers);
+    }
+
+    // ────────────────────────────────────────────────────────────
+    // PHASE 5: SETTLEMENT REPORT (GMV − fees − refunds per supplier)
+    // ────────────────────────────────────────────────────────────
+
+    public function settlementReport(Request $r)
+    {
+        $period = $r->period ?? '30';
+        $from   = now()->subDays((int)$period)->startOfDay();
+        $to     = now()->endOfDay();
+
+        $rows = EWOrder::selectRaw('
+                supplier_id,
+                COUNT(*) as order_count,
+                SUM(subtotal) as gmv,
+                SUM(platform_fee) as total_fees,
+                SUM(CASE WHEN status = "cancelled" THEN subtotal ELSE 0 END) as refunds,
+                SUM(CASE WHEN status NOT IN ("cancelled") THEN subtotal - platform_fee ELSE 0 END) as net_payable
+            ')
+            ->whereBetween('created_at', [$from, $to])
+            ->groupBy('supplier_id')
+            ->with('supplier:id,display_name,verification')
+            ->get();
+
+        if ($r->export === 'csv') {
+            $headers = [
+                'Content-Type'        => 'text/csv',
+                'Content-Disposition' => "attachment; filename=ew_settlement_{$period}d.csv",
+            ];
+            return response()->stream(function () use ($rows, $from, $to) {
+                echo "Supplier,Orders,GMV,Platform Fees,Refunds,Net Payable,Period From,Period To\n";
+                foreach ($rows as $row) {
+                    echo implode(',', [
+                        '"'.($row->supplier->display_name ?? $row->supplier_id).'"',
+                        $row->order_count,
+                        number_format((float)$row->gmv, 2),
+                        number_format((float)$row->total_fees, 2),
+                        number_format((float)$row->refunds, 2),
+                        number_format((float)$row->net_payable, 2),
+                        $from->toDateString(),
+                        $to->toDateString(),
+                    ])."\n";
+                }
+            }, 200, $headers);
+        }
+
+        return view('admin.ewholesale.settlement', compact('rows','period','from','to'));
+    }
+
+    // ────────────────────────────────────────────────────────────
+    // PHASE 5: REVIEW MODERATION
+    // ────────────────────────────────────────────────────────────
+
+    public function reviews(Request $r)
+    {
+        $reviews = \App\Models\EWholesale\EWReview::with(['buyer.user:id,name','supplier:id,display_name','order:id,order_no'])
+            ->when($r->supplier_id, fn($q) => $q->where('supplier_id', $r->supplier_id))
+            ->when($r->visible !== null, fn($q) => $q->where('is_visible', (bool)$r->visible))
+            ->latest()
+            ->paginate(30)->withQueryString();
+        return view('admin.ewholesale.reviews.index', compact('reviews'));
+    }
+
+    public function reviewModerate(Request $r, int $reviewId)
+    {
+        $r->validate([
+            'action' => 'required|in:hide,show',
+            'reason' => 'required_if:action,hide|nullable|string|max:255',
+        ]);
+
+        $review = \App\Models\EWholesale\EWReview::findOrFail($reviewId);
+
+        if ($r->action === 'hide') {
+            $review->update([
+                'is_visible'    => false,
+                'hidden_reason' => $r->reason,
+                'hidden_at'     => now(),
+            ]);
+        } else {
+            $review->update(['is_visible' => true, 'hidden_reason' => null, 'hidden_at' => null]);
+        }
+
+        return back()->with('success', 'Review moderation applied.');
+    }
+
+    // ────────────────────────────────────────────────────────────
+    // PHASE 5: DISPUTE SLA VIEW & ESCALATE
+    // ────────────────────────────────────────────────────────────
+
+    public function disputes(Request $r)
+    {
+        $disputes = \App\Models\EWholesale\EWDispute::with(['order.buyer.user:id,name','order.supplier:id,display_name'])
+            ->when($r->status, fn($q) => $q->where('status', $r->status))
+            ->orderByRaw("CASE WHEN sla_deadline IS NOT NULL THEN sla_deadline ELSE '2099-01-01' END ASC")
+            ->paginate(30)->withQueryString();
+        return view('admin.ewholesale.disputes.index', compact('disputes'));
+    }
+
+    public function disputeEscalate(Request $r, \App\Models\EWholesale\EWDispute $dispute)
+    {
+        $dispute->update([
+            'escalated_at' => now(),
+            'escalated_by' => auth()->id(),
+        ]);
+        return back()->with('success', 'Dispute escalated.');
+    }
+
+    // ────────────────────────────────────────────────────────────
+    // PHASE 5: CREDIT AGING — "Send Reminder" action
+    // ────────────────────────────────────────────────────────────
+
+    public function creditSendReminder(Request $r, EWCreditAccount $account)
+    {
+        \App\Jobs\EWholesale\SendCreditReminderJob::dispatch($account->id);
+        return back()->with('success', 'Reminder dispatched to buyer.');
+    }
+
+    // ────────────────────────────────────────────────────────────
+    // PHASE 5: SUPPLIER SCORECARD on show page (augmented)
+    // ────────────────────────────────────────────────────────────
+
+    public function supplierScorecard(EWSupplier $supplier): \Illuminate\Http\JsonResponse
+    {
+        return response()->json([
+            'supplier_id'          => $supplier->id,
+            'rating'               => $supplier->rating,
+            'response_rate'        => $supplier->response_rate,
+            'response_time_avg'    => $supplier->response_time_avg,
+            'on_time_delivery_rate'=> $supplier->on_time_delivery_rate,
+            'dispute_rate'         => $supplier->dispute_rate,
+            'cancellation_rate'    => $supplier->cancellation_rate,
+            'total_orders'         => $supplier->total_orders,
+            'open_disputes'        => \App\Models\EWholesale\EWDispute::whereHas('order', fn($q) => $q->where('supplier_id',$supplier->id))->where('status','open')->count(),
+            'pending_orders'       => EWOrder::where('supplier_id',$supplier->id)->where('status','pending_confirmation')->count(),
+        ]);
     }
 }

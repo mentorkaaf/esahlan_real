@@ -157,5 +157,29 @@
     @endforelse
 </div>
 
+{{-- Phase 5: Supplier Scorecard --}}
+<div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:20px;margin-top:20px">
+    <h3 style="margin:0 0 16px;font-size:15px;font-weight:700;color:#1B1444">Performance Scorecard</h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px" id="scorecardGrid">
+        <div style="text-align:center;padding:12px;background:#f9fafb;border-radius:8px">
+            <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em">Rating</div>
+            <div style="font-size:24px;font-weight:800;color:#f59e0b;margin-top:4px">{{ $supplier->rating ?? '—' }}★</div>
+        </div>
+        @foreach([
+            ['Response Rate',       ($supplier->response_rate ?? 0).'%',         $supplier->response_rate >= 80 ? '#10b981' : '#ef4444'],
+            ['Avg Response',        ($supplier->response_time_avg ?? 0).' min',  '#6b7280'],
+            ['On-time Delivery',    ($supplier->on_time_delivery_rate ?? 0).'%',  ($supplier->on_time_delivery_rate ?? 0) >= 90 ? '#10b981' : '#f59e0b'],
+            ['Dispute Rate',        ($supplier->dispute_rate ?? 0).'%',           ($supplier->dispute_rate ?? 0) <= 2 ? '#10b981' : '#ef4444'],
+            ['Cancellation Rate',   ($supplier->cancellation_rate ?? 0).'%',      ($supplier->cancellation_rate ?? 0) <= 5 ? '#10b981' : '#ef4444'],
+        ] as [$label,$val,$color])
+        <div style="text-align:center;padding:12px;background:#f9fafb;border-radius:8px">
+            <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em">{{ $label }}</div>
+            <div style="font-size:20px;font-weight:800;color:{{ $color }};margin-top:4px">{{ $val }}</div>
+        </div>
+        @endforeach
+    </div>
+    <p style="margin:10px 0 0;font-size:11px;color:#9ca3af">Updated nightly by <code>ewholesale:supplier-stats</code> command.</p>
+</div>
+
 </div>
 @endsection

@@ -864,6 +864,15 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
                 // Reports
                 Route::get('/reports',                          [$ew, 'reports'])->name('reports');
                 Route::get('/reports/export',                   [$ew, 'reportsCsvExport'])->name('reports.export');
+
+                // Phase 5 — Settlement, Reviews, Disputes, Credit Reminder
+                Route::get('/settlement',                       [$ew, 'settlementReport'])->name('settlement');
+                Route::get('/reviews',                          [$ew, 'reviews'])->name('reviews');
+                Route::post('/reviews/{review}/moderate',       [$ew, 'reviewModerate'])->name('reviews.moderate');
+                Route::get('/disputes',                         [$ew, 'disputes'])->name('disputes.list');
+                Route::post('/disputes/{dispute}/escalate',     [$ew, 'disputeEscalate'])->name('disputes.escalate');
+                Route::post('/credit/{account}/remind',         [$ew, 'creditSendReminder'])->name('credit.remind');
+                Route::get('/suppliers/{supplier}/scorecard',   [$ew, 'supplierScorecard'])->name('suppliers.scorecard');
             });
 
             // eGrocery — full management suite

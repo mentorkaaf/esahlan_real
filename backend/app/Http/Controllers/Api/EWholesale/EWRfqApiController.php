@@ -47,6 +47,16 @@ class EWRfqApiController extends Controller
             'expires_at'  => $expiry,
         ]);
 
+        // Notify active verified suppliers in same category
+        $categoryId = $r->category_id;
+        \App\Models\EWholesale\EWSupplier::active()->verified()
+            ->whereHas('products', fn($q) => $q->where('category_id', $categoryId)->where('status','active'))
+            ->pluck('id')
+            ->unique()
+            ->each(fn($sid) => \App\Jobs\EWholesale\NotifySupplierJob::dispatch(
+                $sid, 'new_rfq', ['title' => $rfq->title, 'rfq_id' => $rfq->id]
+            ));
+
         return response()->json([
             'message' => 'RFQ published. Suppliers will respond shortly.',
             'data'    => ['rfq_id' => $rfq->id, 'expires_at' => $expiry->toIso8601String()],

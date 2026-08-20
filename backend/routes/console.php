@@ -178,3 +178,28 @@ Schedule::command('hr:expire-assignments')
     ->dailyAt('01:00')
     ->name('hr:expire-assignments')
     ->withoutOverlapping();
+
+// ── eWholesale: Expire quotes and RFQs past their deadlines ──────────────
+// Every 30 minutes — marks status='expired' on stale quotes and RFQs.
+Schedule::command('ewholesale:expire')
+    ->everyThirtyMinutes()
+    ->name('ewholesale:expire')
+    ->withoutOverlapping()
+    ->runInBackground();
+
+// ── eWholesale: Supplier scorecard computation ────────────────────────────
+// Nightly at 02:30 — response_rate, on-time delivery, dispute_rate, etc.
+Schedule::command('ewholesale:supplier-stats')
+    ->dailyAt('02:30')
+    ->name('ewholesale:supplier-stats')
+    ->withoutOverlapping()
+    ->runInBackground();
+
+// ── eWholesale: Flag overdue credit + auto-freeze + remind ───────────────
+// Daily at 08:00 — marks ledger entries overdue, freezes accounts > threshold,
+// dispatches FCM reminder jobs to buyers with outstanding balances.
+Schedule::command('ewholesale:flag-overdue-credit')
+    ->dailyAt('08:00')
+    ->name('ewholesale:flag-overdue-credit')
+    ->withoutOverlapping()
+    ->runInBackground();

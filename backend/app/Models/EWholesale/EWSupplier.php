@@ -17,13 +17,18 @@ class EWSupplier extends Model
         'warehouse_address','district_id',
         'verification','verified_at',
         'response_rate','response_time_avg','rating','total_orders','is_active',
+        'on_time_delivery_rate','dispute_rate','cancellation_rate','platform_fee_percent',
     ];
 
     protected $casts = [
-        'verified_at'    => 'datetime',
-        'response_rate'  => 'decimal:2',
-        'rating'         => 'decimal:2',
-        'is_active'      => 'boolean',
+        'verified_at'          => 'datetime',
+        'response_rate'        => 'decimal:2',
+        'rating'               => 'decimal:2',
+        'is_active'            => 'boolean',
+        'on_time_delivery_rate'=> 'decimal:2',
+        'dispute_rate'         => 'decimal:2',
+        'cancellation_rate'    => 'decimal:2',
+        'platform_fee_percent' => 'decimal:2',
     ];
 
     public function vendor(): BelongsTo        { return $this->belongsTo(Vendor::class); }

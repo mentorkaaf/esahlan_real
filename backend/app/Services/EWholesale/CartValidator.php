@@ -92,7 +92,11 @@ class CartValidator
             $supplier  = EWSupplier::find($supplierId);
             $subtotal  = collect($suppLines)->sum('line_total');
             $delivFee  = $this->shipping->calculate($supplier, $suppLines, $subtotal, $districtId);
-            $platFee   = round($subtotal * $platformFeePct / 100, 2);
+            // Per-supplier override > global setting
+            $effectivePlatFee = $supplier->platform_fee_percent !== null
+                ? (float) $supplier->platform_fee_percent
+                : $platformFeePct;
+            $platFee   = round($subtotal * $effectivePlatFee / 100, 2);
             $total     = round($subtotal + $delivFee + $platFee, 2);
 
             // Payment plans available

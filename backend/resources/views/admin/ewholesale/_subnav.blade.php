@@ -7,6 +7,9 @@
         ['label'=>'Catalog',     'route'=>'admin.module-data.wholesale.products',   'icon'=>'📦'],
         ['label'=>'RFQ Center',  'route'=>'admin.module-data.wholesale.rfq',        'icon'=>'📋'],
         ['label'=>'Orders',      'route'=>'admin.module-data.wholesale.orders',     'icon'=>'🛒'],
+        ['label'=>'Disputes',    'route'=>'admin.module-data.wholesale.disputes.list', 'icon'=>'⚖️'],
+        ['label'=>'Reviews',     'route'=>'admin.module-data.wholesale.reviews',    'icon'=>'⭐'],
+        ['label'=>'Settlement',  'route'=>'admin.module-data.wholesale.settlement', 'icon'=>'💰'],
         ['label'=>'Reports',     'route'=>'admin.module-data.wholesale.reports',    'icon'=>'📈'],
         ['label'=>'Settings',    'route'=>'admin.module-data.wholesale.settings',   'icon'=>'⚙️'],
     ];

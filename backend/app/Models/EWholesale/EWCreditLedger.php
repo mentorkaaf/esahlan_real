@@ -10,7 +10,7 @@ class EWCreditLedger extends Model
     protected $table = 'ewholesale_credit_ledger';
 
     protected $fillable = [
-        'credit_account_id','order_id','type','amount','balance_after','due_date','note',
+        'credit_account_id','order_id','type','amount','balance_after','due_date','status','note',
     ];
 
     protected $casts = [

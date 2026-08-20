@@ -39,7 +39,7 @@ class EWQuoteController extends Controller
             'message'     => $r->message,
         ]);
 
-        // Notify supplier via broadcast
+        // Notify supplier via broadcast + FCM
         if ($supplier->vendor_id) {
             broadcast(new EWSupplierEvent(
                 $supplier->vendor_id,
@@ -52,6 +52,10 @@ class EWQuoteController extends Controller
                 ]
             ))->toOthers();
         }
+        \App\Jobs\EWholesale\NotifySupplierJob::dispatch(
+            $supplier->id, 'new_inquiry',
+            ['product_name' => $product->name, 'buyer_name' => $r->user()->name]
+        );
 
         return response()->json([
             'message' => 'Inquiry sent to supplier.',
