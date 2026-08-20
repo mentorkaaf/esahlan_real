@@ -126,13 +126,89 @@ class PricingService
 
     /**
      * Resolve prices for many variants at once. Returns keyed array [variant_id => result].
+     * Eager-loads all tiers + active deals in 3 queries total instead of N*3.
      */
     public function resolveMany(EWProduct $product, Collection $variants, float $qty, ?EWBuyer $buyer = null): array
     {
+        // Pre-load all tiers for this product (variant-level + product-level) in one query
+        $allTiers = $product->priceTiers()->orderBy('min_qty')->get()->groupBy(
+            fn($t) => $t->variant_id ?? '__product'
+        );
+
+        // Pre-load active deal
+        $activeDeal = $product->activeDeals()
+            ->where('min_qty', '<=', $qty)
+            ->orderByDesc('deal_price_percent_off')
+            ->first();
+
+        // Buyer price list
+        $priceListPct = 0.0;
+        if ($buyer) {
+            $pl = $buyer->priceList();
+            if ($pl && $pl->is_active) {
+                $priceListPct = (float)$pl->discount_percent;
+            }
+        }
+
         $out = [];
         foreach ($variants as $variant) {
-            $out[$variant->id] = $this->resolve($product, $variant, $qty, $buyer);
+            $tiers = $allTiers->get((string)$variant->id)
+                ?? $allTiers->get('__product')
+                ?? collect();
+
+            if ($tiers->isEmpty()) {
+                $fallback = (float)($product->min_price ?? 0);
+                $out[$variant->id] = $this->result($fallback, null, $fallback, false, false, false);
+                continue;
+            }
+
+            $matched     = null;
+            $topTier     = $tiers->first();
+
+            foreach ($tiers as $tier) {
+                $inMin = $qty >= (float)$tier->min_qty;
+                $inMax = $tier->max_qty === null || $qty <= (float)$tier->max_qty;
+                if ($inMin && $inMax) {
+                    $matched = $tier;
+                }
+            }
+            if ($matched === null) {
+                $matched = $tiers->last();
+            }
+
+            $tierPrice        = (float)$matched->unit_price;
+            $topTierPrice     = (float)$topTier->unit_price;
+            $priceListApplied = false;
+            $priceListDiscount = 0.0;
+
+            if ($priceListPct > 0) {
+                $priceListDiscount = round($tierPrice * ($priceListPct / 100), 4);
+                $priceListApplied  = true;
+            }
+
+            $priceAfterList = round($tierPrice - $priceListDiscount, 2);
+            $dealApplied    = false;
+            $finalPrice     = $tierPrice;
+
+            if ($activeDeal) {
+                $dealPrice = $activeDeal->applyTo($tierPrice);
+                if ($dealPrice < $priceAfterList) {
+                    $finalPrice       = $dealPrice;
+                    $dealApplied      = true;
+                    $priceListApplied = false;
+                } else {
+                    $finalPrice = $priceAfterList;
+                }
+            } elseif ($priceListApplied) {
+                $finalPrice = $priceAfterList;
+            }
+
+            $out[$variant->id] = $this->result(
+                round(max(0, $finalPrice), 2),
+                $matched, $topTierPrice, $priceListApplied, $dealApplied, false
+            );
         }
+
         return $out;
     }
 
