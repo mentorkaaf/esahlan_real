@@ -50,10 +50,10 @@ class EWOrderApiController extends Controller
                         ->where('user_id', $user->id)->first();
 
         if (!$buyer) {
-            return $this->error('KYB_REQUIRED', 'Register as a wholesale buyer first.', 403);
+            return $this->ewError('KYB_REQUIRED', 'Register as a wholesale buyer first.', 403);
         }
         if (!$buyer->isApproved()) {
-            return $this->error('KYB_REQUIRED', 'Your KYB is not yet approved. You cannot place orders.', 403);
+            return $this->ewError('KYB_REQUIRED', 'Your KYB is not yet approved. You cannot place orders.', 403);
         }
 
         $platformFeePct = (float) EWSetting::get('platform_fee_percent', 2.5);
@@ -518,7 +518,7 @@ class EWOrderApiController extends Controller
         return new \RuntimeException(json_encode(array_merge(['code' => $code, 'message' => $message], $extra)));
     }
 
-    private function error(string $code, string $message, int $status): \Illuminate\Http\JsonResponse
+    private function ewError(string $code, string $message, int $status): \Illuminate\Http\JsonResponse
     {
         return response()->json(['error' => ['code' => $code, 'message' => $message]], $status);
     }

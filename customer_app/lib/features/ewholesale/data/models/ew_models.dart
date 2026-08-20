@@ -22,11 +22,11 @@ class EwHomePayload {
   factory EwHomePayload.fromJson(Map<String, dynamic> j) => EwHomePayload(
     banners:           _list(j['banners'],            EwBanner.fromJson),
     categories:        _list(j['categories'],          EwCategory.fromJson),
-    topDeals:          _list(j['top_deals'],           EwProduct.fromJson),
-    verifiedSuppliers: _list(j['verified_suppliers'],  EwSupplierCard.fromJson),
-    bestSellers:       _list(j['best_sellers'],        EwProduct.fromJson),
-    newArrivals:       _list(j['new_arrivals'],        EwProduct.fromJson),
-    openRfqCount:      (j['open_rfq_count'] ?? 0) as int,
+    topDeals:          _list(j['deals'] ?? j['top_deals'],                        EwProduct.fromJson),
+    verifiedSuppliers: _list(j['verifiedSuppliers'] ?? j['verified_suppliers'],  EwSupplierCard.fromJson),
+    bestSellers:       _list(j['bestSellers'] ?? j['best_sellers'],               EwProduct.fromJson),
+    newArrivals:       _list(j['newArrivals'] ?? j['new_arrivals'],               EwProduct.fromJson),
+    openRfqCount:      (j['openRfqCount'] ?? j['open_rfq_count'] ?? 0) as int,
   );
 }
 

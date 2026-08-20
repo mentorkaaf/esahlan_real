@@ -762,8 +762,8 @@ Route::prefix('v1')->group(function () {
             // ── eWholesale v2 — Authed buyer routes ───────────────────────────────
             Route::prefix('ewholesale')->group(function () {
                 $buyer   = \App\Http\Controllers\Api\EWholesale\EWBuyerController::class;
-                $inq     = \App\Http\Controllers\Api\EWholesale\EWInquiryController::class;
-                $rfq     = \App\Http\Controllers\Api\EWholesale\EWRfqController::class;
+                $inq     = \App\Http\Controllers\Api\EWholesale\EWQuoteController::class;
+                $rfq     = \App\Http\Controllers\Api\EWholesale\EWRfqApiController::class;
                 $orders  = \App\Http\Controllers\Api\EWholesale\EWOrderApiController::class;
                 $lists   = \App\Http\Controllers\Api\EWholesale\EWSavedListController::class;
 
@@ -772,9 +772,9 @@ Route::prefix('v1')->group(function () {
                 Route::get('buyer/me',                  [$buyer, 'me']);
 
                 // Inquiry & quotes
-                Route::post('products/{id}/inquiry',    [$inq, 'store']);
-                Route::get('quotes',                    [$inq, 'quotes']);
-                Route::get('quotes/{id}',               [$inq, 'quoteDetail']);
+                Route::post('products/{id}/inquiry',    [$inq, 'inquiry']);
+                Route::get('quotes',                    [$inq, 'index']);
+                Route::get('quotes/{id}',               [$inq, 'show']);
                 Route::post('quotes/{id}/counter',      [$inq, 'counter']);
                 Route::post('quotes/{id}/accept',       [$inq, 'accept']);
                 Route::post('quotes/{id}/decline',      [$inq, 'decline']);
