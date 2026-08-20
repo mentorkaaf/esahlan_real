@@ -504,7 +504,7 @@ class EWholesaleSeeder extends Seeder
         $this->product($juba, $health, [
             'name'=>'3-Ply Face Mask (carton 2000)','name_so'=>'Maaskarada',
             'unit'=>'carton','units_per_pack'=>2000,'moq'=>1,'lead_time_days'=>2,'origin_country'=>'China',
-            'spec'=>[['key'=>'Per carton','value'=>'2000 masks'],['key'=>'Layers','value'=>'3-ply']],
+            'specs'=>[['key'=>'Per carton','value'=>'2000 masks'],['key'=>'Layers','value'=>'3-ply']],
         ], [
             [1,4,14.00],[5,19,12.50],[20,null,11.00],
         ]);

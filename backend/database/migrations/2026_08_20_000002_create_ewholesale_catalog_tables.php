@@ -33,7 +33,7 @@ return new class extends Migration
             $t->text('description')->nullable();
             $t->json('images')->nullable();               // array of paths
             $t->string('video_url')->nullable();
-            $t->enum('unit', ['piece','dozen','carton','bag','sack','pallet','drum','box'])->default('carton');
+            $t->enum('unit', ['piece','dozen','carton','bag','sack','pallet','drum','box','bundle','set','roll'])->default('carton');
             $t->unsignedSmallInteger('units_per_pack')->nullable();  // 1 carton = 24 pcs
             $t->decimal('moq', 12, 2)->default(1);
             $t->unsignedSmallInteger('lead_time_days')->default(0);
