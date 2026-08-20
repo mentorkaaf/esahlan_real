@@ -3,6 +3,7 @@
     $nav = [
         ['label'=>'Dashboard',   'route'=>'admin.module-data.wholesale.dashboard',  'icon'=>'📊'],
         ['label'=>'Suppliers',   'route'=>'admin.module-data.wholesale.suppliers',  'icon'=>'🏭'],
+        ['label'=>'Banners',     'route'=>'admin.module-data.wholesale.banners',    'icon'=>'🖼️'],
         ['label'=>'Buyers',      'route'=>'admin.module-data.wholesale.buyers',     'icon'=>'🏢'],
         ['label'=>'Catalog',     'route'=>'admin.module-data.wholesale.products',   'icon'=>'📦'],
         ['label'=>'RFQ Center',  'route'=>'admin.module-data.wholesale.rfq',        'icon'=>'📋'],

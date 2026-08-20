@@ -759,6 +759,40 @@ Route::prefix('v1')->group(function () {
             Route::post('eshop/order',              [EShopController::class, 'createOrder']);
             Route::post('eshop/coupon/validate',    [EShopController::class, 'validateCoupon']);
             Route::post('eshop/products/{id}/reviews', [EShopController::class, 'submitReview']);
+            // ── eWholesale v2 — Supplier Portal ───────────────────────────────────
+            Route::prefix('ewholesale/supplier')->group(function () {
+                $portal = \App\Http\Controllers\Api\EWholesale\EWSupplierPortalController::class;
+
+                // Registration & profile
+                Route::get('me',                        [$portal, 'me']);
+                Route::post('register',                 [$portal, 'register']);
+                Route::put('me',                        [$portal, 'updateProfile']);
+
+                // Dashboard
+                Route::get('dashboard',                 [$portal, 'dashboard']);
+
+                // Products
+                Route::get('products',                  [$portal, 'products']);
+                Route::post('products',                 [$portal, 'productStore']);
+                Route::get('products/{id}',             [$portal, 'productShow']);
+                Route::put('products/{id}',             [$portal, 'productUpdate']);
+                Route::post('products/{id}/toggle',     [$portal, 'productToggle']);
+
+                // Orders
+                Route::get('orders',                    [$portal, 'orders']);
+                Route::get('orders/{id}',               [$portal, 'orderShow']);
+                Route::post('orders/{id}/confirm',      [$portal, 'orderConfirm']);
+                Route::patch('orders/{id}/status',      [$portal, 'orderUpdateStatus']);
+
+                // Inquiries & Quotes
+                Route::get('inquiries',                 [$portal, 'inquiries']);
+                Route::post('inquiries/{id}/quote',     [$portal, 'sendQuote']);
+
+                // RFQ responses
+                Route::get('rfqs',                      [$portal, 'rfqs']);
+                Route::post('rfqs/{id}/quote',          [$portal, 'rfqSubmitQuote']);
+            });
+
             // ── eWholesale v2 — Authed buyer routes ───────────────────────────────
             Route::prefix('ewholesale')->group(function () {
                 $buyer   = \App\Http\Controllers\Api\EWholesale\EWBuyerController::class;

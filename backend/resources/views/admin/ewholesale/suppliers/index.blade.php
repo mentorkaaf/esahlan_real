@@ -7,6 +7,8 @@
 <div style="padding:24px">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
     <h2 style="margin:0;font-size:20px;font-weight:700;color:#1B1444">Suppliers</h2>
+    <a href="{{ route('admin.module-data.wholesale.suppliers.create') }}"
+       style="padding:9px 18px;background:#1B1444;color:#fff;border-radius:7px;font-size:13px;font-weight:600;text-decoration:none">+ Add Supplier</a>
 </div>
 
 {{-- Filters --}}

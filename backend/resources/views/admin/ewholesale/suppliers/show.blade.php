@@ -5,9 +5,11 @@
 @include('admin.ewholesale._subnav')
 
 <div style="padding:24px">
-<div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;flex-wrap:wrap">
     <a href="{{ route('admin.module-data.wholesale.suppliers') }}" style="color:#6b7280;text-decoration:none;font-size:13px">← Suppliers</a>
-    <h2 style="margin:0;font-size:20px;font-weight:700;color:#1B1444">{{ $supplier->display_name }}</h2>
+    <h2 style="margin:0;font-size:20px;font-weight:700;color:#1B1444;flex:1">{{ $supplier->display_name }}</h2>
+    <a href="{{ route('admin.module-data.wholesale.suppliers.edit', $supplier) }}"
+       style="padding:7px 16px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:6px;font-size:13px;text-decoration:none">✏️ Edit Profile</a>
     <span style="padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;
         background:{{ $supplier->verification==='gold'?'#fef3c7':($supplier->isVerified()?'#d1fae5':'#f3f4f6') }};
         color:{{ $supplier->verification==='gold'?'#92400e':($supplier->isVerified()?'#065f46':'#6b7280') }}">

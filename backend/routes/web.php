@@ -814,9 +814,22 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
 
                 // Suppliers
                 Route::get('/suppliers',                     [$ew, 'suppliers'])->name('suppliers');
+                Route::get('/suppliers/create',              [$ew, 'supplierCreate'])->name('suppliers.create');
+                Route::post('/suppliers',                    [$ew, 'supplierStore'])->name('suppliers.store');
                 Route::get('/suppliers/{supplier}',          [$ew, 'supplierShow'])->name('suppliers.show');
+                Route::get('/suppliers/{supplier}/edit',     [$ew, 'supplierEdit'])->name('suppliers.edit');
+                Route::put('/suppliers/{supplier}',          [$ew, 'supplierUpdate'])->name('suppliers.update');
                 Route::post('/suppliers/{supplier}/action',  [$ew, 'supplierAction'])->name('suppliers.action');
                 Route::post('/suppliers/{supplier}/shipping',[$ew, 'supplierShippingUpdate'])->name('suppliers.shipping');
+
+                // Banners
+                Route::get('/banners',                       [$ew, 'banners'])->name('banners');
+                Route::get('/banners/create',                [$ew, 'bannerCreate'])->name('banners.create');
+                Route::post('/banners',                      [$ew, 'bannerStore'])->name('banners.store');
+                Route::get('/banners/{banner}/edit',         [$ew, 'bannerEdit'])->name('banners.edit');
+                Route::put('/banners/{banner}',              [$ew, 'bannerUpdate'])->name('banners.update');
+                Route::post('/banners/{banner}/toggle',      [$ew, 'bannerToggle'])->name('banners.toggle');
+                Route::delete('/banners/{banner}',           [$ew, 'bannerDelete'])->name('banners.delete');
 
                 // Buyers & Credit
                 Route::get('/buyers',                            [$ew, 'buyers'])->name('buyers');

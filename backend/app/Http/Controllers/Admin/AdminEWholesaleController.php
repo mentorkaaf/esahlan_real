@@ -7,7 +7,7 @@ use App\Models\EWholesale\{
     EWSupplier, EWBuyer, EWCreditAccount, EWCreditLedger, EWProduct, EWProductVariant,
     EWCategory, EWPriceTier, EWPriceList, EWBuyerPriceList, EWDeal,
     EWOrder, EWOrderItem, EWOrderPayment, EWShipment, EWDispute,
-    EWRfq, EWRfqQuote, EWShippingRule, EWSetting, EWActivityLog
+    EWRfq, EWRfqQuote, EWShippingRule, EWSetting, EWActivityLog, EWBanner, EWReview
 };
 use App\Models\Vendor;
 use App\Services\EWholesale\CreditService;
@@ -787,6 +787,154 @@ class AdminEWholesaleController extends Controller
     {
         \App\Jobs\EWholesale\SendCreditReminderJob::dispatch($account->id);
         return back()->with('success', 'Reminder dispatched to buyer.');
+    }
+
+    // ────────────────────────────────────────────────────────────
+    // BANNERS
+    // ────────────────────────────────────────────────────────────
+
+    public function banners()
+    {
+        $banners = EWBanner::orderBy('sort_order')->get();
+        return view('admin.ewholesale.banners.index', compact('banners'));
+    }
+
+    public function bannerCreate()
+    {
+        return view('admin.ewholesale.banners.form', ['banner' => null]);
+    }
+
+    public function bannerStore(Request $r)
+    {
+        $r->validate([
+            'title'     => 'required|string|max:120',
+            'subtitle'  => 'nullable|string|max:200',
+            'cta_label' => 'nullable|string|max:40',
+            'cta_url'   => 'nullable|string|max:255',
+            'bg_color'  => 'nullable|string|max:20',
+            'sort_order'=> 'integer|min:0',
+            'is_active' => 'boolean',
+            'image'     => 'nullable|image|max:4096',
+        ]);
+
+        $data = $r->only(['title','subtitle','cta_label','cta_url','bg_color','sort_order']);
+        $data['is_active']  = (bool)$r->is_active;
+        $data['sort_order'] = (int)($r->sort_order ?? EWBanner::max('sort_order') + 1);
+
+        if ($r->hasFile('image')) {
+            $data['image'] = $r->file('image')->store('ewholesale/banners', 'public');
+        }
+
+        EWBanner::create($data);
+        Cache::forget('ew:home_payload');
+        return redirect()->route('admin.module-data.wholesale.banners')->with('success', 'Banner created.');
+    }
+
+    public function bannerEdit(EWBanner $banner)
+    {
+        return view('admin.ewholesale.banners.form', compact('banner'));
+    }
+
+    public function bannerUpdate(Request $r, EWBanner $banner)
+    {
+        $r->validate([
+            'title'     => 'required|string|max:120',
+            'subtitle'  => 'nullable|string|max:200',
+            'cta_label' => 'nullable|string|max:40',
+            'cta_url'   => 'nullable|string|max:255',
+            'bg_color'  => 'nullable|string|max:20',
+            'sort_order'=> 'integer|min:0',
+            'is_active' => 'boolean',
+            'image'     => 'nullable|image|max:4096',
+        ]);
+
+        $data = $r->only(['title','subtitle','cta_label','cta_url','bg_color','sort_order']);
+        $data['is_active'] = (bool)$r->is_active;
+
+        if ($r->hasFile('image')) {
+            $data['image'] = $r->file('image')->store('ewholesale/banners', 'public');
+        }
+
+        $banner->update($data);
+        Cache::forget('ew:home_payload');
+        return redirect()->route('admin.module-data.wholesale.banners')->with('success', 'Banner updated.');
+    }
+
+    public function bannerToggle(EWBanner $banner)
+    {
+        $banner->update(['is_active' => !$banner->is_active]);
+        Cache::forget('ew:home_payload');
+        return back()->with('success', 'Banner toggled.');
+    }
+
+    public function bannerDelete(EWBanner $banner)
+    {
+        $banner->delete();
+        Cache::forget('ew:home_payload');
+        return back()->with('success', 'Banner deleted.');
+    }
+
+    // ────────────────────────────────────────────────────────────
+    // SUPPLIER CREATE / EDIT
+    // ────────────────────────────────────────────────────────────
+
+    public function supplierCreate()
+    {
+        $vendors = Vendor::orderBy('name')->get(['id','name']);
+        return view('admin.ewholesale.suppliers.form', ['supplier' => null, 'vendors' => $vendors]);
+    }
+
+    public function supplierStore(Request $r)
+    {
+        $r->validate([
+            'vendor_id'         => 'required|exists:vendors,id',
+            'display_name'      => 'required|string|max:120',
+            'about'             => 'nullable|string|max:1000',
+            'warehouse_address' => 'nullable|string|max:255',
+            'logo'              => 'nullable|image|max:2048',
+            'verification'      => 'in:unverified,pending,verified,gold',
+        ]);
+
+        if (EWSupplier::where('vendor_id', $r->vendor_id)->exists()) {
+            return back()->withErrors(['vendor_id' => 'This vendor already has a wholesale supplier profile.'])->withInput();
+        }
+
+        $data = $r->only(['vendor_id','display_name','about','warehouse_address','verification']);
+        $data['is_active']    = true;
+        $data['verification'] = $data['verification'] ?? 'unverified';
+
+        if ($r->hasFile('logo')) {
+            $data['logo'] = $r->file('logo')->store('ewholesale/logos', 'public');
+        }
+
+        $supplier = EWSupplier::create($data);
+        EWActivityLog::record('supplier.created', $supplier, [], $data, 'admin', auth()->id());
+        return redirect()->route('admin.module-data.wholesale.suppliers.show', $supplier)->with('success', 'Supplier created.');
+    }
+
+    public function supplierEdit(EWSupplier $supplier)
+    {
+        $vendors = Vendor::orderBy('name')->get(['id','name']);
+        return view('admin.ewholesale.suppliers.form', compact('supplier','vendors'));
+    }
+
+    public function supplierUpdate(Request $r, EWSupplier $supplier)
+    {
+        $r->validate([
+            'display_name'         => 'required|string|max:120',
+            'about'                => 'nullable|string|max:1000',
+            'warehouse_address'    => 'nullable|string|max:255',
+            'logo'                 => 'nullable|image|max:2048',
+            'verification'         => 'in:unverified,pending,verified,gold',
+            'platform_fee_percent' => 'nullable|numeric|min:0|max:100',
+        ]);
+
+        $data = $r->only(['display_name','about','warehouse_address','verification','platform_fee_percent']);
+        if ($r->hasFile('logo')) {
+            $data['logo'] = $r->file('logo')->store('ewholesale/logos', 'public');
+        }
+        $supplier->update($data);
+        return redirect()->route('admin.module-data.wholesale.suppliers.show', $supplier)->with('success', 'Supplier updated.');
     }
 
     // ────────────────────────────────────────────────────────────
