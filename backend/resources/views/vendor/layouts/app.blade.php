@@ -328,6 +328,49 @@
             <span class="nav-text">Earnings</span>
         </a>
 
+        @elseif(($vendor?->module_slug ?? '') === 'ewholesale')
+        {{-- ═══════════════ eWHOLESALE SUPPLIER NAV ═══════════════ --}}
+        <div class="nav-section-label">Main</div>
+        <a href="{{ route('vendor.wholesale.dashboard') }}" class="nav-link {{ request()->routeIs('vendor.wholesale.dashboard') ? 'active' : '' }}">
+            <span class="nav-icon"><i class="fa-solid fa-chart-line"></i></span>
+            <span class="nav-text">Dashboard</span>
+        </a>
+
+        <div class="nav-section-label">Catalog</div>
+        <a href="{{ route('vendor.wholesale.products') }}" class="nav-link {{ request()->routeIs('vendor.wholesale.products') ? 'active' : '' }}">
+            <span class="nav-icon"><i class="fa-solid fa-boxes-stacked"></i></span>
+            <span class="nav-text">My Products</span>
+        </a>
+
+        <div class="nav-section-label">Trade</div>
+        <a href="{{ route('vendor.wholesale.orders') }}" class="nav-link {{ request()->routeIs('vendor.wholesale.orders*') ? 'active' : '' }}">
+            <span class="nav-icon"><i class="fa-solid fa-receipt"></i></span>
+            <span class="nav-text">Orders</span>
+            @php
+                $wsPending = \App\Models\EWholesale\EWSupplier::where('vendor_id', $vendor?->id)->value('id');
+                $wsPendingCount = $wsPending ? \App\Models\EWholesale\EWOrder::where('supplier_id', $wsPending)->where('status', 'pending_confirmation')->count() : 0;
+            @endphp
+            @if($wsPendingCount > 0)
+            <span class="nav-badge">{{ $wsPendingCount }}</span>
+            @endif
+        </a>
+        <a href="{{ route('vendor.wholesale.rfqs') }}" class="nav-link {{ request()->routeIs('vendor.wholesale.rfqs') ? 'active' : '' }}">
+            <span class="nav-icon"><i class="fa-solid fa-file-invoice"></i></span>
+            <span class="nav-text">RFQs / Inquiries</span>
+            @php
+                $wsRfqCount = \App\Models\EWholesale\EWRfq::where('status', 'pending')->count();
+            @endphp
+            @if($wsRfqCount > 0)
+            <span class="nav-badge">{{ $wsRfqCount }}</span>
+            @endif
+        </a>
+
+        <div class="nav-section-label">Business</div>
+        <a href="{{ route('vendor.wholesale.store') }}" class="nav-link {{ request()->routeIs('vendor.wholesale.store') ? 'active' : '' }}">
+            <span class="nav-icon"><i class="fa-solid fa-building"></i></span>
+            <span class="nav-text">Store Profile</span>
+        </a>
+
         @else
         {{-- ═══════════════ REGULAR VENDOR NAV ═══════════════ --}}
         <div class="nav-section-label">Main</div>

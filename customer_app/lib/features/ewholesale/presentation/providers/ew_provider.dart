@@ -204,6 +204,10 @@ final ewRfqsProvider = FutureProvider<List<EwRfq>>((ref) {
   return ref.watch(ewRepoProvider).getMyRfqs();
 });
 
+final ewRfqDetailProvider = FutureProvider.family.autoDispose<EwRfq, int>((ref, id) {
+  return ref.watch(ewRepoProvider).getRfq(id);
+});
+
 // ── Orders ────────────────────────────────────────────────────────────────────
 
 final ewOrdersProvider = FutureProvider.family<List<EwOrder>, String?>((ref, status) {

@@ -111,6 +111,7 @@ import '../../features/ewholesale/presentation/screens/ew_quotes_screen.dart';
 import '../../features/ewholesale/presentation/screens/ew_cart_checkout_screen.dart';
 import '../../features/ewholesale/presentation/screens/ew_kyb_screen.dart';
 import '../../features/ewholesale/presentation/screens/ew_orders_screen.dart';
+import '../../features/ewholesale/presentation/screens/ew_search_screen.dart';
 import '../../features/ewholesale/data/models/ew_models.dart';
 import '../../features/modules/elaundry/elaundry_screen.dart';
 import '../../features/modules/ehealth/ehealth_screen.dart';
@@ -338,6 +339,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/egrocery-legacy', builder: (_, __) => const EGroceryScreen()),
           // eWholesale B2B module
           GoRoute(path: '/ewholesale',                  builder: (_, __) => const EwHomeScreen()),
+          GoRoute(path: '/ewholesale/search',           builder: (_, s) => EwSearchScreen(initialQuery: s.uri.queryParameters['q'])),
           GoRoute(path: '/ewholesale/products',
             builder: (_, state) {
               final p = state.uri.queryParameters;

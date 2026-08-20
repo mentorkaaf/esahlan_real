@@ -267,7 +267,15 @@ class EwCheckoutScreen extends ConsumerStatefulWidget {
 
 class _EwCheckoutScreenState extends ConsumerState<EwCheckoutScreen> {
   final Map<int, String> _plans = {}; // supplierId → plan
+  String _paymentMethod = 'waafi'; // global payment method
   bool _loading = false;
+
+  static const _payMethods = [
+    ('waafi',  'Waafi Pay',    Icons.phone_android),
+    ('evc',    'EVC Plus',     Icons.phone_android),
+    ('zaad',   'Zaad',         Icons.phone_android),
+    ('wallet', 'eSahlan Wallet', Icons.account_balance_wallet_outlined),
+  ];
 
   @override
   void initState() {
@@ -303,10 +311,58 @@ class _EwCheckoutScreenState extends ConsumerState<EwCheckoutScreen> {
             buyerAsync: buyerAsync,
             onPlanChanged: (p) => setState(() => _plans[g.supplierId] = p),
           )),
+          const SizedBox(height: 16),
+          // Payment method selector
+          _buildPaymentMethodCard(),
           const SizedBox(height: 80),
         ])),
         // Place Order bar
         _buildPlaceOrderBar(context, buyerAsync),
+      ]),
+    );
+  }
+
+  Widget _buildPaymentMethodCard() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      decoration: BoxDecoration(
+        color: EwTheme.surface,
+        borderRadius: EwTheme.radius12,
+        border: Border.all(color: EwTheme.border),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('Payment Method', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 12),
+        ..._payMethods.map((m) {
+          final (id, label, icon) = m;
+          return GestureDetector(
+            onTap: () => setState(() => _paymentMethod = id),
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: _paymentMethod == id ? EwTheme.orange.withOpacity(0.08) : EwTheme.bg,
+                borderRadius: EwTheme.radius8,
+                border: Border.all(
+                  color: _paymentMethod == id ? EwTheme.orange : EwTheme.border,
+                  width: _paymentMethod == id ? 1.5 : 1,
+                ),
+              ),
+              child: Row(children: [
+                Icon(icon, color: _paymentMethod == id ? EwTheme.orange : Colors.grey, size: 20),
+                const SizedBox(width: 12),
+                Expanded(child: Text(label,
+                  style: TextStyle(
+                    fontSize: 14, fontWeight: FontWeight.w600,
+                    color: _paymentMethod == id ? EwTheme.orange : EwTheme.textPrimary,
+                  ))),
+                if (_paymentMethod == id)
+                  const Icon(Icons.check_circle, color: EwTheme.orange, size: 18),
+              ]),
+            ),
+          );
+        }),
       ]),
     );
   }
@@ -341,8 +397,10 @@ class _EwCheckoutScreenState extends ConsumerState<EwCheckoutScreen> {
     try {
       final repo = ref.read(ewRepoProvider);
       final groupPayloads = widget.groups.map((g) => {
-        'supplier_id':  g.supplierId,
-        'payment_plan': _plans[g.supplierId] ?? 'prepaid',
+        'supplier_id':    g.supplierId,
+        'payment_plan':   _plans[g.supplierId] ?? 'prepaid',
+        'payment_method': _paymentMethod,
+        'fulfillment':    'delivery',
         'lines': g.lines.map((l) => l.toJson()).toList(),
       }).toList();
 

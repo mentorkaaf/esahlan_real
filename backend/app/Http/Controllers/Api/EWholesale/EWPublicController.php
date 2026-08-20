@@ -305,6 +305,58 @@ class EWPublicController extends Controller
     }
 
     // ── GET /api/v1/ewholesale/search/suggest?q= ─────────────────────────
+    // ── GET /api/v1/ewholesale/search ─────────────────────────────────────────
+    public function search(Request $r)
+    {
+        $q    = trim($r->input('q', ''));
+        $type = $r->input('type', 'all'); // all | products | suppliers
+        $page = (int) $r->input('page', 1);
+        $per  = 20;
+
+        if (strlen($q) < 1) {
+            return response()->json(['data' => ['products' => [], 'suppliers' => []], 'meta' => []]);
+        }
+
+        $products  = [];
+        $suppliers = [];
+
+        if ($type === 'all' || $type === 'products') {
+            $productQuery = EWProduct::with(['priceTiers', 'supplier:id,display_name,verification'])
+                ->where('status', 'active')
+                ->where(fn($q2) => $q2->where('name', 'like', "%$q%")
+                    ->orWhere('name_so', 'like', "%$q%")
+                    ->orWhere('brand', 'like', "%$q%")
+                    ->orWhere('tags', 'like', "%$q%"));
+
+            $cat = $r->input('category_id');
+            if ($cat) $productQuery->where('category_id', $cat);
+
+            $paginator = $productQuery->orderByDesc('total_orders')->paginate($per, ['*'], 'page', $page);
+            $products = [
+                'data' => $paginator->getCollection()->map(fn($p) => $this->productCard($p)),
+                'meta' => ['current_page' => $paginator->currentPage(), 'last_page' => $paginator->lastPage(), 'total' => $paginator->total()],
+            ];
+        }
+
+        if ($type === 'all' || $type === 'suppliers') {
+            $supplierQuery = EWSupplier::active()
+                ->where(fn($q2) => $q2->where('display_name', 'like', "%$q%")
+                    ->orWhere('about', 'like', "%$q%")
+                    ->orWhere('specialty_tags', 'like', "%$q%"));
+
+            $suppliers = $supplierQuery->limit(10)->get()->map(fn($s) => [
+                'id'           => $s->id,
+                'display_name' => $s->display_name,
+                'logo_url'     => $s->logo ? $this->mediaUrl($s->logo) : null,
+                'verification' => $s->verification,
+                'rating'       => $s->rating,
+                'total_orders' => $s->total_orders,
+            ]);
+        }
+
+        return response()->json(['data' => ['products' => $products, 'suppliers' => $suppliers]]);
+    }
+
     public function searchSuggest(Request $r)
     {
         $q = $r->input('q','');

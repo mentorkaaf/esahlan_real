@@ -63,6 +63,13 @@ class VendorAuthController extends Controller
         }
 
         $request->session()->regenerate();
+        $moduleSlug = $user->vendor?->module_slug ?? '';
+        if ($moduleSlug === 'ewholesale') {
+            return redirect()->intended(route('vendor.wholesale.dashboard'));
+        }
+        if ($moduleSlug === 'eshop') {
+            return redirect()->intended(route('vendor.eshop.dashboard'));
+        }
         return redirect()->intended(route('vendor.dashboard'));
     }
 

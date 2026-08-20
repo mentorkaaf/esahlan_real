@@ -107,6 +107,42 @@ class EWRfqApiController extends Controller
         ]);
     }
 
+    // ── GET /api/v1/ewholesale/rfqs/{id} ─────────────────────────────────
+    public function show(Request $r, int $id)
+    {
+        $buyer = $this->buyer($r);
+        $rfq   = EWRfq::with(['category:id,name','quotes.supplier:id,display_name,verification'])
+            ->where('buyer_id', $buyer->id)
+            ->findOrFail($id);
+
+        return response()->json(['data' => [
+            'id'            => $rfq->id,
+            'category_id'   => $rfq->category_id,
+            'category_name' => $rfq->category?->name,
+            'title'         => $rfq->title,
+            'description'   => $rfq->description,
+            'status'        => $rfq->status,
+            'qty'           => $rfq->qty,
+            'unit'          => $rfq->unit,
+            'target_price'  => $rfq->target_price,
+            'needed_by'     => $rfq->needed_by?->toDateString(),
+            'quotes_count'  => $rfq->quotes->count(),
+            'quotes'        => $rfq->quotes->map(fn($q) => [
+                'id'             => $q->id,
+                'rfq_id'         => $rfq->id,
+                'supplier'       => $q->supplier ? ['id' => $q->supplier->id, 'display_name' => $q->supplier->display_name, 'verification' => $q->supplier->verification] : null,
+                'unit_price'     => $q->unit_price,
+                'qty_offered'    => $q->qty_offered,
+                'lead_time_days' => $q->lead_time_days,
+                'status'         => $q->status,
+                'note'           => $q->note,
+                'created_at'     => $q->created_at->toIso8601String(),
+            ]),
+            'expires_at'    => $rfq->expires_at?->toIso8601String(),
+            'created_at'    => $rfq->created_at->toIso8601String(),
+        ]]);
+    }
+
     // ── POST /api/v1/ewholesale/rfq-quotes/{id}/accept ───────────────────
     public function acceptQuote(Request $r, int $quoteId)
     {

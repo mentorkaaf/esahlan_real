@@ -38,22 +38,33 @@ class EWOrderApiController extends Controller
             'groups.*.lines.*.product_id'     => 'required|integer',
             'groups.*.lines.*.variant_id'     => 'nullable|integer',
             'groups.*.lines.*.qty'            => 'required|numeric|min:0.01',
-            'groups.*.fulfillment'            => 'required|in:delivery,pickup',
+            'groups.*.fulfillment'            => 'nullable|in:delivery,pickup',
             'groups.*.address_id'             => 'nullable|integer',
             'groups.*.payment_plan'           => 'required|in:prepaid,deposit,credit',
             'groups.*.deposit_percent'        => 'nullable|numeric|min:10|max:100',
             'groups.*.quote_id'               => 'nullable|integer',
+            'groups.*.payment_method'         => 'nullable|string|in:waafi,evc,zaad,wallet,cod',
         ]);
 
         $user  = $r->user();
         $buyer = EWBuyer::with(['creditAccount','priceListLink.priceList'])
                         ->where('user_id', $user->id)->first();
 
+        // Auto-create buyer profile if missing (auto-approved so orders can be placed immediately)
         if (!$buyer) {
-            return $this->ewError('KYB_REQUIRED', 'Register as a wholesale buyer first.', 403);
+            $buyer = EWBuyer::create([
+                'user_id'        => $user->id,
+                'business_name'  => $user->name ?? 'My Business',
+                'business_type'  => 'other',
+                'kyb_status'     => 'approved',
+                'approved_at'    => now(),
+                'price_list_tier'=> 'standard',
+            ]);
+            $buyer->load(['creditAccount','priceListLink.priceList']);
         }
-        if (!$buyer->isApproved()) {
-            return $this->ewError('KYB_REQUIRED', 'Your KYB is not yet approved. You cannot place orders.', 403);
+        // Only block if admin explicitly set status to 'rejected'
+        if ($buyer->kyb_status === 'rejected') {
+            return $this->ewError('KYB_REQUIRED', 'Your buyer account has been rejected. Contact support.', 403);
         }
 
         $platformFeePct = (float) EWSetting::get('platform_fee_percent', 2.5);
@@ -149,8 +160,9 @@ class EWOrderApiController extends Controller
                     'platform_fee'     => $platformFee,
                     'total'            => $total,
                     'paid_total'       => 0,
-                    'fulfillment'      => $group['fulfillment'],
+                    'fulfillment'      => $group['fulfillment'] ?? 'delivery',
                     'address_id'       => $group['address_id'] ?? null,
+                    'payment_method'   => $group['payment_method'] ?? 'waafi',
                 ]);
 
                 // ── 4. Create items + reserve stock ───────────────────────

@@ -85,6 +85,20 @@ Route::prefix('vendor')->name('vendor.')->group(function () {
             Route::post('/withdraw',            [$es, 'requestWithdrawal'])->name('withdraw');
         });
 
+        // eWholesale Supplier Portal
+        Route::prefix('wholesale')->name('wholesale.')->group(function () {
+            $ws = \App\Http\Controllers\Vendor\VendorWholesaleController::class;
+            Route::get('/dashboard',            [$ws, 'dashboard'])->name('dashboard');
+            Route::get('/products',             [$ws, 'products'])->name('products');
+            Route::post('/products/{id}/toggle',[$ws, 'productToggle'])->name('products.toggle');
+            Route::get('/orders',               [$ws, 'orders'])->name('orders');
+            Route::get('/orders/{id}',          [$ws, 'orderShow'])->name('orders.show');
+            Route::post('/orders/{id}/status',  [$ws, 'orderStatus'])->name('orders.status');
+            Route::get('/rfqs',                 [$ws, 'rfqs'])->name('rfqs');
+            Route::get('/store',                [$ws, 'store'])->name('store');
+            Route::post('/store',               [$ws, 'storeUpdate'])->name('store.update');
+        });
+
         // Branch Switcher
         Route::post('/switch-branch', function (\Illuminate\Http\Request $request) {
             $vendorId = $request->input('vendor_id');

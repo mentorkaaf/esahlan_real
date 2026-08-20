@@ -67,24 +67,11 @@
         </div>
     </div>
 
-    {{-- Background color --}}
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
-        <div>
-            <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px">Background Color (if no image)</label>
-            <div style="display:flex;gap:8px;align-items:center">
-                <input type="color" name="bg_color" value="{{ old('bg_color', $banner?->bg_color ?: '#1B1444') }}"
-                       style="width:48px;height:36px;border:1px solid #d1d5db;border-radius:6px;cursor:pointer;padding:2px">
-                <input type="text" value="{{ old('bg_color', $banner?->bg_color ?: '#1B1444') }}"
-                       style="flex:1;padding:9px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:13px"
-                       onchange="this.previousElementSibling.value=this.value"
-                       oninput="document.querySelector('[name=bg_color]').value=this.value">
-            </div>
-        </div>
-        <div>
-            <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px">Sort Order (lower = first)</label>
-            <input type="number" name="sort_order" value="{{ old('sort_order', $banner?->sort_order ?? 0) }}" min="0"
-                   style="width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:13px">
-        </div>
+    {{-- Sort Order --}}
+    <div style="margin-bottom:16px">
+        <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px">Sort Order (lower = first)</label>
+        <input type="number" name="sort_order" value="{{ old('sort_order', $banner?->sort_order ?? 0) }}" min="0"
+               style="width:160px;padding:9px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:13px">
     </div>
 
     {{-- Active toggle --}}

@@ -313,10 +313,19 @@ class AdminEWholesaleController extends Controller
 
     public function productStore(Request $r)
     {
-        $r->validate($this->productRules());
+        $r->validate(array_merge($this->productRules(), [
+            'images'   => 'nullable|array|max:8',
+            'images.*' => 'image|mimes:jpg,jpeg,png,webp|max:4096',
+        ]));
+
+        $images = [];
+        foreach ($r->file('images', []) as $file) {
+            $images[] = $file->store('ewholesale/products', 'public');
+        }
+
         $product = EWProduct::create(array_merge(
             $r->only(['supplier_id','category_id','name','name_so','description','unit','units_per_pack','moq','lead_time_days','origin_country','brand','is_featured']),
-            ['slug' => Str::slug($r->name) . '-' . Str::random(4), 'status' => 'pending_review', 'specs'=>$r->specs??[]]
+            ['slug' => Str::slug($r->name) . '-' . Str::random(4), 'status' => 'pending_review', 'specs'=>$r->specs??[], 'images'=>$images]
         ));
 
         $this->syncVariantsAndTiers($product, $r);
@@ -335,10 +344,28 @@ class AdminEWholesaleController extends Controller
 
     public function productUpdate(Request $r, EWProduct $product)
     {
-        $r->validate($this->productRules());
+        $r->validate(array_merge($this->productRules(), [
+            'images'        => 'nullable|array|max:8',
+            'images.*'      => 'image|mimes:jpg,jpeg,png,webp|max:4096',
+            'remove_images' => 'nullable|array',
+        ]));
+
+        // Keep existing images, remove flagged ones
+        $existing = $product->images ?? [];
+        $toRemove = $r->input('remove_images', []);
+        $existing = array_values(array_filter($existing, fn($p) => !in_array($p, $toRemove)));
+        // Delete removed files from disk
+        foreach ($toRemove as $path) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($path);
+        }
+        // Upload new images
+        foreach ($r->file('images', []) as $file) {
+            $existing[] = $file->store('ewholesale/products', 'public');
+        }
+
         $product->update(array_merge(
             $r->only(['supplier_id','category_id','name','name_so','description','unit','units_per_pack','moq','lead_time_days','origin_country','brand','is_featured']),
-            ['specs' => $r->specs ?? []]
+            ['specs' => $r->specs ?? [], 'images' => $existing]
         ));
         $this->syncVariantsAndTiers($product, $r);
         $product->syncPriceRange();

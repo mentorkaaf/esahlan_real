@@ -16,7 +16,8 @@
 </div>
 @endif
 
-<form method="POST" action="{{ isset($product) ? route('admin.module-data.wholesale.products.update', $product) : route('admin.module-data.wholesale.products.store') }}">
+<form method="POST" action="{{ isset($product) ? route('admin.module-data.wholesale.products.update', $product) : route('admin.module-data.wholesale.products.store') }}"
+      enctype="multipart/form-data">
 @csrf @if(isset($product)) @method('PUT') @endif
 
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
@@ -127,6 +128,34 @@
 </div>
 </div>
 
+{{-- Images --}}
+<div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:20px;margin-bottom:20px">
+    <h3 style="margin:0 0 12px;font-size:14px;font-weight:600;color:#1B1444;border-bottom:1px solid #f3f4f6;padding-bottom:10px">Product Images</h3>
+
+    {{-- Existing images --}}
+    @if(isset($product) && !empty($product->images))
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px" id="existingImages">
+        @foreach($product->images as $imgPath)
+        <div style="position:relative;display:inline-block">
+            <img src="{{ url('/api/v1/media?f='.ltrim($imgPath,'/')) }}"
+                 style="width:90px;height:90px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb"
+                 onerror="this.style.display='none'">
+            <label style="position:absolute;top:3px;right:3px;background:rgba(255,0,0,0.8);border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:11px;color:#fff">
+                <input type="checkbox" name="remove_images[]" value="{{ $imgPath }}" style="display:none" onchange="this.parentElement.parentElement.style.opacity=this.checked?'0.4':'1'">✕
+            </label>
+        </div>
+        @endforeach
+    </div>
+    <p style="font-size:11px;color:#9ca3af;margin:0 0 10px">Tick ✕ to remove an image on save.</p>
+    @endif
+
+    <input type="file" name="images[]" multiple accept="image/jpeg,image/png,image/webp"
+           style="display:block;font-size:13px;color:#374151;margin-bottom:6px"
+           onchange="previewImages(this)">
+    <p style="font-size:11px;color:#9ca3af;margin:0 0 8px">Upload up to 8 images. JPG/PNG/WEBP, max 4MB each.</p>
+    <div id="newImgPreview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px"></div>
+</div>
+
 {{-- Description --}}
 <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:20px;margin-bottom:20px">
     <label style="font-size:12px;font-weight:500;color:#374151;display:block;margin-bottom:6px">Description</label>
@@ -184,5 +213,20 @@ function updatePreview() {
     document.getElementById('tierPreview').innerHTML = html;
 }
 updatePreview();
+
+function previewImages(input) {
+    const preview = document.getElementById('newImgPreview');
+    preview.innerHTML = '';
+    Array.from(input.files).slice(0, 8).forEach(file => {
+        const reader = new FileReader();
+        reader.onload = e => {
+            const img = document.createElement('img');
+            img.src = e.target.result;
+            img.style = 'width:90px;height:90px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb';
+            preview.appendChild(img);
+        };
+        reader.readAsDataURL(file);
+    });
+}
 </script>
 @endsection

@@ -77,6 +77,21 @@ class EwholesaleRepository {
     return (r.data['data'] as List? ?? []).map((e) => e.toString()).toList();
   }
 
+  Future<Map<String, dynamic>> search(String q, {String type = 'all', int? categoryId, int page = 1}) async {
+    final params = <String, dynamic>{'q': q, 'type': type, 'page': page};
+    if (categoryId != null) params['category_id'] = categoryId;
+    final r = await ApiClient.instance.get('$_base/search', queryParameters: params);
+    final d = r.data['data'] as Map<String, dynamic>;
+    final prodData = d['products'];
+    return {
+      'products': prodData is Map
+          ? _list(prodData['data'], EwProduct.fromJson)
+          : <EwProduct>[],
+      'products_meta': prodData is Map ? prodData['meta'] : null,
+      'suppliers': _list(d['suppliers'], EwSupplierCard.fromJson),
+    };
+  }
+
   // ── Cart ──────────────────────────────────────────────────────────────────
 
   Future<EwCartValidateResult> cartValidate(List<EwCartLine> lines, {int? districtId}) async {
@@ -146,7 +161,8 @@ class EwholesaleRepository {
 
   // ── RFQs ──────────────────────────────────────────────────────────────────
 
-  Future<EwRfq> createRfq({
+  /// Returns the newly created RFQ's ID.
+  Future<int> createRfq({
     required int categoryId,
     required String title,
     required double qty,
@@ -162,12 +178,17 @@ class EwholesaleRepository {
       if (targetPrice != null) 'target_price': targetPrice,
       if (neededBy != null) 'needed_by': neededBy.toIso8601String().split('T').first,
     });
-    return EwRfq.fromJson(r.data['data']);
+    return (r.data['data']['rfq_id'] as num).toInt();
   }
 
   Future<List<EwRfq>> getMyRfqs() async {
     final r = await ApiClient.instance.get('$_base/rfqs/mine');
     return _list(r.data['data'], EwRfq.fromJson);
+  }
+
+  Future<EwRfq> getRfq(int id) async {
+    final r = await ApiClient.instance.get('$_base/rfqs/$id');
+    return EwRfq.fromJson(r.data['data']);
   }
 
   Future<void> acceptRfqQuote(int quoteId) async {

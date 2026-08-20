@@ -168,8 +168,8 @@ class _EwRfqCreateScreenState extends ConsumerState<EwRfqCreateScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
     try {
-      final repo = ref.read(ewRepoProvider);
-      await repo.createRfq(
+      final repo  = ref.read(ewRepoProvider);
+      final rfqId = await repo.createRfq(
         categoryId:  _categoryId!,
         title:       _titleCtrl.text.trim(),
         qty:         double.parse(_qtyCtrl.text.trim()),
@@ -181,7 +181,7 @@ class _EwRfqCreateScreenState extends ConsumerState<EwRfqCreateScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('RFQ posted! Suppliers will respond soon.'), backgroundColor: EwTheme.green));
-        context.pop();
+        context.go('/ewholesale/rfq/$rfqId');
       }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
@@ -338,7 +338,7 @@ class EwRfqDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final rfqsAsync = ref.watch(ewRfqsProvider);
+    final rfqAsync = ref.watch(ewRfqDetailProvider(rfqId));
 
     return Scaffold(
       backgroundColor: EwTheme.bg,
@@ -346,15 +346,17 @@ class EwRfqDetailScreen extends ConsumerWidget {
         backgroundColor: EwTheme.navy,
         foregroundColor: Colors.white,
         title: const Text('RFQ Detail', style: TextStyle(fontWeight: FontWeight.w700)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () => ref.refresh(ewRfqDetailProvider(rfqId).future),
+          ),
+        ],
       ),
-      body: rfqsAsync.when(
+      body: rfqAsync.when(
         loading: () => const Center(child: CircularProgressIndicator(color: EwTheme.orange)),
-        error:   (e, _) => EwErrorRetry(error: e, onRetry: () => ref.refresh(ewRfqsProvider.future)),
-        data:    (rfqs) {
-          final rfq = rfqs.where((r) => r.id == rfqId).firstOrNull;
-          if (rfq == null) return const EwEmptyState(icon: Icons.search_off, title: 'RFQ not found');
-          return _buildContent(context, ref, rfq);
-        },
+        error:   (e, _) => EwErrorRetry(error: e, onRetry: () => ref.refresh(ewRfqDetailProvider(rfqId).future)),
+        data:    (rfq) => _buildContent(context, ref, rfq),
       ),
     );
   }

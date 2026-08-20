@@ -335,6 +335,7 @@ Route::prefix('v1')->group(function () {
         Route::get('products',                   [$pub, 'products']);
         Route::get('products/{slug}',            [$pub, 'product']);
         Route::get('suppliers/{id}',             [$pub, 'supplier']);
+        Route::get('search',                     [$pub, 'search']);
         Route::get('search/suggest',             [$pub, 'searchSuggest']);
         // Cart validate — optional auth (prices differ for approved buyers)
         Route::post('cart/validate',             [\App\Http\Controllers\Api\EWholesale\EWCartController::class, 'validate']);
@@ -817,6 +818,7 @@ Route::prefix('v1')->group(function () {
                 // RFQs
                 Route::post('rfqs',                     [$rfq, 'store']);
                 Route::get('rfqs/mine',                 [$rfq, 'mine']);
+                Route::get('rfqs/{id}',                 [$rfq, 'show']);
                 Route::post('rfq-quotes/{id}/accept',   [$rfq, 'acceptQuote']);
                 Route::post('rfq-quotes/{id}/shortlist',[$rfq, 'shortlistQuote']);
                 Route::post('rfq-quotes/{id}/reject',   [$rfq, 'rejectQuote']);

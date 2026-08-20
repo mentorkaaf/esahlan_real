@@ -13,7 +13,7 @@ class EWOrder extends Model
 
     protected $fillable = [
         'order_no', 'buyer_id', 'supplier_id', 'source', 'quote_id', 'status',
-        'payment_plan', 'deposit_percent', 'subtotal', 'delivery_fee', 'platform_fee',
+        'payment_plan', 'payment_method', 'deposit_percent', 'subtotal', 'delivery_fee', 'platform_fee',
         'total', 'paid_total', 'fulfillment', 'address_id', 'expected_at',
         'buyer_note', 'cancelled_reason', 'confirmed_at', 'completed_at',
     ];

@@ -131,7 +131,10 @@ class _EwHomeScreenState extends ConsumerState<EwHomeScreen> {
     return SliverToBoxAdapter(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         // ── Banners ────────────────────────────────────────────────────────
-        if (home.banners.isNotEmpty) _buildBannerSlider(home.banners),
+        if (home.banners.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _buildBannerSlider(home.banners),
+        ],
 
         // ── Category Grid ──────────────────────────────────────────────────
         if (home.categories.isNotEmpty) ...[
@@ -201,55 +204,61 @@ class _EwHomeScreenState extends ConsumerState<EwHomeScreen> {
   }
 
   Widget _buildBannerSlider(List<EwBanner> banners) {
-    return SizedBox(
-      height: 160,
-      child: Stack(children: [
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: SizedBox(
+        height: 160,
+        child: Stack(children: [
         PageView.builder(
           controller: _bannerPageCtrl,
           itemCount: banners.length,
           onPageChanged: (i) => setState(() => _bannerIndex = i),
           itemBuilder: (_, i) {
             final b = banners[i];
-            final bgColor = b.bgColor != null
-              ? Color(int.parse(b.bgColor!.replaceFirst('#', 'FF'), radix: 16))
-              : EwTheme.navy;
-            return Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: bgColor,
-                borderRadius: EwTheme.radius12,
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Stack(children: [
-                if (b.image != null)
-                  Positioned.fill(child: Image.network(b.image!, fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const SizedBox())),
-                Positioned.fill(child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                      colors: [bgColor.withOpacity(0.9), bgColor.withOpacity(0.3)],
+            final hasImage = b.image != null && b.image!.isNotEmpty;
+            final bgColor = EwTheme.navy; // always navy if no image
+            return ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Stack(fit: StackFit.expand, children: [
+                // Background
+                Container(color: bgColor),
+                // Full image (if present)
+                if (hasImage)
+                  Image.network(b.image!, fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const SizedBox()),
+                // Dark scrim over image so text is readable
+                if (hasImage)
+                  Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                        colors: [Color(0xCC1B1444), Color(0x441B1444)],
+                      ),
                     ),
                   ),
-                )),
-                Padding(
-                  padding: const EdgeInsets.all(20),
+                // Text & CTA
+                Positioned(
+                  left: 20, right: 20, top: 0, bottom: 0,
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Text(b.title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
+                    Text(b.title,
+                      style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800),
+                      maxLines: 2, overflow: TextOverflow.ellipsis),
                     if (b.subtitle != null) ...[
                       const SizedBox(height: 4),
-                      Text(b.subtitle!, style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 13)),
+                      Text(b.subtitle!,
+                        style: const TextStyle(color: Colors.white70, fontSize: 13),
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
                     ],
                     if (b.ctaLabel != null) ...[
                       const SizedBox(height: 12),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                         decoration: BoxDecoration(
                           color: EwTheme.orange,
-                          borderRadius: EwTheme.radius4,
+                          borderRadius: BorderRadius.circular(6),
                         ),
-                        child: Text(b.ctaLabel!, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+                        child: Text(b.ctaLabel!, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
                       ),
                     ],
                   ]),
@@ -275,6 +284,7 @@ class _EwHomeScreenState extends ConsumerState<EwHomeScreen> {
             }).toList()),
           ),
       ]),
+      ),
     );
   }
 
