@@ -944,8 +944,16 @@ function editRoute(r){
 }
 // ── BULK SCHEDULE LOGIC ──────────────────────────────────────────────────────
 
-const bulkAirlines = @json($airlines->map(fn($a)=>['id'=>$a->id,'name'=>$a->name,'code'=>strtoupper(substr($a->code??$a->name,0,2))])->values());
-const bulkRoutes   = @json($routes->map(fn($r)=>['id'=>$r->id,'label'=>"{$r->from_city} ({$r->from_code}) → {$r->to_city} ({$r->to_code})",'fc'=>$r->from_city,'fcode'=>$r->from_code,'tc'=>$r->to_city,'tcode'=>$r->to_code])->values());
+@php
+$_bulkAirlines = $airlines->map(function($a){
+    return ['id'=>$a->id,'name'=>$a->name,'code'=>strtoupper(substr($a->code??$a->name,0,2))];
+})->values();
+$_bulkRoutes = $routes->map(function($r){
+    return ['id'=>$r->id,'label'=>$r->from_city.' ('.$r->from_code.') → '.$r->to_city.' ('.$r->to_code.')','fc'=>$r->from_city,'fcode'=>$r->from_code,'tc'=>$r->to_city,'tcode'=>$r->to_code];
+})->values();
+@endphp
+const bulkAirlines = {!! json_encode($_bulkAirlines) !!};
+const bulkRoutes   = {!! json_encode($_bulkRoutes) !!};
 
 let bulkRowIndex = 0;
 

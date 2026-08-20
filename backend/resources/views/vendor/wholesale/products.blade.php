@@ -63,15 +63,15 @@
                     <td>{{ $product->moq }} {{ $product->unit }}</td>
                     <td>{{ $product->stock_qty ?? '∞' }}</td>
                     <td>
-                        <span class="badge badge-{{ $product->is_active ? 'green' : 'gray' }}">
-                            {{ $product->is_active ? 'Active' : 'Inactive' }}
+                        <span class="badge badge-{{ $product->status === 'active' ? 'green' : 'gray' }}">
+                            {{ ucfirst($product->status ?? 'draft') }}
                         </span>
                     </td>
                     <td>
                         <form method="POST" action="{{ route('vendor.wholesale.products.toggle', $product->id) }}" style="display:inline;">
                             @csrf
                             <button type="submit" class="btn btn-xs btn-outline">
-                                {{ $product->is_active ? 'Deactivate' : 'Activate' }}
+                                {{ $product->status === 'active' ? 'Deactivate' : 'Activate' }}
                             </button>
                         </form>
                     </td>

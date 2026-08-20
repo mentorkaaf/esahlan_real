@@ -38,7 +38,7 @@ class VendorWholesaleController extends Controller
 
         $stats = [
             'total_products'  => EWProduct::where('supplier_id', $supplier->id)->count(),
-            'active_products' => EWProduct::where('supplier_id', $supplier->id)->where('is_active', true)->count(),
+            'active_products' => EWProduct::where('supplier_id', $supplier->id)->where('status', 'active')->count(),
             'total_orders'    => EWOrder::where('supplier_id', $supplier->id)->count(),
             'pending_orders'  => EWOrder::where('supplier_id', $supplier->id)->where('status', 'pending_confirmation')->count(),
             'today_orders'    => EWOrder::where('supplier_id', $supplier->id)->whereDate('created_at', $today)->count(),
@@ -64,7 +64,8 @@ class VendorWholesaleController extends Controller
         $supplier = $this->supplier();
         $q = $request->query('q');
 
-        $products = EWProduct::where('supplier_id', $supplier->id)
+        $products = EWProduct::with('category')
+            ->where('supplier_id', $supplier->id)
             ->when($q, fn($query) => $query->where('name', 'like', "%$q%"))
             ->orderByDesc('created_at')
             ->paginate(20);
@@ -76,7 +77,7 @@ class VendorWholesaleController extends Controller
     {
         $supplier = $this->supplier();
         $product  = EWProduct::where('id', $id)->where('supplier_id', $supplier->id)->firstOrFail();
-        $product->update(['is_active' => !$product->is_active]);
+        $product->update(['status' => $product->status === 'active' ? 'archived' : 'active']);
         return back()->with('success', 'Product status updated.');
     }
 
