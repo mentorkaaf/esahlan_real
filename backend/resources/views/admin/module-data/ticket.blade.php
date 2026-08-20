@@ -771,89 +771,150 @@
 {{-- ══════════════════════════════════════════════════════════════ --}}
 {{-- BULK ADD SCHEDULES MODAL --}}
 {{-- ══════════════════════════════════════════════════════════════ --}}
-<div class="modal-overlay" id="bulkScheduleModal" style="align-items:flex-start;padding:20px 0;">
-    <div class="modal-box" style="width:min(1200px,98vw);max-height:95vh;">
-        <div class="modal-head">
-            <h3><i class="fas fa-layer-group me-2" style="color:#1565C0"></i>Bulk Add Flight Schedules</h3>
-            <button class="modal-close" onclick="closeModal('bulkScheduleModal')"><i class="fas fa-times"></i></button>
+<style>
+.bulk-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:none;align-items:flex-start;justify-content:center;padding:16px 0;overflow-y:auto;}
+.bulk-modal-overlay.open{display:flex;}
+.bulk-modal-box{background:#fff;border-radius:18px;width:min(780px,98vw);box-shadow:0 24px 80px rgba(0,0,0,.18);margin:auto;position:relative;}
+.bulk-modal-head{padding:20px 24px 16px;border-bottom:2px solid #f0f1f5;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:2;border-radius:18px 18px 0 0;}
+.bulk-modal-body{padding:0 24px 24px;}
+/* Template strip */
+.tmpl-strip{background:linear-gradient(135deg,#07003B 0%,#0D47A1 100%);border-radius:12px;padding:16px 18px;margin:16px 0;}
+.tmpl-strip-title{font-size:11px;font-weight:800;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px;}
+.tmpl-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+.tmpl-row.prices{grid-template-columns:repeat(4,1fr);}
+.tmpl-field label{font-size:11px;font-weight:600;color:rgba(255,255,255,.7);display:block;margin-bottom:4px;}
+.tmpl-field select,.tmpl-field input{width:100%;padding:8px 10px;border:1.5px solid rgba(255,255,255,.25);border-radius:8px;font-size:12px;background:rgba(255,255,255,.12);color:#fff;box-sizing:border-box;font-family:inherit;}
+.tmpl-field select option{color:#1A1A2E;background:#fff;}
+.tmpl-field select::placeholder,.tmpl-field input::placeholder{color:rgba(255,255,255,.45);}
+.tmpl-apply-btn{width:100%;padding:10px;background:rgba(255,255,255,.2);border:1.5px solid rgba(255,255,255,.35);border-radius:9px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:background .15s;}
+.tmpl-apply-btn:hover{background:rgba(255,255,255,.3);}
+/* Schedule cards */
+.bulk-cards{display:flex;flex-direction:column;gap:12px;max-height:52vh;overflow-y:auto;padding:2px 2px 4px;}
+.bulk-cards::-webkit-scrollbar{width:5px;}
+.bulk-cards::-webkit-scrollbar-track{background:#f4f5fa;border-radius:4px;}
+.bulk-cards::-webkit-scrollbar-thumb{background:#ccd;border-radius:4px;}
+.sched-card{border:1.5px solid #e8e9f0;border-radius:12px;overflow:hidden;transition:border-color .15s;}
+.sched-card:hover{border-color:#c5cae9;}
+.sched-card-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#fafbff;border-bottom:1px solid #f0f1f5;}
+.sched-card-num{width:26px;height:26px;border-radius:7px;background:#1565C0;color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;}
+.sched-card-body{padding:14px;}
+.sched-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+.sched-grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.sf label{font-size:11px;font-weight:700;color:#8A8A9A;display:block;margin-bottom:4px;}
+.sf input,.sf select{width:100%;padding:8px 10px;border:1.5px solid #EEEEEE;border-radius:8px;font-size:13px;color:#1A1A2E;box-sizing:border-box;font-family:inherit;}
+.sf input:focus,.sf select:focus{outline:none;border-color:#1565C0;}
+.price-sf label{font-size:11px;font-weight:800;display:block;margin-bottom:4px;}
+.price-sf input{width:100%;border:1.5px solid;border-radius:8px;padding:8px 10px;font-size:13px;font-weight:700;box-sizing:border-box;font-family:inherit;background:#fafeff;}
+.eco-sf label{color:#10b981;} .eco-sf input{border-color:rgba(16,185,129,.4);color:#065f46;}
+.biz-sf label{color:#1565C0;} .biz-sf input{border-color:rgba(21,101,192,.4);color:#1565C0;}
+.chd-sf label{color:#f59e0b;} .chd-sf input{border-color:rgba(245,158,11,.4);color:#92400e;}
+.inf-sf label{color:#ef4444;} .inf-sf input{border-color:rgba(239,68,68,.4);color:#991b1b;}
+.del-card-btn{width:30px;height:30px;border-radius:8px;border:none;background:rgba(239,68,68,.1);color:#ef4444;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;}
+.del-card-btn:hover{background:rgba(239,68,68,.2);}
+/* Bulk footer */
+.bulk-footer{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-top:1px solid #f0f1f5;gap:10px;}
+.bulk-add-btns{display:flex;gap:8px;}
+.bulk-add-btn{padding:9px 16px;background:#f4f5fa;border:1.5px solid #e0e2f0;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;color:#1A1A2E;font-family:inherit;display:flex;align-items:center;gap:6px;}
+.bulk-add-btn:hover{background:#e8eaf6;border-color:#c5cae9;}
+.bulk-clone-btn{color:#1565C0;}
+.bulk-count{font-size:12px;color:#8A8A9A;font-weight:600;}
+</style>
+
+<div class="bulk-modal-overlay" id="bulkScheduleModal">
+    <div class="bulk-modal-box">
+        {{-- Header --}}
+        <div class="bulk-modal-head">
+            <div style="display:flex;align-items:center;gap:10px;">
+                <div style="width:36px;height:36px;border-radius:10px;background:rgba(21,101,192,.1);display:flex;align-items:center;justify-content:center;color:#1565C0;font-size:16px;">
+                    <i class="fas fa-layer-group"></i>
+                </div>
+                <div>
+                    <h3 style="margin:0;font-size:17px;font-weight:800;color:#1A1A2E;">Bulk Add Flight Schedules</h3>
+                    <p style="margin:0;font-size:12px;color:#8A8A9A;">Create multiple flights at once — set template then adjust dates per row</p>
+                </div>
+            </div>
+            <button class="modal-close" onclick="closeModal('bulkScheduleModal')" style="width:34px;height:34px;border-radius:9px;border:none;background:#f4f5fa;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;"><i class="fas fa-times"></i></button>
         </div>
-        <div class="modal-body" style="padding:20px 22px;">
-            {{-- Quick template bar --}}
-            <div style="background:#f4f5fa;border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
-                <span style="font-size:12px;font-weight:700;color:#8A8A9A;">TEMPLATE DEFAULTS</span>
-                <div class="fgroup" style="margin:0;flex:0 0 160px;">
-                    <select id="bulk_tmpl_airline" style="padding:6px 10px;border:1.5px solid #EEEEEE;border-radius:8px;font-size:12px;">
-                        <option value="">Airline…</option>
-                        @foreach($airlines as $a)
-                        <option value="{{ $a->id }}" data-code="{{ strtoupper(substr($a->code ?? $a->name,0,2)) }}" data-name="{{ $a->name }}">{{ $a->name }}</option>
-                        @endforeach
-                    </select>
+
+        <div class="bulk-modal-body">
+            {{-- Template Strip --}}
+            <div class="tmpl-strip">
+                <div class="tmpl-strip-title"><i class="fas fa-magic" style="margin-right:6px;"></i>Quick Template — fill once, apply to all rows</div>
+                <div class="tmpl-row">
+                    <div class="tmpl-field">
+                        <label>Airline</label>
+                        <select id="bulk_tmpl_airline">
+                            <option value="">Select airline…</option>
+                            @foreach($airlines as $a)
+                            <option value="{{ $a->id }}" data-code="{{ strtoupper(substr($a->code ?? $a->name,0,2)) }}" data-name="{{ $a->name }}">{{ $a->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="tmpl-field">
+                        <label>Route</label>
+                        <select id="bulk_tmpl_route">
+                            <option value="">Select route…</option>
+                            @foreach($routes as $r)
+                            <option value="{{ $r->id }}" data-fc="{{ $r->from_city }}" data-fcode="{{ $r->from_code }}" data-tc="{{ $r->to_city }}" data-tcode="{{ $r->to_code }}">
+                                {{ $r->from_city }} ({{ $r->from_code }}) → {{ $r->to_city }} ({{ $r->to_code }})
+                            </option>
+                            @endforeach
+                        </select>
+                    </div>
                 </div>
-                <div class="fgroup" style="margin:0;flex:0 0 220px;">
-                    <select id="bulk_tmpl_route" style="padding:6px 10px;border:1.5px solid #EEEEEE;border-radius:8px;font-size:12px;">
-                        <option value="">Route…</option>
-                        @foreach($routes as $r)
-                        <option value="{{ $r->id }}"
-                            data-fc="{{ $r->from_city }}" data-fcode="{{ $r->from_code }}"
-                            data-tc="{{ $r->to_city }}"  data-tcode="{{ $r->to_code }}">
-                            {{ $r->from_city }} ({{ $r->from_code }}) → {{ $r->to_city }} ({{ $r->to_code }})
-                        </option>
-                        @endforeach
-                    </select>
+                <div class="tmpl-row" style="grid-template-columns:1fr repeat(4,1fr);gap:10px;margin-bottom:12px;">
+                    <div class="tmpl-field">
+                        <label>Total Seats</label>
+                        <input id="bulk_tmpl_seats" type="number" placeholder="e.g. 150" min="1">
+                    </div>
+                    <div class="tmpl-field">
+                        <label style="color:rgba(16,185,129,.9);">Economy $</label>
+                        <input id="bulk_tmpl_eco" type="number" placeholder="0.00" min="0" step="0.01">
+                    </div>
+                    <div class="tmpl-field">
+                        <label style="color:rgba(100,160,255,.9);">Business $</label>
+                        <input id="bulk_tmpl_biz" type="number" placeholder="0.00" min="0" step="0.01">
+                    </div>
+                    <div class="tmpl-field">
+                        <label style="color:rgba(255,200,60,.9);">Child $</label>
+                        <input id="bulk_tmpl_chd" type="number" placeholder="0.00" min="0" step="0.01">
+                    </div>
+                    <div class="tmpl-field">
+                        <label style="color:rgba(255,120,120,.9);">Infant $</label>
+                        <input id="bulk_tmpl_inf" type="number" placeholder="0.00" min="0" step="0.01">
+                    </div>
                 </div>
-                <input id="bulk_tmpl_seats"   type="number" placeholder="Seats (e.g.150)" min="1" style="width:110px;padding:6px 10px;border:1.5px solid #EEEEEE;border-radius:8px;font-size:12px;">
-                <input id="bulk_tmpl_eco"     type="number" placeholder="Economy $" min="0" step="0.01" style="width:100px;padding:6px 10px;border:1.5px solid #EEEEEE;border-radius:8px;font-size:12px;">
-                <input id="bulk_tmpl_biz"     type="number" placeholder="Business $" min="0" step="0.01" style="width:100px;padding:6px 10px;border:1.5px solid #EEEEEE;border-radius:8px;font-size:12px;">
-                <input id="bulk_tmpl_chd"     type="number" placeholder="Child $" min="0" step="0.01" style="width:90px;padding:6px 10px;border:1.5px solid #EEEEEE;border-radius:8px;font-size:12px;">
-                <input id="bulk_tmpl_inf"     type="number" placeholder="Infant $" min="0" step="0.01" style="width:90px;padding:6px 10px;border:1.5px solid #EEEEEE;border-radius:8px;font-size:12px;">
-                <button type="button" onclick="bulkApplyTemplate()" style="padding:6px 14px;background:#1565C0;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">
-                    <i class="fas fa-magic me-1"></i>Apply to All Rows
+                <button type="button" class="tmpl-apply-btn" onclick="bulkApplyTemplate()">
+                    <i class="fas fa-check-double" style="margin-right:6px;"></i> Apply Template to All Rows
                 </button>
             </div>
 
+            {{-- Schedule Cards --}}
             <form method="POST" action="{{ route('admin.module-data.ticket.flight.bulk') }}" id="bulkScheduleForm">
                 @csrf
-                <div style="overflow-x:auto;">
-                    <table style="width:100%;border-collapse:collapse;min-width:1000px;" id="bulkTable">
-                        <thead>
-                            <tr style="background:#fafbff;">
-                                <th style="padding:8px 10px;font-size:11px;font-weight:700;color:#8A8A9A;text-transform:uppercase;border-bottom:1px solid #f0f1f5;white-space:nowrap;">#</th>
-                                <th style="padding:8px 10px;font-size:11px;font-weight:700;color:#8A8A9A;text-transform:uppercase;border-bottom:1px solid #f0f1f5;white-space:nowrap;">Airline *</th>
-                                <th style="padding:8px 10px;font-size:11px;font-weight:700;color:#8A8A9A;text-transform:uppercase;border-bottom:1px solid #f0f1f5;white-space:nowrap;">Route *</th>
-                                <th style="padding:8px 10px;font-size:11px;font-weight:700;color:#8A8A9A;text-transform:uppercase;border-bottom:1px solid #f0f1f5;white-space:nowrap;">Departure *</th>
-                                <th style="padding:8px 10px;font-size:11px;font-weight:700;color:#8A8A9A;text-transform:uppercase;border-bottom:1px solid #f0f1f5;white-space:nowrap;">Arrival *</th>
-                                <th style="padding:8px 10px;font-size:11px;font-weight:700;color:#8A8A9A;text-transform:uppercase;border-bottom:1px solid #f0f1f5;white-space:nowrap;">Seats</th>
-                                <th style="padding:8px 10px;font-size:11px;font-weight:700;color:#10b981;text-transform:uppercase;border-bottom:1px solid #f0f1f5;white-space:nowrap;">ECO $*</th>
-                                <th style="padding:8px 10px;font-size:11px;font-weight:700;color:#1565C0;text-transform:uppercase;border-bottom:1px solid #f0f1f5;white-space:nowrap;">BIZ $</th>
-                                <th style="padding:8px 10px;font-size:11px;font-weight:700;color:#f59e0b;text-transform:uppercase;border-bottom:1px solid #f0f1f5;white-space:nowrap;">CHD $</th>
-                                <th style="padding:8px 10px;font-size:11px;font-weight:700;color:#ef4444;text-transform:uppercase;border-bottom:1px solid #f0f1f5;white-space:nowrap;">INF $</th>
-                                <th style="padding:8px 10px;font-size:11px;font-weight:700;color:#8A8A9A;text-transform:uppercase;border-bottom:1px solid #f0f1f5;white-space:nowrap;"></th>
-                            </tr>
-                        </thead>
-                        <tbody id="bulkRows">
-                            {{-- rows injected by JS --}}
-                        </tbody>
-                    </table>
-                </div>
-
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:14px;border-top:1px solid #f0f1f5;">
-                    <div style="display:flex;gap:8px;">
-                        <button type="button" onclick="bulkAddRow()" style="padding:8px 16px;background:#f4f5fa;border:1.5px solid #EEEEEE;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;color:#1A1A2E;">
-                            <i class="fas fa-plus me-1"></i> Add Row
-                        </button>
-                        <button type="button" onclick="bulkCloneLastRow()" style="padding:8px 16px;background:#f4f5fa;border:1.5px solid #EEEEEE;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;color:#1565C0;">
-                            <i class="fas fa-clone me-1"></i> Clone Last Row
-                        </button>
-                        <span id="bulkRowCount" style="align-self:center;font-size:12px;color:#8A8A9A;"></span>
-                    </div>
-                    <div style="display:flex;gap:10px;">
-                        <button type="button" class="btn-outline" onclick="closeModal('bulkScheduleModal')">Cancel</button>
-                        <button type="submit" class="btn-add" id="bulkSubmitBtn">
-                            <i class="fas fa-layer-group me-1"></i> Create All Schedules
-                        </button>
-                    </div>
+                <div class="bulk-cards" id="bulkRows">
+                    {{-- cards injected by JS --}}
                 </div>
             </form>
+        </div>
+
+        {{-- Footer --}}
+        <div class="bulk-footer">
+            <div class="bulk-add-btns">
+                <button type="button" class="bulk-add-btn" onclick="bulkAddRow()">
+                    <i class="fas fa-plus"></i> Add Schedule
+                </button>
+                <button type="button" class="bulk-add-btn bulk-clone-btn" onclick="bulkCloneLastRow()">
+                    <i class="fas fa-clone"></i> Clone Last
+                </button>
+                <span class="bulk-count" id="bulkRowCount"></span>
+            </div>
+            <div style="display:flex;gap:10px;">
+                <button type="button" class="btn-outline" onclick="closeModal('bulkScheduleModal')">Cancel</button>
+                <button type="submit" form="bulkScheduleForm" class="btn-add" id="bulkSubmitBtn" style="min-width:160px;">
+                    <i class="fas fa-paper-plane me-1"></i> Create Schedules
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -957,96 +1018,133 @@ const bulkRoutes   = {!! json_encode($_bulkRoutes) !!};
 
 let bulkRowIndex = 0;
 
-function bulkRowHtml(idx){
+function bulkCardHtml(idx){
+    const n = `flights[${idx}]`;
     const airlineOpts = bulkAirlines.map(a=>`<option value="${a.id}" data-code="${a.code}">${a.name}</option>`).join('');
     const routeOpts   = bulkRoutes.map(r=>`<option value="${r.id}" data-fc="${r.fc}" data-fcode="${r.fcode}" data-tc="${r.tc}" data-tcode="${r.tcode}">${r.label}</option>`).join('');
-    const n = `flights[${idx}]`;
-    return `<tr id="bulk-row-${idx}" style="border-bottom:1px solid #f0f1f5;">
-        <td style="padding:6px 8px;font-size:12px;color:#8A8A9A;font-weight:700;text-align:center;">${idx+1}</td>
-        <td style="padding:6px 6px;">
-            <select name="${n}[airline_id]" onchange="bulkAutoFlightNum(this,${idx})" style="width:100%;padding:6px 8px;border:1.5px solid #EEEEEE;border-radius:8px;font-size:12px;">
-                <option value="">Select…</option>${airlineOpts}
-            </select>
+    return `<div class="sched-card" id="bulk-row-${idx}">
+        <div class="sched-card-head">
+            <div style="display:flex;align-items:center;gap:10px;">
+                <div class="sched-card-num">${idx+1}</div>
+                <span style="font-size:13px;font-weight:700;color:#1A1A2E;">Flight Schedule</span>
+                <span id="bulk-fn-label-${idx}" style="font-size:12px;color:#8A8A9A;font-family:monospace;"></span>
+            </div>
+            <button type="button" class="del-card-btn" onclick="bulkRemoveRow(${idx})" title="Remove"><i class="fas fa-trash-alt"></i></button>
+        </div>
+        <div class="sched-card-body">
             <input type="hidden" name="${n}[flight_number]" id="bulk-fn-${idx}">
-        </td>
-        <td style="padding:6px 6px;">
-            <select onchange="bulkFillRoute(this,${idx})" style="width:100%;padding:6px 8px;border:1.5px solid #EEEEEE;border-radius:8px;font-size:12px;">
-                <option value="">Select…</option>${routeOpts}
-            </select>
-            <input type="hidden" name="${n}[from_city]"  id="bulk-fc-${idx}">
-            <input type="hidden" name="${n}[from_code]"  id="bulk-fcode-${idx}">
-            <input type="hidden" name="${n}[to_city]"    id="bulk-tc-${idx}">
-            <input type="hidden" name="${n}[to_code]"    id="bulk-tcode-${idx}">
-        </td>
-        <td style="padding:6px 6px;"><input type="datetime-local" name="${n}[departure_at]" id="bulk-dep-${idx}" required style="padding:6px 8px;border:1.5px solid #EEEEEE;border-radius:8px;font-size:12px;width:180px;"></td>
-        <td style="padding:6px 6px;"><input type="datetime-local" name="${n}[arrival_at]" id="bulk-arr-${idx}" required style="padding:6px 8px;border:1.5px solid #EEEEEE;border-radius:8px;font-size:12px;width:180px;"></td>
-        <td style="padding:6px 6px;"><input type="number" name="${n}[total_seats]" id="bulk-seats-${idx}" min="1" placeholder="150" style="width:70px;padding:6px 8px;border:1.5px solid #EEEEEE;border-radius:8px;font-size:12px;" oninput="this.nextElementSibling.value=this.value"><input type="hidden" name="${n}[available_seats]" id="bulk-avail-${idx}"></td>
-        <td style="padding:6px 6px;"><input type="number" name="${n}[economy_price]" id="bulk-eco-${idx}" min="0" step="0.01" placeholder="0" required style="width:70px;padding:6px 8px;border:1.5px solid #EEEEEE;border-radius:8px;font-size:12px;border-color:rgba(16,185,129,.4);"></td>
-        <td style="padding:6px 6px;"><input type="number" name="${n}[business_price]" id="bulk-biz-${idx}" min="0" step="0.01" placeholder="0" style="width:70px;padding:6px 8px;border:1.5px solid #EEEEEE;border-radius:8px;font-size:12px;border-color:rgba(21,101,192,.3);"></td>
-        <td style="padding:6px 6px;"><input type="number" name="${n}[child_price]" id="bulk-chd-${idx}" min="0" step="0.01" placeholder="0" style="width:70px;padding:6px 8px;border:1.5px solid #EEEEEE;border-radius:8px;font-size:12px;border-color:rgba(245,158,11,.3);"></td>
-        <td style="padding:6px 6px;"><input type="number" name="${n}[infant_price]" id="bulk-inf-${idx}" min="0" step="0.01" placeholder="0" style="width:70px;padding:6px 8px;border:1.5px solid #EEEEEE;border-radius:8px;font-size:12px;border-color:rgba(239,68,68,.3);"></td>
-        <td style="padding:6px 6px;text-align:center;">
-            <button type="button" onclick="bulkRemoveRow(${idx})" style="width:28px;height:28px;border-radius:7px;border:none;background:rgba(239,68,68,.1);color:#ef4444;cursor:pointer;font-size:12px;">
-                <i class="fas fa-times"></i>
-            </button>
-        </td>
-    </tr>`;
+            <input type="hidden" name="${n}[from_city]"     id="bulk-fc-${idx}">
+            <input type="hidden" name="${n}[from_code]"     id="bulk-fcode-${idx}">
+            <input type="hidden" name="${n}[to_city]"       id="bulk-tc-${idx}">
+            <input type="hidden" name="${n}[to_code]"       id="bulk-tcode-${idx}">
+            <input type="hidden" name="${n}[available_seats]" id="bulk-avail-${idx}">
+            {{-- Row 1: Airline + Route --}}
+            <div class="sched-grid-2">
+                <div class="sf">
+                    <label>✈ Airline *</label>
+                    <select name="${n}[airline_id]" onchange="bulkAutoFlightNum(this,${idx})">
+                        <option value="">Select airline…</option>${airlineOpts}
+                    </select>
+                </div>
+                <div class="sf">
+                    <label>🛫 Route *</label>
+                    <select onchange="bulkFillRoute(this,${idx})">
+                        <option value="">Select route…</option>${routeOpts}
+                    </select>
+                </div>
+            </div>
+            {{-- Row 2: Departure + Arrival + Seats --}}
+            <div style="display:grid;grid-template-columns:1fr 1fr 120px;gap:10px;margin-bottom:10px;">
+                <div class="sf">
+                    <label>📅 Departure *</label>
+                    <input type="datetime-local" name="${n}[departure_at]" id="bulk-dep-${idx}" required>
+                </div>
+                <div class="sf">
+                    <label>🛬 Arrival *</label>
+                    <input type="datetime-local" name="${n}[arrival_at]" id="bulk-arr-${idx}" required>
+                </div>
+                <div class="sf">
+                    <label>💺 Seats</label>
+                    <input type="number" name="${n}[total_seats]" id="bulk-seats-${idx}" min="1" placeholder="150" value="150">
+                </div>
+            </div>
+            {{-- Row 3: Prices --}}
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+                <div class="price-sf eco-sf">
+                    <label>Economy $</label>
+                    <input type="number" name="${n}[economy_price]" id="bulk-eco-${idx}" min="0" step="0.01" placeholder="0.00">
+                </div>
+                <div class="price-sf biz-sf">
+                    <label>Business $</label>
+                    <input type="number" name="${n}[business_price]" id="bulk-biz-${idx}" min="0" step="0.01" placeholder="0.00">
+                </div>
+                <div class="price-sf chd-sf">
+                    <label>Child $</label>
+                    <input type="number" name="${n}[child_price]" id="bulk-chd-${idx}" min="0" step="0.01" placeholder="0.00">
+                </div>
+                <div class="price-sf inf-sf">
+                    <label>Infant $</label>
+                    <input type="number" name="${n}[infant_price]" id="bulk-inf-${idx}" min="0" step="0.01" placeholder="0.00">
+                </div>
+            </div>
+        </div>
+    </div>`;
 }
 
 function bulkAddRow(cloneFrom){
-    const tbody = document.getElementById('bulkRows');
-    const idx   = bulkRowIndex++;
-    tbody.insertAdjacentHTML('beforeend', bulkRowHtml(idx));
+    const container = document.getElementById('bulkRows');
+    const idx = bulkRowIndex++;
+    container.insertAdjacentHTML('beforeend', bulkCardHtml(idx));
     if(cloneFrom !== undefined){
-        // clone data from source row
-        const fields = ['airline_id','flight_number','from_city','from_code','to_city','to_code','total_seats','economy_price','business_price','child_price','infant_price'];
-        const srcRow = document.getElementById('bulk-row-'+cloneFrom);
-        if(srcRow){
-            srcRow.querySelectorAll('select,input').forEach(el=>{
-                const nm = el.name;
-                if(!nm) return;
-                // map field to new row
-                const field = nm.replace(/flights\[\d+\]\[/,'').replace(/\]$/,'');
-                const tgt = document.querySelector(`#bulk-row-${idx} [name="flights[${idx}][${field}]"]`);
-                if(tgt && tgt !== el){
-                    if(el.tagName==='SELECT'){
-                        tgt.value = el.value;
-                        // also update hidden route fields
-                        if(field === 'airline_id') bulkAutoFlightNum(tgt, idx);
-                    } else {
-                        // skip departure/arrival — user should change those
-                        if(field !== 'departure_at' && field !== 'arrival_at') tgt.value = el.value;
-                    }
-                }
+        const src = document.getElementById('bulk-row-'+cloneFrom);
+        if(src){
+            // clone airline select
+            const srcAirline = src.querySelector(`select[name*="airline_id"]`);
+            const tgtAirline = document.querySelector(`#bulk-row-${idx} select[name*="airline_id"]`);
+            if(srcAirline && tgtAirline){ tgtAirline.value = srcAirline.value; bulkAutoFlightNum(tgtAirline,idx); }
+            // clone route select + hidden fields
+            const srcRoute = src.querySelectorAll('select')[1];
+            const tgtRoute = document.querySelectorAll(`#bulk-row-${idx} select`)[1];
+            if(srcRoute && tgtRoute){
+                tgtRoute.value = srcRoute.value;
+                ['fc','fcode','tc','tcode'].forEach(k=>{
+                    const s=document.getElementById(`bulk-${k}-${cloneFrom}`);
+                    const t=document.getElementById(`bulk-${k}-${idx}`);
+                    if(s&&t) t.value=s.value;
+                });
+            }
+            // clone seats + prices (NOT dates)
+            ['seats','eco','biz','chd','inf'].forEach(k=>{
+                const s=document.getElementById(`bulk-${k}-${cloneFrom}`);
+                const t=document.getElementById(`bulk-${k}-${idx}`);
+                if(s&&t) t.value=s.value;
             });
-            // update route dropdown visual
-            const srcRouteSelect = srcRow.querySelector('select:nth-child(1)');
-            // try to match route select
         }
     }
     bulkUpdateCount();
+    setTimeout(()=>document.getElementById('bulk-row-'+idx)?.scrollIntoView({block:'nearest',behavior:'smooth'}),50);
 }
 
 function bulkRemoveRow(idx){
-    const row = document.getElementById('bulk-row-'+idx);
-    if(row) row.remove();
-    bulkUpdateCount();
+    const card = document.getElementById('bulk-row-'+idx);
+    if(card){ card.style.opacity='0'; card.style.transform='scale(.97)'; card.style.transition='all .15s'; setTimeout(()=>{ card.remove(); bulkUpdateCount(); },150); }
 }
 
 function bulkCloneLastRow(){
-    const rows = document.querySelectorAll('#bulkRows tr');
-    if(rows.length===0){ bulkAddRow(); return; }
-    const lastId = parseInt(rows[rows.length-1].id.replace('bulk-row-',''));
+    const cards = document.querySelectorAll('#bulkRows .sched-card');
+    if(!cards.length){ bulkAddRow(); return; }
+    const lastId = parseInt(cards[cards.length-1].id.replace('bulk-row-',''));
     bulkAddRow(lastId);
-    // scroll to new row
-    setTimeout(()=>{ document.getElementById('bulkRows').lastElementChild?.scrollIntoView({block:'nearest'}); },50);
 }
 
 function bulkAutoFlightNum(sel, idx){
     const opt = sel.options[sel.selectedIndex];
     if(!opt||!opt.value) return;
     const code = (opt.dataset.code||opt.text.substring(0,2)).toUpperCase().replace(/[^A-Z0-9]/g,'');
-    document.getElementById('bulk-fn-'+idx).value = code + (100+Math.floor(Math.random()*900));
+    const fn = code + (100+Math.floor(Math.random()*900));
+    document.getElementById('bulk-fn-'+idx).value = fn;
+    const lbl = document.getElementById('bulk-fn-label-'+idx);
+    if(lbl) lbl.textContent = fn;
 }
 
 function bulkFillRoute(sel, idx){
@@ -1059,68 +1157,71 @@ function bulkFillRoute(sel, idx){
 }
 
 function bulkApplyTemplate(){
-    const airline   = document.getElementById('bulk_tmpl_airline');
-    const route     = document.getElementById('bulk_tmpl_route');
-    const seats     = document.getElementById('bulk_tmpl_seats').value;
-    const eco       = document.getElementById('bulk_tmpl_eco').value;
-    const biz       = document.getElementById('bulk_tmpl_biz').value;
-    const chd       = document.getElementById('bulk_tmpl_chd').value;
-    const inf       = document.getElementById('bulk_tmpl_inf').value;
-    const routeOpt  = route.options[route.selectedIndex];
+    const tmplAirline = document.getElementById('bulk_tmpl_airline');
+    const tmplRoute   = document.getElementById('bulk_tmpl_route');
+    const tmplSeats   = document.getElementById('bulk_tmpl_seats').value;
+    const tmplEco     = document.getElementById('bulk_tmpl_eco').value;
+    const tmplBiz     = document.getElementById('bulk_tmpl_biz').value;
+    const tmplChd     = document.getElementById('bulk_tmpl_chd').value;
+    const tmplInf     = document.getElementById('bulk_tmpl_inf').value;
+    const routeOpt    = tmplRoute.options[tmplRoute.selectedIndex];
 
-    document.querySelectorAll('#bulkRows tr').forEach(row=>{
-        const idx = parseInt(row.id.replace('bulk-row-',''));
+    document.querySelectorAll('#bulkRows .sched-card').forEach(card=>{
+        const idx = parseInt(card.id.replace('bulk-row-',''));
         if(isNaN(idx)) return;
-        // airline
-        if(airline.value){
-            const sel = row.querySelector(`[name="flights[${idx}][airline_id]"]`);
-            if(sel){ sel.value = airline.value; bulkAutoFlightNum(sel,idx); }
+        if(tmplAirline.value){
+            const sel = card.querySelector(`select[name*="airline_id"]`);
+            if(sel){ sel.value = tmplAirline.value; bulkAutoFlightNum(sel,idx); }
         }
-        // route
-        if(route.value && routeOpt){
+        if(tmplRoute.value && routeOpt){
+            const rsel = card.querySelectorAll('select')[1];
+            if(rsel) rsel.value = tmplRoute.value;
             document.getElementById('bulk-fc-'+idx).value    = routeOpt.dataset.fc||'';
             document.getElementById('bulk-fcode-'+idx).value = routeOpt.dataset.fcode||'';
             document.getElementById('bulk-tc-'+idx).value    = routeOpt.dataset.tc||'';
             document.getElementById('bulk-tcode-'+idx).value = routeOpt.dataset.tcode||'';
-            // update visible route dropdown
-            const rsel = row.querySelectorAll('select')[1];
-            if(rsel) rsel.value = route.value;
         }
-        if(seats){ const s=document.getElementById('bulk-seats-'+idx); if(s){ s.value=seats; s.nextElementSibling.value=seats; } }
-        if(eco)  { const e=document.getElementById('bulk-eco-'+idx); if(e) e.value=eco; }
-        if(biz)  { const b=document.getElementById('bulk-biz-'+idx); if(b) b.value=biz; }
-        if(chd)  { const c=document.getElementById('bulk-chd-'+idx); if(c) c.value=chd; }
-        if(inf)  { const i=document.getElementById('bulk-inf-'+idx); if(i) i.value=inf; }
+        if(tmplSeats){ const el=document.getElementById('bulk-seats-'+idx); if(el) el.value=tmplSeats; }
+        if(tmplEco)  { const el=document.getElementById('bulk-eco-'+idx); if(el) el.value=tmplEco; }
+        if(tmplBiz)  { const el=document.getElementById('bulk-biz-'+idx); if(el) el.value=tmplBiz; }
+        if(tmplChd)  { const el=document.getElementById('bulk-chd-'+idx); if(el) el.value=tmplChd; }
+        if(tmplInf)  { const el=document.getElementById('bulk-inf-'+idx); if(el) el.value=tmplInf; }
     });
 }
 
 function bulkUpdateCount(){
-    const n = document.querySelectorAll('#bulkRows tr').length;
-    document.getElementById('bulkRowCount').textContent = n + ' schedule' + (n!==1?'s':'') + ' queued';
-    document.getElementById('bulkSubmitBtn').innerHTML = `<i class="fas fa-layer-group me-1"></i> Create ${n} Schedule${n!==1?'s':''}`;
+    const n = document.querySelectorAll('#bulkRows .sched-card').length;
+    const count = document.getElementById('bulkRowCount');
+    if(count) count.textContent = n > 0 ? n+' schedule'+(n!==1?'s':'')+' ready' : '';
+    const btn = document.getElementById('bulkSubmitBtn');
+    if(btn) btn.innerHTML = n > 0
+        ? `<i class="fas fa-paper-plane" style="margin-right:6px;"></i>Create ${n} Schedule${n!==1?'s':''}`
+        : `<i class="fas fa-paper-plane" style="margin-right:6px;"></i>Create Schedules`;
 }
 
-// initialise with 3 rows when modal opens
-document.getElementById('bulkScheduleModal').addEventListener('click', function(e){
-    if(e.target === this) closeModal('bulkScheduleModal');
+// init 3 cards on first open
+document.getElementById('bulkScheduleModal').addEventListener('click',function(e){
+    if(e.target===this) closeModal('bulkScheduleModal');
 });
-document.querySelector('[onclick="document.getElementById(\'bulkScheduleModal\').classList.add(\'open\')"]')?.addEventListener('click', function(){
-    if(document.querySelectorAll('#bulkRows tr').length === 0){
-        bulkAddRow(); bulkAddRow(); bulkAddRow();
-        bulkUpdateCount();
-    }
-});
-// validate before submit
-document.getElementById('bulkScheduleForm').addEventListener('submit', function(e){
-    const rows = document.querySelectorAll('#bulkRows tr');
-    if(rows.length === 0){ e.preventDefault(); alert('Add at least one schedule row.'); return; }
-    // sync available_seats from total_seats where empty
-    rows.forEach(row=>{
-        const idx = parseInt(row.id.replace('bulk-row-',''));
+(function(){
+    const btn = document.querySelector('[onclick*="bulkScheduleModal"]');
+    if(btn) btn.addEventListener('click',function(){
+        if(!document.querySelectorAll('#bulkRows .sched-card').length){
+            bulkAddRow(); bulkAddRow(); bulkAddRow(); bulkUpdateCount();
+        }
+    });
+})();
+
+// submit: sync available_seats
+document.getElementById('bulkScheduleForm').addEventListener('submit',function(e){
+    const cards = document.querySelectorAll('#bulkRows .sched-card');
+    if(!cards.length){ e.preventDefault(); alert('Please add at least one flight schedule.'); return; }
+    cards.forEach(card=>{
+        const idx = parseInt(card.id.replace('bulk-row-',''));
         if(isNaN(idx)) return;
         const seats = document.getElementById('bulk-seats-'+idx);
         const avail = document.getElementById('bulk-avail-'+idx);
-        if(seats && avail && !avail.value) avail.value = seats.value || 150;
+        if(seats && avail) avail.value = seats.value || 150;
     });
 });
 
