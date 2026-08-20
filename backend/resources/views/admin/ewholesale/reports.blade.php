@@ -10,7 +10,7 @@
     <div style="display:flex;gap:8px;align-items:center">
         <form method="GET">
             <select name="period" onchange="this.form.submit()" style="padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:13px">
-                @foreach([7=>>'Last 7 days', 30=>>'Last 30 days', 90=>>'Last 90 days'] as $d => $label)
+                @foreach([7=>'Last 7 days', 30=>'Last 30 days', 90=>'Last 90 days'] as $d => $label)
                 <option value="{{ $d }}" @selected($period==$d)>{{ $label }}</option>
                 @endforeach
             </select>
