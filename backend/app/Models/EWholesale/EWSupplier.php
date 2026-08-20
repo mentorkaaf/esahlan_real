@@ -27,6 +27,7 @@ class EWSupplier extends Model
     public function vendor(): BelongsTo        { return $this->belongsTo(Vendor::class); }
     public function products(): HasMany        { return $this->hasMany(EWProduct::class, 'supplier_id'); }
     public function shippingRules(): HasMany   { return $this->hasMany(EWShippingRule::class, 'supplier_id'); }
+    public function orders(): HasMany          { return $this->hasMany(EWOrder::class, 'supplier_id'); }
 
     public function scopeActive($q)            { return $q->where('is_active', true); }
     public function scopeVerified($q)          { return $q->whereIn('verification', ['verified','gold']); }

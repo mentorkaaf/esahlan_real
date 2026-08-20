@@ -802,9 +802,69 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
                 Route::patch('/orders/{id}/status',        [$ef, 'orderUpdateStatus'])->name('order.status');
             });
 
-            // eShop / eWholesale
+            // eShop
             Route::get('/shop',                      [$ctrl, 'shopIndex'])->name('shop');
-            Route::get('/wholesale',                 [$ctrl, 'wholesaleIndex'])->name('wholesale');
+
+            // eWholesale — full management suite
+            Route::prefix('wholesale')->name('wholesale.')->group(function () {
+                $ew = \App\Http\Controllers\Admin\AdminEWholesaleController::class;
+
+                // Dashboard
+                Route::get('/',                              [$ew, 'dashboard'])->name('dashboard');
+
+                // Suppliers
+                Route::get('/suppliers',                     [$ew, 'suppliers'])->name('suppliers');
+                Route::get('/suppliers/{supplier}',          [$ew, 'supplierShow'])->name('suppliers.show');
+                Route::post('/suppliers/{supplier}/action',  [$ew, 'supplierAction'])->name('suppliers.action');
+                Route::post('/suppliers/{supplier}/shipping',[$ew, 'supplierShippingUpdate'])->name('suppliers.shipping');
+
+                // Buyers & Credit
+                Route::get('/buyers',                            [$ew, 'buyers'])->name('buyers');
+                Route::post('/buyers/{buyer}/kyb',               [$ew, 'buyerKybAction'])->name('buyers.kyb');
+                Route::post('/buyers/{buyer}/credit',            [$ew, 'buyerCreditStore'])->name('buyers.credit.store');
+                Route::post('/buyers/{buyer}/credit/freeze',     [$ew, 'buyerCreditFreeze'])->name('buyers.credit.freeze');
+                Route::post('/buyers/{buyer}/credit/adjust',     [$ew, 'buyerCreditAdjust'])->name('buyers.credit.adjust');
+                Route::get('/buyers/{buyer}/ledger',             [$ew, 'buyerCreditLedger'])->name('buyers.credit.ledger');
+                Route::get('/credit-aging',                      [$ew, 'creditAgingReport'])->name('credit.aging');
+
+                // Catalog — Categories
+                Route::get('/catalog/categories',               [$ew, 'categories'])->name('catalog.categories');
+                Route::post('/catalog/categories',              [$ew, 'categoryStore'])->name('catalog.categories.store');
+                Route::patch('/catalog/categories/{category}',  [$ew, 'categoryUpdate'])->name('catalog.categories.update');
+                Route::post('/catalog/categories/sort',         [$ew, 'categorySortUpdate'])->name('catalog.categories.sort');
+
+                // Catalog — Products
+                Route::get('/catalog/products',                 [$ew, 'products'])->name('products');
+                Route::get('/catalog/products/create',          [$ew, 'productCreate'])->name('products.create');
+                Route::post('/catalog/products',                [$ew, 'productStore'])->name('products.store');
+                Route::get('/catalog/products/{product}',       [$ew, 'productShow'])->name('products.show');
+                Route::get('/catalog/products/{product}/edit',  [$ew, 'productEdit'])->name('products.edit');
+                Route::put('/catalog/products/{product}',       [$ew, 'productUpdate'])->name('products.update');
+                Route::patch('/catalog/products/{product}/status', [$ew, 'productStatusUpdate'])->name('products.status');
+
+                // RFQ Center
+                Route::get('/rfq',                              [$ew, 'rfqs'])->name('rfq');
+                Route::get('/rfq/{rfq}',                        [$ew, 'rfqShow'])->name('rfq.show');
+                Route::post('/rfq/{rfq}/moderate',              [$ew, 'rfqModerate'])->name('rfq.moderate');
+
+                // Orders
+                Route::get('/orders',                           [$ew, 'orders'])->name('orders');
+                Route::get('/orders/{order}',                   [$ew, 'orderShow'])->name('orders.show');
+                Route::patch('/orders/{order}/status',          [$ew, 'orderStatusUpdate'])->name('orders.status');
+                Route::post('/orders/{order}/payment',          [$ew, 'orderPaymentRecord'])->name('orders.payment');
+                Route::post('/orders/{order}/shipment',         [$ew, 'orderShipmentStore'])->name('orders.shipment');
+                Route::post('/disputes/{dispute}/resolve',      [$ew, 'disputeResolve'])->name('disputes.resolve');
+
+                // Settings
+                Route::get('/settings',                         [$ew, 'settings'])->name('settings');
+                Route::post('/settings',                        [$ew, 'settingsUpdate'])->name('settings.update');
+                Route::post('/settings/price-list',             [$ew, 'priceListStore'])->name('settings.price-list.store');
+                Route::post('/settings/platform-shipping',      [$ew, 'platformShippingUpdate'])->name('settings.platform-shipping');
+
+                // Reports
+                Route::get('/reports',                          [$ew, 'reports'])->name('reports');
+                Route::get('/reports/export',                   [$ew, 'reportsCsvExport'])->name('reports.export');
+            });
 
             // eGrocery — full management suite
             Route::prefix('egrocery')->name('egrocery.')->group(function () {

@@ -4,7 +4,7 @@ namespace App\Models\EWholesale;
 
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasOne};
+use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany, HasOne};
 
 class EWBuyer extends Model
 {
@@ -23,6 +23,8 @@ class EWBuyer extends Model
     public function user(): BelongsTo              { return $this->belongsTo(User::class); }
     public function creditAccount(): HasOne        { return $this->hasOne(EWCreditAccount::class, 'buyer_id'); }
     public function priceListLink(): HasOne        { return $this->hasOne(EWBuyerPriceList::class, 'buyer_id'); }
+    public function orders(): HasMany              { return $this->hasMany(EWOrder::class, 'buyer_id'); }
+    public function rfqs(): HasMany                { return $this->hasMany(EWRfq::class, 'buyer_id'); }
 
     public function isApproved(): bool             { return $this->kyb_status === 'approved'; }
     public function hasCreditActive(): bool        { return $this->creditAccount?->status === 'active'; }
