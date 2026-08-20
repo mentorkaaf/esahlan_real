@@ -801,14 +801,14 @@
 .sched-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
 .sched-grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
 .sf label{font-size:11px;font-weight:700;color:#8A8A9A;display:block;margin-bottom:4px;}
-.sf input,.sf select{width:100%;padding:8px 10px;border:1.5px solid #EEEEEE;border-radius:8px;font-size:13px;color:#1A1A2E;box-sizing:border-box;font-family:inherit;}
-.sf input:focus,.sf select:focus{outline:none;border-color:#1565C0;}
+.sf input,.sf select{width:100%;padding:8px 10px;border:1.5px solid #c8cce8;border-radius:8px;font-size:13px;color:#1A1A2E;background:#fff;box-sizing:border-box;font-family:inherit;}
+.sf input:focus,.sf select:focus{outline:none;border-color:#1565C0;background:#f5f8ff;}
 .price-sf label{font-size:11px;font-weight:800;display:block;margin-bottom:4px;}
-.price-sf input{width:100%;border:1.5px solid;border-radius:8px;padding:8px 10px;font-size:13px;font-weight:700;box-sizing:border-box;font-family:inherit;background:#fafeff;}
-.eco-sf label{color:#10b981;} .eco-sf input{border-color:rgba(16,185,129,.4);color:#065f46;}
-.biz-sf label{color:#1565C0;} .biz-sf input{border-color:rgba(21,101,192,.4);color:#1565C0;}
-.chd-sf label{color:#f59e0b;} .chd-sf input{border-color:rgba(245,158,11,.4);color:#92400e;}
-.inf-sf label{color:#ef4444;} .inf-sf input{border-color:rgba(239,68,68,.4);color:#991b1b;}
+.price-sf input{width:100%;border:2px solid;border-radius:8px;padding:8px 10px;font-size:13px;font-weight:700;box-sizing:border-box;font-family:inherit;background:#fafeff;}
+.eco-sf label{color:#059669;} .eco-sf input{border-color:#10b981;color:#065f46;background:#f0fdf4;}
+.biz-sf label{color:#1565C0;} .biz-sf input{border-color:#1565C0;color:#1565C0;background:#eff4ff;}
+.chd-sf label{color:#d97706;} .chd-sf input{border-color:#f59e0b;color:#92400e;background:#fffbeb;}
+.inf-sf label{color:#dc2626;} .inf-sf input{border-color:#ef4444;color:#991b1b;background:#fff5f5;}
 .del-card-btn{width:30px;height:30px;border-radius:8px;border:none;background:rgba(239,68,68,.1);color:#ef4444;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;}
 .del-card-btn:hover{background:rgba(239,68,68,.2);}
 /* Bulk footer */
@@ -1052,7 +1052,7 @@ function bulkCardHtml(idx){
                     </select>
                 </div>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr 120px;gap:10px;margin-bottom:10px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr 120px;gap:10px;margin-bottom:10px;margin-top:0;">
                 <div class="sf">
                     <label>📅 Departure *</label>
                     <input type="datetime-local" name="${n}[departure_at]" id="bulk-dep-${idx}" required>
@@ -1066,7 +1066,7 @@ function bulkCardHtml(idx){
                     <input type="number" name="${n}[total_seats]" id="bulk-seats-${idx}" min="1" placeholder="150" value="150">
                 </div>
             </div>
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:0;padding-top:2px;">
                 <div class="price-sf eco-sf">
                     <label>Economy $</label>
                     <input type="number" name="${n}[economy_price]" id="bulk-eco-${idx}" min="0" step="0.01" placeholder="0.00">
