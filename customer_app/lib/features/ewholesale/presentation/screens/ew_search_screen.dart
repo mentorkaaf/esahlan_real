@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../data/models/ew_models.dart';
 import '../../data/repositories/ewholesale_repository.dart';
+import '../providers/ew_provider.dart';
 import '../ui/ew_theme.dart';
 import '../ui/widgets/ew_widgets.dart';
 
@@ -11,7 +12,7 @@ import '../ui/widgets/ew_widgets.dart';
 final _ewSearchProvider = FutureProvider.family.autoDispose<Map<String, dynamic>, String>(
   (ref, q) => q.isEmpty
       ? Future.value({'products': <EwProduct>[], 'suppliers': <EwSupplierCard>[]})
-      : EWholesaleRepository.instance.search(q),
+      : ref.watch(ewRepoProvider).search(q),
 );
 
 // ── Screen ────────────────────────────────────────────────────────────────────
@@ -171,7 +172,7 @@ class _ProductResults extends StatelessWidget {
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(p.name, style: EwTheme.body.copyWith(fontWeight: FontWeight.w700), maxLines: 2, overflow: TextOverflow.ellipsis),
                   if (p.supplier != null)
-                    Text(p.supplier!.name, style: EwTheme.bodySmall),
+                    Text(p.supplier!.displayName, style: EwTheme.bodySmall),
                   const SizedBox(height: 4),
                   Text(
                     'From ${EwTheme.formatPrice(p.minPrice)} / ${p.unit}',
