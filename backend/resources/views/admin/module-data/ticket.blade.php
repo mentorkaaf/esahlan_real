@@ -1018,74 +1018,63 @@ const bulkRoutes   = {!! json_encode($_bulkRoutes) !!};
 
 let bulkRowIndex = 0;
 
+var IS = 'width:100%;padding:8px 10px;border:1.5px solid #b0b8d8;border-radius:8px;font-size:13px;color:#1A1A2E;background:#fff;box-sizing:border-box;font-family:inherit;display:block;height:36px;';
+var SS = 'width:100%;padding:8px 10px;border:1.5px solid #b0b8d8;border-radius:8px;font-size:13px;color:#1A1A2E;background:#fff;box-sizing:border-box;font-family:inherit;display:block;height:36px;';
+var LS = 'font-size:11px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;';
+
 function bulkCardHtml(idx){
     const n = `flights[${idx}]`;
     const airlineOpts = bulkAirlines.map(a=>`<option value="${a.id}" data-code="${a.code}">${a.name}</option>`).join('');
     const routeOpts   = bulkRoutes.map(r=>`<option value="${r.id}" data-fc="${r.fc}" data-fcode="${r.fcode}" data-tc="${r.tc}" data-tcode="${r.tcode}">${r.label}</option>`).join('');
-    return `<div class="sched-card" id="bulk-row-${idx}">
-        <div class="sched-card-head">
-            <div style="display:flex;align-items:center;gap:10px;">
-                <div class="sched-card-num">${idx+1}</div>
-                <span style="font-size:13px;font-weight:700;color:#1A1A2E;">Flight Schedule</span>
-                <span id="bulk-fn-label-${idx}" style="font-size:12px;color:#8A8A9A;font-family:monospace;"></span>
-            </div>
-            <button type="button" class="del-card-btn" onclick="bulkRemoveRow(${idx})" title="Remove"><i class="fas fa-trash-alt"></i></button>
-        </div>
-        <div class="sched-card-body">
-            <input type="hidden" name="${n}[flight_number]" id="bulk-fn-${idx}">
-            <input type="hidden" name="${n}[from_city]"     id="bulk-fc-${idx}">
-            <input type="hidden" name="${n}[from_code]"     id="bulk-fcode-${idx}">
-            <input type="hidden" name="${n}[to_city]"       id="bulk-tc-${idx}">
-            <input type="hidden" name="${n}[to_code]"       id="bulk-tcode-${idx}">
-            <input type="hidden" name="${n}[available_seats]" id="bulk-avail-${idx}">
-            <div class="sched-grid-2">
-                <div class="sf">
-                    <label>✈ Airline *</label>
-                    <select name="${n}[airline_id]" onchange="bulkAutoFlightNum(this,${idx})">
-                        <option value="">Select airline…</option>${airlineOpts}
-                    </select>
-                </div>
-                <div class="sf">
-                    <label>🛫 Route *</label>
-                    <select onchange="bulkFillRoute(this,${idx})">
-                        <option value="">Select route…</option>${routeOpts}
-                    </select>
-                </div>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr 120px;gap:10px;margin-bottom:10px;margin-top:0;">
-                <div class="sf">
-                    <label>📅 Departure *</label>
-                    <input type="datetime-local" name="${n}[departure_at]" id="bulk-dep-${idx}" required>
-                </div>
-                <div class="sf">
-                    <label>🛬 Arrival *</label>
-                    <input type="datetime-local" name="${n}[arrival_at]" id="bulk-arr-${idx}" required>
-                </div>
-                <div class="sf">
-                    <label>💺 Seats</label>
-                    <input type="number" name="${n}[total_seats]" id="bulk-seats-${idx}" min="1" placeholder="150" value="150">
-                </div>
-            </div>
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:0;padding-top:2px;">
-                <div class="price-sf eco-sf">
-                    <label>Economy $</label>
-                    <input type="number" name="${n}[economy_price]" id="bulk-eco-${idx}" min="0" step="0.01" placeholder="0.00">
-                </div>
-                <div class="price-sf biz-sf">
-                    <label>Business $</label>
-                    <input type="number" name="${n}[business_price]" id="bulk-biz-${idx}" min="0" step="0.01" placeholder="0.00">
-                </div>
-                <div class="price-sf chd-sf">
-                    <label>Child $</label>
-                    <input type="number" name="${n}[child_price]" id="bulk-chd-${idx}" min="0" step="0.01" placeholder="0.00">
-                </div>
-                <div class="price-sf inf-sf">
-                    <label>Infant $</label>
-                    <input type="number" name="${n}[infant_price]" id="bulk-inf-${idx}" min="0" step="0.01" placeholder="0.00">
-                </div>
-            </div>
-        </div>
-    </div>`;
+    return '<div class="sched-card" id="bulk-row-'+idx+'">'
+        +'<div class="sched-card-head">'
+            +'<div style="display:flex;align-items:center;gap:10px;">'
+                +'<div class="sched-card-num">'+(idx+1)+'</div>'
+                +'<span style="font-size:13px;font-weight:700;color:#1A1A2E;">Flight Schedule</span>'
+                +'<span id="bulk-fn-label-'+idx+'" style="font-size:12px;color:#8A8A9A;font-family:monospace;"></span>'
+            +'</div>'
+            +'<button type="button" class="del-card-btn" onclick="bulkRemoveRow('+idx+')" title="Remove"><i class="fas fa-trash-alt"></i></button>'
+        +'</div>'
+        +'<div style="padding:14px;">'
+            +'<input type="hidden" name="'+n+'[flight_number]" id="bulk-fn-'+idx+'">'
+            +'<input type="hidden" name="'+n+'[from_city]" id="bulk-fc-'+idx+'">'
+            +'<input type="hidden" name="'+n+'[from_code]" id="bulk-fcode-'+idx+'">'
+            +'<input type="hidden" name="'+n+'[to_city]" id="bulk-tc-'+idx+'">'
+            +'<input type="hidden" name="'+n+'[to_code]" id="bulk-tcode-'+idx+'">'
+            +'<input type="hidden" name="'+n+'[available_seats]" id="bulk-avail-'+idx+'">'
+            /* Row 1: Airline + Route */
+            +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">'
+                +'<div><label style="'+LS+'">✈ Airline *</label>'
+                    +'<select name="'+n+'[airline_id]" onchange="bulkAutoFlightNum(this,'+idx+')" style="'+SS+'">'
+                        +'<option value="">Select airline…</option>'+airlineOpts
+                    +'</select></div>'
+                +'<div><label style="'+LS+'">🛫 Route *</label>'
+                    +'<select onchange="bulkFillRoute(this,'+idx+')" style="'+SS+'">'
+                        +'<option value="">Select route…</option>'+routeOpts
+                    +'</select></div>'
+            +'</div>'
+            /* Row 2: Departure + Arrival + Seats */
+            +'<div style="display:grid;grid-template-columns:1fr 1fr 120px;gap:10px;margin-bottom:10px;">'
+                +'<div><label style="'+LS+'">📅 Departure *</label>'
+                    +'<input type="datetime-local" name="'+n+'[departure_at]" id="bulk-dep-'+idx+'" required style="'+IS+'"></div>'
+                +'<div><label style="'+LS+'">🛬 Arrival *</label>'
+                    +'<input type="datetime-local" name="'+n+'[arrival_at]" id="bulk-arr-'+idx+'" required style="'+IS+'"></div>'
+                +'<div><label style="'+LS+'">💺 Seats</label>'
+                    +'<input type="number" name="'+n+'[total_seats]" id="bulk-seats-'+idx+'" min="1" placeholder="150" value="150" style="'+IS+'"></div>'
+            +'</div>'
+            /* Row 3: Prices */
+            +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">'
+                +'<div><label style="'+LS+'color:#059669;">Economy $</label>'
+                    +'<input type="number" name="'+n+'[economy_price]" id="bulk-eco-'+idx+'" min="0" step="0.01" placeholder="0.00" style="'+IS+'border-color:#10b981;background:#f0fdf4;color:#065f46;font-weight:700;"></div>'
+                +'<div><label style="'+LS+'color:#1565C0;">Business $</label>'
+                    +'<input type="number" name="'+n+'[business_price]" id="bulk-biz-'+idx+'" min="0" step="0.01" placeholder="0.00" style="'+IS+'border-color:#1565C0;background:#eff4ff;color:#1565C0;font-weight:700;"></div>'
+                +'<div><label style="'+LS+'color:#d97706;">Child $</label>'
+                    +'<input type="number" name="'+n+'[child_price]" id="bulk-chd-'+idx+'" min="0" step="0.01" placeholder="0.00" style="'+IS+'border-color:#f59e0b;background:#fffbeb;color:#92400e;font-weight:700;"></div>'
+                +'<div><label style="'+LS+'color:#dc2626;">Infant $</label>'
+                    +'<input type="number" name="'+n+'[infant_price]" id="bulk-inf-'+idx+'" min="0" step="0.01" placeholder="0.00" style="'+IS+'border-color:#ef4444;background:#fff5f5;color:#991b1b;font-weight:700;"></div>'
+            +'</div>'
+        +'</div>'
+    +'</div>';
 }
 
 function bulkAddRow(cloneFrom){
