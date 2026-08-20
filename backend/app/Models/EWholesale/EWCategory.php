@@ -2,11 +2,13 @@
 
 namespace App\Models\EWholesale;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany};
 
 class EWCategory extends Model
 {
+    use HasFactory;
     protected $table = 'ewholesale_categories';
 
     protected $fillable = [

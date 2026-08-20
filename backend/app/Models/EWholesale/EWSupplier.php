@@ -3,11 +3,13 @@
 namespace App\Models\EWholesale;
 
 use App\Models\Vendor;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany};
 
 class EWSupplier extends Model
 {
+    use HasFactory;
     protected $table = 'ewholesale_suppliers';
 
     protected $fillable = [

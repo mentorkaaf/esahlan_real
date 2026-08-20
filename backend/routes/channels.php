@@ -93,6 +93,30 @@ Broadcast::channel('vendor.{vendorId}', function ($user, $vendorId) {
         && in_array($user->role?->slug ?? '', ['vendor_owner', 'vendor_employee']);
 });
 
+// ── eWholesale realtime channels ─────────────────────────────────────────────
+// Buyer's personal wholesale channel (quotes, order updates, RFQ responses)
+Broadcast::channel('ewholesale.buyer.{userId}', function ($user, $userId) {
+    return (int) $user->id === (int) $userId;
+});
+
+// Supplier channel — new inquiries, orders, quote counters
+Broadcast::channel('ewholesale.supplier.{vendorId}', function ($user, $vendorId) {
+    $vendor = $user->vendor;
+    if (!$vendor) return false;
+    return (int) $vendor->id === (int) $vendorId;
+});
+
+// Order live tracking channel (buyer or supplier)
+Broadcast::channel('ewholesale.order.{orderId}', function ($user, $orderId) {
+    $order = \App\Models\EWholesale\EWOrder::find($orderId);
+    if (!$order) return false;
+    $buyer    = \App\Models\EWholesale\EWBuyer::where('user_id', $user->id)->first();
+    $isbuyer  = $buyer && $buyer->id === $order->buyer_id;
+    $isVendor = $user->vendor && $user->vendor->id === $order->supplier?->vendor_id;
+    return $isbuyer || $isVendor;
+});
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Inbox support chat — user in conversation OR assigned admin/agent
 Broadcast::channel('inbox.{conversationUuid}', function ($user, $conversationUuid) {
     $conv = \App\Models\InboxConversation::where('uuid', $conversationUuid)->first();

@@ -326,10 +326,19 @@ Route::prefix('v1')->group(function () {
     Route::get('eshop/products/{id}/reviews',            [EShopController::class, 'productReviews']);
     Route::patch('eshop/products/{id}/view',             [EShopController::class, 'trackView']);
 
-    // eWholesale
-    Route::get('ewholesale/categories',                  [EWholesaleController::class, 'categories']);
-    Route::get('ewholesale/products',                    [EWholesaleController::class, 'products']);
-    Route::post('ewholesale/inquire',                    [EWholesaleController::class, 'inquire']);    // alias Flutter uses
+    // ── eWholesale v2 — Public routes (no auth required) ────────────────────────
+    Route::prefix('ewholesale')->group(function () {
+        $pub = \App\Http\Controllers\Api\EWholesale\EWPublicController::class;
+        Route::get('home',                       [$pub, 'home']);
+        Route::get('categories',                 [$pub, 'categories']);
+        Route::get('categories/{id}',            [$pub, 'category']);
+        Route::get('products',                   [$pub, 'products']);
+        Route::get('products/{slug}',            [$pub, 'product']);
+        Route::get('suppliers/{id}',             [$pub, 'supplier']);
+        Route::get('search/suggest',             [$pub, 'searchSuggest']);
+        // Cart validate — optional auth (prices differ for approved buyers)
+        Route::post('cart/validate',             [\App\Http\Controllers\Api\EWholesale\EWCartController::class, 'validate']);
+    });
 
     // eGrocery v2 (public)
     Route::get('egrocery/home',                          [\App\Http\Controllers\Api\EGrocery\EGroceryHomeController::class, 'index']);
@@ -750,7 +759,53 @@ Route::prefix('v1')->group(function () {
             Route::post('eshop/order',              [EShopController::class, 'createOrder']);
             Route::post('eshop/coupon/validate',    [EShopController::class, 'validateCoupon']);
             Route::post('eshop/products/{id}/reviews', [EShopController::class, 'submitReview']);
-            Route::post('ewholesale/order',     [EWholesaleController::class, 'inquire']);
+            // ── eWholesale v2 — Authed buyer routes ───────────────────────────────
+            Route::prefix('ewholesale')->group(function () {
+                $buyer   = \App\Http\Controllers\Api\EWholesale\EWBuyerController::class;
+                $inq     = \App\Http\Controllers\Api\EWholesale\EWInquiryController::class;
+                $rfq     = \App\Http\Controllers\Api\EWholesale\EWRfqController::class;
+                $orders  = \App\Http\Controllers\Api\EWholesale\EWOrderApiController::class;
+                $lists   = \App\Http\Controllers\Api\EWholesale\EWSavedListController::class;
+
+                // Buyer profile
+                Route::post('buyer/register',           [$buyer, 'register']);
+                Route::get('buyer/me',                  [$buyer, 'me']);
+
+                // Inquiry & quotes
+                Route::post('products/{id}/inquiry',    [$inq, 'store']);
+                Route::get('quotes',                    [$inq, 'quotes']);
+                Route::get('quotes/{id}',               [$inq, 'quoteDetail']);
+                Route::post('quotes/{id}/counter',      [$inq, 'counter']);
+                Route::post('quotes/{id}/accept',       [$inq, 'accept']);
+                Route::post('quotes/{id}/decline',      [$inq, 'decline']);
+
+                // RFQs
+                Route::post('rfqs',                     [$rfq, 'store']);
+                Route::get('rfqs/mine',                 [$rfq, 'mine']);
+                Route::post('rfq-quotes/{id}/accept',   [$rfq, 'acceptQuote']);
+                Route::post('rfq-quotes/{id}/shortlist',[$rfq, 'shortlistQuote']);
+                Route::post('rfq-quotes/{id}/reject',   [$rfq, 'rejectQuote']);
+
+                // Orders
+                Route::post('orders',                   [$orders, 'checkout']);
+                Route::get('orders',                    [$orders, 'index']);
+                Route::get('orders/{id}',               [$orders, 'show']);
+                Route::post('orders/{id}/pay-balance',  [$orders, 'payBalance']);
+                Route::post('orders/{id}/cancel',       [$orders, 'cancel']);
+                Route::post('orders/{id}/dispute',      [$orders, 'dispute']);
+                Route::post('orders/{id}/review',       [$orders, 'review']);
+                Route::post('orders/{id}/reorder',      [$orders, 'reorder']);
+
+                // Saved lists
+                Route::get('lists',                     [$lists, 'index']);
+                Route::post('lists',                    [$lists, 'store']);
+                Route::get('lists/{id}',                [$lists, 'show']);
+                Route::put('lists/{id}',                [$lists, 'update']);
+                Route::delete('lists/{id}',             [$lists, 'destroy']);
+                Route::post('lists/{id}/items',         [$lists, 'addItem']);
+                Route::delete('lists/{listId}/items/{itemId}', [$lists, 'removeItem']);
+                Route::post('lists/{id}/to-cart',       [$lists, 'toCart']);
+            });
             // eGrocery v2 (authed)
             Route::prefix('egrocery')->group(function () {
                 Route::get('favorites',                      [\App\Http\Controllers\Api\EGrocery\EGroceryUserController::class, 'favorites']);
