@@ -102,6 +102,16 @@ import '../../features/egrocery/presentation/screens/eg_checkout_screen.dart';
 import '../../features/egrocery/presentation/screens/eg_orders_screen.dart';
 import '../../features/egrocery/data/models/egrocery_models.dart';
 import '../../features/modules/ewholesale/ewholesale_screen.dart';
+import '../../features/ewholesale/presentation/screens/ew_home_screen.dart';
+import '../../features/ewholesale/presentation/screens/ew_listing_screen.dart';
+import '../../features/ewholesale/presentation/screens/ew_product_detail_screen.dart';
+import '../../features/ewholesale/presentation/screens/ew_supplier_storefront_screen.dart';
+import '../../features/ewholesale/presentation/screens/ew_rfq_screen.dart';
+import '../../features/ewholesale/presentation/screens/ew_quotes_screen.dart';
+import '../../features/ewholesale/presentation/screens/ew_cart_checkout_screen.dart';
+import '../../features/ewholesale/presentation/screens/ew_kyb_screen.dart';
+import '../../features/ewholesale/presentation/screens/ew_orders_screen.dart';
+import '../../features/ewholesale/data/models/ew_models.dart';
 import '../../features/modules/elaundry/elaundry_screen.dart';
 import '../../features/modules/ehealth/ehealth_screen.dart';
 import '../../features/modules/eshop/eshop_screen.dart';
@@ -326,7 +336,37 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           // Legacy fallback
           GoRoute(path: '/egrocery-legacy', builder: (_, __) => const EGroceryScreen()),
-          GoRoute(path: '/ewholesale', builder: (_, __) => const EWholesaleScreen()),
+          // eWholesale B2B module
+          GoRoute(path: '/ewholesale',                  builder: (_, __) => const EwHomeScreen()),
+          GoRoute(path: '/ewholesale/products',
+            builder: (_, state) {
+              final p = state.uri.queryParameters;
+              return EwListingScreen(categoryId: p['category'] != null ? int.tryParse(p['category']!) : null);
+            }),
+          GoRoute(path: '/ewholesale/product/:slug',   builder: (_, s) => EwProductDetailScreen(slug: s.pathParameters['slug']!)),
+          GoRoute(path: '/ewholesale/supplier/:id',    builder: (_, s) => EwSupplierStorefrontScreen(supplierId: int.tryParse(s.pathParameters['id']!) ?? 0)),
+          GoRoute(path: '/ewholesale/rfq',             builder: (_, __) => const EwMyRfqsScreen()),
+          GoRoute(path: '/ewholesale/rfq/new',         builder: (_, __) => const EwRfqCreateScreen()),
+          GoRoute(path: '/ewholesale/rfq/:id',         builder: (_, s) => EwRfqDetailScreen(rfqId: int.tryParse(s.pathParameters['id']!) ?? 0)),
+          GoRoute(path: '/ewholesale/quotes',          builder: (_, __) => const EwQuotesScreen()),
+          GoRoute(path: '/ewholesale/quote/:id',       builder: (_, s) => EwQuoteDetailScreen(quoteId: int.tryParse(s.pathParameters['id']!) ?? 0)),
+          GoRoute(path: '/ewholesale/cart',            builder: (_, __) => const EwCartScreen()),
+          GoRoute(path: '/ewholesale/checkout',
+            builder: (_, state) {
+              final groups = state.extra as List<EwCartGroup>? ?? [];
+              return EwCheckoutScreen(groups: groups);
+            }),
+          GoRoute(path: '/ewholesale/orders/success',
+            builder: (_, state) {
+              final nos = state.extra as List<String>? ?? [];
+              return EwOrderSuccessScreen(orderNos: nos);
+            }),
+          GoRoute(path: '/ewholesale/kyb',             builder: (_, __) => const EwKybScreen()),
+          GoRoute(path: '/ewholesale/orders',          builder: (_, __) => const EwOrdersScreen()),
+          GoRoute(path: '/ewholesale/order/:id',       builder: (_, s) => EwOrderDetailScreen(orderId: int.tryParse(s.pathParameters['id']!) ?? 0)),
+          GoRoute(path: '/ewholesale/lists',           builder: (_, __) => const EwSavedListsScreen()),
+          // Legacy stub
+          GoRoute(path: '/ewholesale-legacy',          builder: (_, __) => const EWholesaleScreen()),
           GoRoute(path: '/elaundry',   builder: (_, __) => const ELaundryScreen()),
           GoRoute(path: '/ehealth',    builder: (_, __) => const EHealthScreen()),
           GoRoute(path: '/eshop',      builder: (_, __) => const EShopScreen()),
