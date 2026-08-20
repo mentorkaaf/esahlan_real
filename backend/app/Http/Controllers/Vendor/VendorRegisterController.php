@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use App\Mail\WelcomeVendorMail;
 use Illuminate\Support\Facades\Mail;
+use App\Models\EWholesale\EWSupplier;
 
 class VendorRegisterController extends Controller
 {
@@ -92,7 +93,7 @@ class VendorRegisterController extends Controller
                 'role_id'  => $vendorOwnerRoleId,
             ]);
 
-            Vendor::create([
+            $vendor = Vendor::create([
                 'user_id'          => $user->id,
                 'module_id'        => $module->id,
                 'module_slug'      => $module->slug,
@@ -108,6 +109,18 @@ class VendorRegisterController extends Controller
                 'is_active'        => false,
                 'is_open'          => true,
             ]);
+
+            // eWholesale: auto-create supplier profile (pending admin approval)
+            if ($module->slug === 'ewholesale') {
+                EWSupplier::create([
+                    'vendor_id'         => $vendor->id,
+                    'display_name'      => $request->store_name,
+                    'about'             => $request->store_description,
+                    'warehouse_address' => $request->store_address,
+                    'verification'      => 'pending',
+                    'is_active'         => false,
+                ]);
+            }
         });
 
         $vendorEmail = $request->email;

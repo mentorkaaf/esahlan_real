@@ -52,9 +52,9 @@ class _WholesaleScreenState extends ConsumerState<WholesaleScreen> with SingleTi
 
     return meAsync.when(
       loading: () => const Scaffold(body: Center(child: CircularProgressIndicator(color: VC.orange))),
-      error:   (e, _) => _NotRegisteredView(),
+      error:   (e, _) => const _PendingActivationScreen(),
       data: (me) {
-        if (me == null) return _NotRegisteredView();
+        if (me == null) return const _PendingActivationScreen();
         final isPending = me['verification'] == 'pending';
 
         return Scaffold(
@@ -103,7 +103,76 @@ class _WholesaleScreenState extends ConsumerState<WholesaleScreen> with SingleTi
   }
 }
 
-// ── Not Registered ─────────────────────────────────────────────────────────────
+// ── Pending Activation Screen ──────────────────────────────────────────────────
+
+class _PendingActivationScreen extends StatelessWidget {
+  const _PendingActivationScreen();
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Scaffold(
+      backgroundColor: isDark ? VC.navy : VC.lightBg,
+      appBar: AppBar(
+        backgroundColor: isDark ? VC.navyLight : Colors.white,
+        title: const Text('Wholesale Portal', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: VC.orange)),
+        elevation: 0,
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              width: 80, height: 80,
+              decoration: BoxDecoration(color: VC.amberDim, shape: BoxShape.circle),
+              child: const Icon(Icons.hourglass_top_rounded, color: VC.amber, size: 40),
+            ),
+            const SizedBox(height: 24),
+            const Text('Account Under Review', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 12),
+            Text(
+              'Your wholesale supplier account has been submitted for review. Once admin approves your application, your portal will be fully activated.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: isDark ? Colors.white60 : Colors.grey.shade600, height: 1.6),
+            ),
+            const SizedBox(height: 32),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(color: isDark ? VC.navyCard : Colors.white,
+                borderRadius: BorderRadius.circular(12), border: Border.all(color: isDark ? VC.border : Colors.grey.shade200)),
+              child: Column(children: [
+                _step('1', 'Vendor registration submitted', true),
+                _step('2', 'Supplier profile created', true),
+                _step('3', 'Admin review & approval', false),
+                _step('4', 'Portal activated — start selling!', false),
+              ]),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _step(String num, String label, bool done) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 6),
+    child: Row(children: [
+      Container(
+        width: 28, height: 28,
+        decoration: BoxDecoration(
+          color: done ? VC.green : VC.amberDim,
+          shape: BoxShape.circle,
+        ),
+        child: Center(child: done
+          ? const Icon(Icons.check, color: Colors.white, size: 14)
+          : Text(num, style: const TextStyle(color: VC.amber, fontSize: 12, fontWeight: FontWeight.w800))),
+      ),
+      const SizedBox(width: 12),
+      Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
+        color: done ? VC.green : null)),
+    ]),
+  );
+}
+
+// ── Not Registered (fallback — should not normally appear) ────────────────────
 
 class _NotRegisteredView extends ConsumerStatefulWidget {
   @override

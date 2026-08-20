@@ -7,6 +7,7 @@ use App\Mail\VendorApprovedMail;
 use App\Mail\VendorRejectedMail;
 use App\Models\Module;
 use App\Models\Vendor;
+use App\Models\EWholesale\EWSupplier;
 use App\Services\AdminAlertService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -132,6 +133,12 @@ class AdminVendorController extends Controller
     {
         $vendor->update(['is_approved' => true, 'is_active' => true, 'status' => 'active']);
 
+        // eWholesale: activate supplier profile automatically
+        if ($vendor->module_slug === 'ewholesale') {
+            EWSupplier::where('vendor_id', $vendor->id)
+                ->update(['is_active' => true, 'verification' => 'verified', 'verified_at' => now()]);
+        }
+
         $email = $vendor->email ?? $vendor->user?->email;
         if ($email) {
             try { Mail::to($email)->send(new VendorApprovedMail($vendor->name)); } catch (\Throwable) {}
@@ -152,6 +159,12 @@ class AdminVendorController extends Controller
     public function reject(Request $request, Vendor $vendor)
     {
         $vendor->update(['is_approved' => false, 'is_active' => false, 'status' => 'suspended']);
+
+        // eWholesale: deactivate supplier profile
+        if ($vendor->module_slug === 'ewholesale') {
+            EWSupplier::where('vendor_id', $vendor->id)
+                ->update(['is_active' => false, 'verification' => 'unverified']);
+        }
 
         $email = $vendor->email ?? $vendor->user?->email;
         if ($email) {
