@@ -271,9 +271,14 @@
                     <i class="fas fa-search"></i>
                     <input class="search-input" type="text" placeholder="Search schedules…" oninput="filterTable('scheduleTable',this.value)">
                 </div>
-                <button class="btn-add" onclick="document.getElementById('addScheduleModal').classList.add('open')">
-                    <i class="fas fa-plus"></i> Add Schedule
-                </button>
+                <div style="display:flex;gap:8px;">
+                    <button class="btn-outline" onclick="document.getElementById('bulkScheduleModal').classList.add('open')">
+                        <i class="fas fa-layer-group"></i> Bulk Add
+                    </button>
+                    <button class="btn-add" onclick="document.getElementById('addScheduleModal').classList.add('open')">
+                        <i class="fas fa-plus"></i> Add Schedule
+                    </button>
+                </div>
             </div>
         </div>
         <table class="dtbl" id="scheduleTable">
@@ -763,6 +768,96 @@
     </div>
 </div>
 
+{{-- ══════════════════════════════════════════════════════════════ --}}
+{{-- BULK ADD SCHEDULES MODAL --}}
+{{-- ══════════════════════════════════════════════════════════════ --}}
+<div class="modal-overlay" id="bulkScheduleModal" style="align-items:flex-start;padding:20px 0;">
+    <div class="modal-box" style="width:min(1200px,98vw);max-height:95vh;">
+        <div class="modal-head">
+            <h3><i class="fas fa-layer-group me-2" style="color:#1565C0"></i>Bulk Add Flight Schedules</h3>
+            <button class="modal-close" onclick="closeModal('bulkScheduleModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body" style="padding:20px 22px;">
+            {{-- Quick template bar --}}
+            <div style="background:#f4f5fa;border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+                <span style="font-size:12px;font-weight:700;color:#8A8A9A;">TEMPLATE DEFAULTS</span>
+                <div class="fgroup" style="margin:0;flex:0 0 160px;">
+                    <select id="bulk_tmpl_airline" style="padding:6px 10px;border:1.5px solid #EEEEEE;border-radius:8px;font-size:12px;">
+                        <option value="">Airline…</option>
+                        @foreach($airlines as $a)
+                        <option value="{{ $a->id }}" data-code="{{ strtoupper(substr($a->code ?? $a->name,0,2)) }}" data-name="{{ $a->name }}">{{ $a->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="fgroup" style="margin:0;flex:0 0 220px;">
+                    <select id="bulk_tmpl_route" style="padding:6px 10px;border:1.5px solid #EEEEEE;border-radius:8px;font-size:12px;">
+                        <option value="">Route…</option>
+                        @foreach($routes as $r)
+                        <option value="{{ $r->id }}"
+                            data-fc="{{ $r->from_city }}" data-fcode="{{ $r->from_code }}"
+                            data-tc="{{ $r->to_city }}"  data-tcode="{{ $r->to_code }}">
+                            {{ $r->from_city }} ({{ $r->from_code }}) → {{ $r->to_city }} ({{ $r->to_code }})
+                        </option>
+                        @endforeach
+                    </select>
+                </div>
+                <input id="bulk_tmpl_seats"   type="number" placeholder="Seats (e.g.150)" min="1" style="width:110px;padding:6px 10px;border:1.5px solid #EEEEEE;border-radius:8px;font-size:12px;">
+                <input id="bulk_tmpl_eco"     type="number" placeholder="Economy $" min="0" step="0.01" style="width:100px;padding:6px 10px;border:1.5px solid #EEEEEE;border-radius:8px;font-size:12px;">
+                <input id="bulk_tmpl_biz"     type="number" placeholder="Business $" min="0" step="0.01" style="width:100px;padding:6px 10px;border:1.5px solid #EEEEEE;border-radius:8px;font-size:12px;">
+                <input id="bulk_tmpl_chd"     type="number" placeholder="Child $" min="0" step="0.01" style="width:90px;padding:6px 10px;border:1.5px solid #EEEEEE;border-radius:8px;font-size:12px;">
+                <input id="bulk_tmpl_inf"     type="number" placeholder="Infant $" min="0" step="0.01" style="width:90px;padding:6px 10px;border:1.5px solid #EEEEEE;border-radius:8px;font-size:12px;">
+                <button type="button" onclick="bulkApplyTemplate()" style="padding:6px 14px;background:#1565C0;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">
+                    <i class="fas fa-magic me-1"></i>Apply to All Rows
+                </button>
+            </div>
+
+            <form method="POST" action="{{ route('admin.module-data.ticket.flight.bulk') }}" id="bulkScheduleForm">
+                @csrf
+                <div style="overflow-x:auto;">
+                    <table style="width:100%;border-collapse:collapse;min-width:1000px;" id="bulkTable">
+                        <thead>
+                            <tr style="background:#fafbff;">
+                                <th style="padding:8px 10px;font-size:11px;font-weight:700;color:#8A8A9A;text-transform:uppercase;border-bottom:1px solid #f0f1f5;white-space:nowrap;">#</th>
+                                <th style="padding:8px 10px;font-size:11px;font-weight:700;color:#8A8A9A;text-transform:uppercase;border-bottom:1px solid #f0f1f5;white-space:nowrap;">Airline *</th>
+                                <th style="padding:8px 10px;font-size:11px;font-weight:700;color:#8A8A9A;text-transform:uppercase;border-bottom:1px solid #f0f1f5;white-space:nowrap;">Route *</th>
+                                <th style="padding:8px 10px;font-size:11px;font-weight:700;color:#8A8A9A;text-transform:uppercase;border-bottom:1px solid #f0f1f5;white-space:nowrap;">Departure *</th>
+                                <th style="padding:8px 10px;font-size:11px;font-weight:700;color:#8A8A9A;text-transform:uppercase;border-bottom:1px solid #f0f1f5;white-space:nowrap;">Arrival *</th>
+                                <th style="padding:8px 10px;font-size:11px;font-weight:700;color:#8A8A9A;text-transform:uppercase;border-bottom:1px solid #f0f1f5;white-space:nowrap;">Seats</th>
+                                <th style="padding:8px 10px;font-size:11px;font-weight:700;color:#10b981;text-transform:uppercase;border-bottom:1px solid #f0f1f5;white-space:nowrap;">ECO $*</th>
+                                <th style="padding:8px 10px;font-size:11px;font-weight:700;color:#1565C0;text-transform:uppercase;border-bottom:1px solid #f0f1f5;white-space:nowrap;">BIZ $</th>
+                                <th style="padding:8px 10px;font-size:11px;font-weight:700;color:#f59e0b;text-transform:uppercase;border-bottom:1px solid #f0f1f5;white-space:nowrap;">CHD $</th>
+                                <th style="padding:8px 10px;font-size:11px;font-weight:700;color:#ef4444;text-transform:uppercase;border-bottom:1px solid #f0f1f5;white-space:nowrap;">INF $</th>
+                                <th style="padding:8px 10px;font-size:11px;font-weight:700;color:#8A8A9A;text-transform:uppercase;border-bottom:1px solid #f0f1f5;white-space:nowrap;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="bulkRows">
+                            {{-- rows injected by JS --}}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:14px;border-top:1px solid #f0f1f5;">
+                    <div style="display:flex;gap:8px;">
+                        <button type="button" onclick="bulkAddRow()" style="padding:8px 16px;background:#f4f5fa;border:1.5px solid #EEEEEE;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;color:#1A1A2E;">
+                            <i class="fas fa-plus me-1"></i> Add Row
+                        </button>
+                        <button type="button" onclick="bulkCloneLastRow()" style="padding:8px 16px;background:#f4f5fa;border:1.5px solid #EEEEEE;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;color:#1565C0;">
+                            <i class="fas fa-clone me-1"></i> Clone Last Row
+                        </button>
+                        <span id="bulkRowCount" style="align-self:center;font-size:12px;color:#8A8A9A;"></span>
+                    </div>
+                    <div style="display:flex;gap:10px;">
+                        <button type="button" class="btn-outline" onclick="closeModal('bulkScheduleModal')">Cancel</button>
+                        <button type="submit" class="btn-add" id="bulkSubmitBtn">
+                            <i class="fas fa-layer-group me-1"></i> Create All Schedules
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
 // TAB SWITCHING
 function switchTab(name,el){
@@ -847,7 +942,181 @@ function editRoute(r){
     document.getElementById('er_active').value=(r.is_active??true)?'1':'0';
     document.getElementById('editRouteModal').classList.add('open');
 }
-// EDIT SCHEDULE
+// ── BULK SCHEDULE LOGIC ──────────────────────────────────────────────────────
+
+const bulkAirlines = @json($airlines->map(fn($a)=>['id'=>$a->id,'name'=>$a->name,'code'=>strtoupper(substr($a->code??$a->name,0,2))])->values());
+const bulkRoutes   = @json($routes->map(fn($r)=>['id'=>$r->id,'label'=>"{$r->from_city} ({$r->from_code}) → {$r->to_city} ({$r->to_code})",'fc'=>$r->from_city,'fcode'=>$r->from_code,'tc'=>$r->to_city,'tcode'=>$r->to_code])->values());
+
+let bulkRowIndex = 0;
+
+function bulkRowHtml(idx){
+    const airlineOpts = bulkAirlines.map(a=>`<option value="${a.id}" data-code="${a.code}">${a.name}</option>`).join('');
+    const routeOpts   = bulkRoutes.map(r=>`<option value="${r.id}" data-fc="${r.fc}" data-fcode="${r.fcode}" data-tc="${r.tc}" data-tcode="${r.tcode}">${r.label}</option>`).join('');
+    const n = `flights[${idx}]`;
+    return `<tr id="bulk-row-${idx}" style="border-bottom:1px solid #f0f1f5;">
+        <td style="padding:6px 8px;font-size:12px;color:#8A8A9A;font-weight:700;text-align:center;">${idx+1}</td>
+        <td style="padding:6px 6px;">
+            <select name="${n}[airline_id]" onchange="bulkAutoFlightNum(this,${idx})" style="width:100%;padding:6px 8px;border:1.5px solid #EEEEEE;border-radius:8px;font-size:12px;">
+                <option value="">Select…</option>${airlineOpts}
+            </select>
+            <input type="hidden" name="${n}[flight_number]" id="bulk-fn-${idx}">
+        </td>
+        <td style="padding:6px 6px;">
+            <select onchange="bulkFillRoute(this,${idx})" style="width:100%;padding:6px 8px;border:1.5px solid #EEEEEE;border-radius:8px;font-size:12px;">
+                <option value="">Select…</option>${routeOpts}
+            </select>
+            <input type="hidden" name="${n}[from_city]"  id="bulk-fc-${idx}">
+            <input type="hidden" name="${n}[from_code]"  id="bulk-fcode-${idx}">
+            <input type="hidden" name="${n}[to_city]"    id="bulk-tc-${idx}">
+            <input type="hidden" name="${n}[to_code]"    id="bulk-tcode-${idx}">
+        </td>
+        <td style="padding:6px 6px;"><input type="datetime-local" name="${n}[departure_at]" id="bulk-dep-${idx}" required style="padding:6px 8px;border:1.5px solid #EEEEEE;border-radius:8px;font-size:12px;width:180px;"></td>
+        <td style="padding:6px 6px;"><input type="datetime-local" name="${n}[arrival_at]" id="bulk-arr-${idx}" required style="padding:6px 8px;border:1.5px solid #EEEEEE;border-radius:8px;font-size:12px;width:180px;"></td>
+        <td style="padding:6px 6px;"><input type="number" name="${n}[total_seats]" id="bulk-seats-${idx}" min="1" placeholder="150" style="width:70px;padding:6px 8px;border:1.5px solid #EEEEEE;border-radius:8px;font-size:12px;" oninput="this.nextElementSibling.value=this.value"><input type="hidden" name="${n}[available_seats]" id="bulk-avail-${idx}"></td>
+        <td style="padding:6px 6px;"><input type="number" name="${n}[economy_price]" id="bulk-eco-${idx}" min="0" step="0.01" placeholder="0" required style="width:70px;padding:6px 8px;border:1.5px solid #EEEEEE;border-radius:8px;font-size:12px;border-color:rgba(16,185,129,.4);"></td>
+        <td style="padding:6px 6px;"><input type="number" name="${n}[business_price]" id="bulk-biz-${idx}" min="0" step="0.01" placeholder="0" style="width:70px;padding:6px 8px;border:1.5px solid #EEEEEE;border-radius:8px;font-size:12px;border-color:rgba(21,101,192,.3);"></td>
+        <td style="padding:6px 6px;"><input type="number" name="${n}[child_price]" id="bulk-chd-${idx}" min="0" step="0.01" placeholder="0" style="width:70px;padding:6px 8px;border:1.5px solid #EEEEEE;border-radius:8px;font-size:12px;border-color:rgba(245,158,11,.3);"></td>
+        <td style="padding:6px 6px;"><input type="number" name="${n}[infant_price]" id="bulk-inf-${idx}" min="0" step="0.01" placeholder="0" style="width:70px;padding:6px 8px;border:1.5px solid #EEEEEE;border-radius:8px;font-size:12px;border-color:rgba(239,68,68,.3);"></td>
+        <td style="padding:6px 6px;text-align:center;">
+            <button type="button" onclick="bulkRemoveRow(${idx})" style="width:28px;height:28px;border-radius:7px;border:none;background:rgba(239,68,68,.1);color:#ef4444;cursor:pointer;font-size:12px;">
+                <i class="fas fa-times"></i>
+            </button>
+        </td>
+    </tr>`;
+}
+
+function bulkAddRow(cloneFrom){
+    const tbody = document.getElementById('bulkRows');
+    const idx   = bulkRowIndex++;
+    tbody.insertAdjacentHTML('beforeend', bulkRowHtml(idx));
+    if(cloneFrom !== undefined){
+        // clone data from source row
+        const fields = ['airline_id','flight_number','from_city','from_code','to_city','to_code','total_seats','economy_price','business_price','child_price','infant_price'];
+        const srcRow = document.getElementById('bulk-row-'+cloneFrom);
+        if(srcRow){
+            srcRow.querySelectorAll('select,input').forEach(el=>{
+                const nm = el.name;
+                if(!nm) return;
+                // map field to new row
+                const field = nm.replace(/flights\[\d+\]\[/,'').replace(/\]$/,'');
+                const tgt = document.querySelector(`#bulk-row-${idx} [name="flights[${idx}][${field}]"]`);
+                if(tgt && tgt !== el){
+                    if(el.tagName==='SELECT'){
+                        tgt.value = el.value;
+                        // also update hidden route fields
+                        if(field === 'airline_id') bulkAutoFlightNum(tgt, idx);
+                    } else {
+                        // skip departure/arrival — user should change those
+                        if(field !== 'departure_at' && field !== 'arrival_at') tgt.value = el.value;
+                    }
+                }
+            });
+            // update route dropdown visual
+            const srcRouteSelect = srcRow.querySelector('select:nth-child(1)');
+            // try to match route select
+        }
+    }
+    bulkUpdateCount();
+}
+
+function bulkRemoveRow(idx){
+    const row = document.getElementById('bulk-row-'+idx);
+    if(row) row.remove();
+    bulkUpdateCount();
+}
+
+function bulkCloneLastRow(){
+    const rows = document.querySelectorAll('#bulkRows tr');
+    if(rows.length===0){ bulkAddRow(); return; }
+    const lastId = parseInt(rows[rows.length-1].id.replace('bulk-row-',''));
+    bulkAddRow(lastId);
+    // scroll to new row
+    setTimeout(()=>{ document.getElementById('bulkRows').lastElementChild?.scrollIntoView({block:'nearest'}); },50);
+}
+
+function bulkAutoFlightNum(sel, idx){
+    const opt = sel.options[sel.selectedIndex];
+    if(!opt||!opt.value) return;
+    const code = (opt.dataset.code||opt.text.substring(0,2)).toUpperCase().replace(/[^A-Z0-9]/g,'');
+    document.getElementById('bulk-fn-'+idx).value = code + (100+Math.floor(Math.random()*900));
+}
+
+function bulkFillRoute(sel, idx){
+    const opt = sel.options[sel.selectedIndex];
+    if(!opt||!opt.value) return;
+    document.getElementById('bulk-fc-'+idx).value    = opt.dataset.fc||'';
+    document.getElementById('bulk-fcode-'+idx).value = opt.dataset.fcode||'';
+    document.getElementById('bulk-tc-'+idx).value    = opt.dataset.tc||'';
+    document.getElementById('bulk-tcode-'+idx).value = opt.dataset.tcode||'';
+}
+
+function bulkApplyTemplate(){
+    const airline   = document.getElementById('bulk_tmpl_airline');
+    const route     = document.getElementById('bulk_tmpl_route');
+    const seats     = document.getElementById('bulk_tmpl_seats').value;
+    const eco       = document.getElementById('bulk_tmpl_eco').value;
+    const biz       = document.getElementById('bulk_tmpl_biz').value;
+    const chd       = document.getElementById('bulk_tmpl_chd').value;
+    const inf       = document.getElementById('bulk_tmpl_inf').value;
+    const routeOpt  = route.options[route.selectedIndex];
+
+    document.querySelectorAll('#bulkRows tr').forEach(row=>{
+        const idx = parseInt(row.id.replace('bulk-row-',''));
+        if(isNaN(idx)) return;
+        // airline
+        if(airline.value){
+            const sel = row.querySelector(`[name="flights[${idx}][airline_id]"]`);
+            if(sel){ sel.value = airline.value; bulkAutoFlightNum(sel,idx); }
+        }
+        // route
+        if(route.value && routeOpt){
+            document.getElementById('bulk-fc-'+idx).value    = routeOpt.dataset.fc||'';
+            document.getElementById('bulk-fcode-'+idx).value = routeOpt.dataset.fcode||'';
+            document.getElementById('bulk-tc-'+idx).value    = routeOpt.dataset.tc||'';
+            document.getElementById('bulk-tcode-'+idx).value = routeOpt.dataset.tcode||'';
+            // update visible route dropdown
+            const rsel = row.querySelectorAll('select')[1];
+            if(rsel) rsel.value = route.value;
+        }
+        if(seats){ const s=document.getElementById('bulk-seats-'+idx); if(s){ s.value=seats; s.nextElementSibling.value=seats; } }
+        if(eco)  { const e=document.getElementById('bulk-eco-'+idx); if(e) e.value=eco; }
+        if(biz)  { const b=document.getElementById('bulk-biz-'+idx); if(b) b.value=biz; }
+        if(chd)  { const c=document.getElementById('bulk-chd-'+idx); if(c) c.value=chd; }
+        if(inf)  { const i=document.getElementById('bulk-inf-'+idx); if(i) i.value=inf; }
+    });
+}
+
+function bulkUpdateCount(){
+    const n = document.querySelectorAll('#bulkRows tr').length;
+    document.getElementById('bulkRowCount').textContent = n + ' schedule' + (n!==1?'s':'') + ' queued';
+    document.getElementById('bulkSubmitBtn').innerHTML = `<i class="fas fa-layer-group me-1"></i> Create ${n} Schedule${n!==1?'s':''}`;
+}
+
+// initialise with 3 rows when modal opens
+document.getElementById('bulkScheduleModal').addEventListener('click', function(e){
+    if(e.target === this) closeModal('bulkScheduleModal');
+});
+document.querySelector('[onclick="document.getElementById(\'bulkScheduleModal\').classList.add(\'open\')"]')?.addEventListener('click', function(){
+    if(document.querySelectorAll('#bulkRows tr').length === 0){
+        bulkAddRow(); bulkAddRow(); bulkAddRow();
+        bulkUpdateCount();
+    }
+});
+// validate before submit
+document.getElementById('bulkScheduleForm').addEventListener('submit', function(e){
+    const rows = document.querySelectorAll('#bulkRows tr');
+    if(rows.length === 0){ e.preventDefault(); alert('Add at least one schedule row.'); return; }
+    // sync available_seats from total_seats where empty
+    rows.forEach(row=>{
+        const idx = parseInt(row.id.replace('bulk-row-',''));
+        if(isNaN(idx)) return;
+        const seats = document.getElementById('bulk-seats-'+idx);
+        const avail = document.getElementById('bulk-avail-'+idx);
+        if(seats && avail && !avail.value) avail.value = seats.value || 150;
+    });
+});
+
+// ── EDIT SCHEDULE ──────────────────────────────────────────────────────────
 function editSchedule(f){
     const cls=typeof f.seat_classes==='string'?JSON.parse(f.seat_classes||'{}'):(f.seat_classes||{});
     document.getElementById('editScheduleForm').action=`/admin/module-data/ticket/flights/${f.id}`;

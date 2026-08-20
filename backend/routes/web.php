@@ -997,6 +997,7 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::patch('/ticket/routes/{id}',       [$ctrl, 'routeUpdate'])->name('ticket.route.update');
             Route::delete('/ticket/routes/{id}',      [$ctrl, 'routeDestroy'])->name('ticket.route.destroy');
             Route::post('/ticket/flights',            [$ctrl, 'flightStore'])->name('ticket.flight.store');
+            Route::post('/ticket/flights/bulk',       [$ctrl, 'flightBulkStore'])->name('ticket.flight.bulk');
             Route::patch('/ticket/flights/{id}',      [$ctrl, 'flightUpdate'])->name('ticket.flight.update');
             Route::delete('/ticket/flights/{id}',     [$ctrl, 'flightDestroy'])->name('ticket.flight.destroy');
         });

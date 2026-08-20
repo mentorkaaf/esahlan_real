@@ -563,6 +563,67 @@ class AdminModuleDataController extends Controller
         return back()->with('success', 'Flight added.');
     }
 
+    public function flightBulkStore(Request $request)
+    {
+        $rows = $request->input('flights', []);
+        if (empty($rows) || !is_array($rows)) {
+            return back()->withErrors(['flights' => 'No schedules provided.']);
+        }
+
+        $inserted = 0;
+        $errors   = [];
+
+        foreach ($rows as $i => $row) {
+            $rowNum = $i + 1;
+            if (empty($row['airline_id']) || empty($row['from_city']) || empty($row['to_city'])
+                || empty($row['departure_at']) || empty($row['arrival_at']) || empty($row['economy_price'])) {
+                $errors[] = "Row $rowNum: missing required fields.";
+                continue;
+            }
+            $airline = DB::table('airlines')->find($row['airline_id']);
+            if (!$airline) { $errors[] = "Row $rowNum: invalid airline."; continue; }
+
+            $dep = \Carbon\Carbon::parse($row['departure_at']);
+            $arr = \Carbon\Carbon::parse($row['arrival_at']);
+            if ($arr->lte($dep)) { $errors[] = "Row $rowNum: arrival must be after departure."; continue; }
+
+            $flightNum = !empty($row['flight_number'])
+                ? strtoupper($row['flight_number'])
+                : strtoupper(substr(preg_replace('/[^A-Z0-9]/','',strtoupper($airline->code ?? $airline->name)),0,2)) . rand(100,999);
+
+            $seat_classes = json_encode([
+                'economy'  => (float)($row['economy_price'] ?? 0),
+                'business' => (float)($row['business_price'] ?? 0),
+                'child'    => (float)($row['child_price'] ?? 0),
+                'infant'   => (float)($row['infant_price'] ?? 0),
+            ]);
+
+            DB::table('flights')->insert([
+                'airline_id'       => $row['airline_id'],
+                'airline'          => $airline->name,
+                'flight_number'    => $flightNum,
+                'from_city'        => $row['from_city'],
+                'from_code'        => strtoupper($row['from_code'] ?? ''),
+                'to_city'          => $row['to_city'],
+                'to_code'          => strtoupper($row['to_code'] ?? ''),
+                'departure_at'     => $row['departure_at'],
+                'arrival_at'       => $row['arrival_at'],
+                'duration_minutes' => $dep->diffInMinutes($arr),
+                'total_seats'      => (int)($row['total_seats'] ?? 150),
+                'available_seats'  => (int)($row['available_seats'] ?? $row['total_seats'] ?? 150),
+                'seat_classes'     => $seat_classes,
+                'status'           => 'scheduled',
+                'created_at'       => now(),
+                'updated_at'       => now(),
+            ]);
+            $inserted++;
+        }
+
+        $msg = "$inserted flight(s) added successfully.";
+        if ($errors) $msg .= ' Skipped: ' . implode(' | ', $errors);
+        return back()->with('success', $msg);
+    }
+
     public function flightUpdate(Request $request, int $id)
     {
         $data = $request->validate([
