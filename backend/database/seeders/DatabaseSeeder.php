@@ -1,6 +1,7 @@
 <?php
 namespace Database\Seeders;
 
+use Database\Seeders\EWholesale\EWholesaleSeeder;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
