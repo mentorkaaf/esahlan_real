@@ -811,6 +811,23 @@
 .inf-sf label{color:#dc2626;} .inf-sf input{border-color:#ef4444;color:#991b1b;background:#fff5f5;}
 .del-card-btn{width:30px;height:30px;border-radius:8px;border:none;background:rgba(239,68,68,.1);color:#ef4444;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;}
 .del-card-btn:hover{background:rgba(239,68,68,.2);}
+/* Force inputs visible inside bulk modal — override any admin panel CSS */
+#bulkScheduleModal input[type="datetime-local"],
+#bulkScheduleModal input[type="number"],
+#bulkScheduleModal input[type="text"],
+#bulkScheduleModal select {
+    display:block !important;
+    height:36px !important;
+    width:100% !important;
+    opacity:1 !important;
+    visibility:visible !important;
+    padding:8px 10px !important;
+    border-radius:8px !important;
+    font-size:13px !important;
+    box-sizing:border-box !important;
+    font-family:inherit !important;
+    color:#1A1A2E !important;
+}
 /* Bulk footer */
 .bulk-footer{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-top:1px solid #f0f1f5;gap:10px;}
 .bulk-add-btns{display:flex;gap:8px;}
