@@ -782,7 +782,7 @@
             </a>
             @endif
             @if($u->canManageModule('ewholesale'))
-            <a href="{{ route('admin.module-data.wholesale') }}" class="nav-link {{ request()->routeIs('admin.module-data.wholesale*') ? 'active' : '' }}">
+            <a href="{{ route('admin.module-data.wholesale.dashboard') }}" class="nav-link {{ request()->routeIs('admin.module-data.wholesale*') ? 'active' : '' }}">
                 <div class="nav-icon"><i class="fas fa-warehouse"></i></div><span class="nav-text">Wholesale</span>
             </a>
             @endif
