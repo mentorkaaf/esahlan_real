@@ -111,12 +111,20 @@ class SendTimeBasedNotifications extends Command
         $cacheTtl      = $intervalHours * 3600;
         $language      = $template?->language ?? 'en';
 
-        if ($language === 'so' && $template?->title_so) {
-            $title = $template->title_so;
-            $body  = $template->body_so ?? $template->body_template;
+        $titleEn = $template?->title_template ?? 'Special offer from eSahlan!';
+        $bodyEn  = $template?->body_template  ?? "Check out today's deals!";
+        $titleSo = $template?->title_so ?: null;
+        $bodySo  = $template?->body_so  ?: null;
+
+        if ($language === 'so' && $titleSo) {
+            $title = $titleSo;
+            $body  = $bodySo ?? $bodyEn;
+        } elseif ($language === 'both' && $titleSo) {
+            $title = $titleEn . ' | ' . $titleSo;
+            $body  = $bodyEn . "\n\n" . ($bodySo ?? '');
         } else {
-            $title = $template?->title_template ?? 'Special offer from eSahlan!';
-            $body  = $template?->body_template  ?? "Check out today's deals!";
+            $title = $titleEn;
+            $body  = $bodyEn;
         }
 
         $users = User::whereNotNull('fcm_token')

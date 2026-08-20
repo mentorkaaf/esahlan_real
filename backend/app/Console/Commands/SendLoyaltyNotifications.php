@@ -77,12 +77,21 @@ class SendLoyaltyNotifications extends Command
         $cacheTtl      = $intervalHours * 3600;
         $language      = $template?->language ?? 'en';
 
-        $titleTpl = ($language === 'so' && $template?->title_so)
-            ? $template->title_so
-            : ($template?->title_template ?? '⏳ Your points expire soon!');
-        $bodyTpl = ($language === 'so' && $template?->body_so)
-            ? $template->body_so
-            : ($template?->body_template ?? 'You have {points} reward points expiring in 3 days. Use them before they\'re gone!');
+        $titleEnTpl = $template?->title_template ?? '⏳ Your points expire soon!';
+        $bodyEnTpl  = $template?->body_template  ?? 'You have {points} reward points expiring in 3 days. Use them before they\'re gone!';
+        $titleSoTpl = $template?->title_so ?: null;
+        $bodySoTpl  = $template?->body_so  ?: null;
+
+        if ($language === 'so' && $titleSoTpl) {
+            $titleTpl = $titleSoTpl;
+            $bodyTpl  = $bodySoTpl ?? $bodyEnTpl;
+        } elseif ($language === 'both' && $titleSoTpl) {
+            $titleTpl = $titleEnTpl . ' | ' . $titleSoTpl;
+            $bodyTpl  = $bodyEnTpl . "\n\n" . ($bodySoTpl ?? '');
+        } else {
+            $titleTpl = $titleEnTpl;
+            $bodyTpl  = $bodyEnTpl;
+        }
 
         // ── Query reward points table ─────────────────────────────────────────
         $pointsTable = null;
@@ -204,12 +213,21 @@ class SendLoyaltyNotifications extends Command
         $cacheTtl      = $intervalHours * 3600;
         $language      = $template?->language ?? 'en';
 
-        $title = ($language === 'so' && $template?->title_so)
-            ? $template->title_so
-            : ($template?->title_template ?? '💳 Top up your ePay wallet!');
-        $body = ($language === 'so' && $template?->body_so)
-            ? $template->body_so
-            : ($template?->body_template ?? 'Your ePay balance is running low. Add funds for faster checkout!');
+        $titleEn = $template?->title_template ?? '💳 Top up your ePay wallet!';
+        $bodyEn  = $template?->body_template  ?? 'Your ePay balance is running low. Add funds for faster checkout!';
+        $titleSo = $template?->title_so ?: null;
+        $bodySo  = $template?->body_so  ?: null;
+
+        if ($language === 'so' && $titleSo) {
+            $title = $titleSo;
+            $body  = $bodySo ?? $bodyEn;
+        } elseif ($language === 'both' && $titleSo) {
+            $title = $titleEn . ' | ' . $titleSo;
+            $body  = $bodyEn . "\n\n" . ($bodySo ?? '');
+        } else {
+            $title = $titleEn;
+            $body  = $bodyEn;
+        }
 
         // ── Check epay_wallets table ──────────────────────────────────────────
         $walletTable = null;

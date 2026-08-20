@@ -623,6 +623,12 @@ $typeOrder = ['reengagement','time_based','vendor','loyalty','eticket'];
                                     value="{{ $tpl->interval_hours }}" min="1" max="720">
                                 <span style="font-size:12px;color:var(--text-muted);">hours</span>
                             </div>
+                            <div class="an-interval-wrap" style="margin-left:16px;">
+                                <label>⏰ Send Time</label>
+                                <input type="time" name="send_time" class="form-control"
+                                    value="{{ $tpl->send_time ?? '' }}" style="width:120px;">
+                                <span style="font-size:12px;color:var(--text-muted);">(server time)</span>
+                            </div>
                         </div>
                         <button type="submit" class="btn-save-tpl">
                             <i class="fa-solid fa-floppy-disk"></i> Save Template

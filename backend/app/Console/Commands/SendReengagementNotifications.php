@@ -78,12 +78,20 @@ class SendReengagementNotifications extends Command
         $language      = $template?->language ?? 'en';
 
         // Pick title/body based on language setting
-        if ($language === 'so' && $template?->title_so) {
-            $title = $template->title_so;
-            $body  = $template->body_so ?? $template->body_template;
+        $titleEn = $template?->title_template ?? "We miss you! It's been {$days} days.";
+        $bodyEn  = $template?->body_template  ?? "Come back to eSahlan and see what's new!";
+        $titleSo = $template?->title_so ?: null;
+        $bodySo  = $template?->body_so  ?: null;
+
+        if ($language === 'so' && $titleSo) {
+            $title = $titleSo;
+            $body  = $bodySo ?? $bodyEn;
+        } elseif ($language === 'both' && $titleSo) {
+            $title = $titleEn . ' | ' . $titleSo;
+            $body  = $bodyEn . "\n\n" . ($bodySo ?? '');
         } else {
-            $title = $template?->title_template ?? "We miss you! It's been {$days} days.";
-            $body  = $template?->body_template  ?? "Come back to eSahlan and see what's new!";
+            $title = $titleEn;
+            $body  = $bodyEn;
         }
 
         // ── Find inactive users ───────────────────────────────────────────────
