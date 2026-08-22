@@ -313,7 +313,7 @@ class EWOrderApiController extends Controller
     // ── POST /api/v1/ewholesale/orders/{id}/pay-balance ──────────────────
     public function payBalance(Request $r, int $id)
     {
-        $r->validate(['method' => 'required|in:wallet,evc,cash,bank,credit']);
+        $r->validate(['method' => 'required|in:wallet,waafi,evc,zaad,cash,bank,credit']);
 
         $buyer = $this->buyer($r);
         $order = EWOrder::findOrFail($id);
@@ -321,13 +321,34 @@ class EWOrderApiController extends Controller
 
         $balanceDue = $order->balanceDue();
         if ($balanceDue <= 0) {
-            return response()->json(['message' => 'Order is fully paid.'], 422);
+            return response()->json(['message' => 'Order is fully paid.']);
         }
 
-        DB::transaction(function () use ($order, $buyer, $balanceDue, $r) {
+        $user = $r->user();
+
+        DB::transaction(function () use ($order, $buyer, $balanceDue, $r, $user) {
             if ($r->method === 'credit') {
                 $this->credit->charge($buyer->creditAccount, $balanceDue, $order->id, 'Balance payment '.$order->order_no);
+            } elseif ($r->method === 'wallet') {
+                // Deduct from eSahlan wallet
+                $wallet = \App\Models\Wallet::getOrCreateFor(\App\Models\User::class, $user->id);
+                if ($wallet->balance < $balanceDue) {
+                    throw new \RuntimeException(json_encode(['code' => 'INSUFFICIENT_WALLET', 'message' => 'Insufficient wallet balance.']));
+                }
+                $wallet->decrement('balance', $balanceDue);
+                \Illuminate\Support\Facades\DB::table('wallet_transactions')->insert([
+                    'wallet_id'    => $wallet->id,
+                    'type'         => 'debit',
+                    'amount'       => $balanceDue,
+                    'description'  => 'eWholesale order #' . $order->order_no,
+                    'reference'    => $order->order_no,
+                    'created_at'   => now(),
+                    'updated_at'   => now(),
+                ]);
             }
+            // For waafi/evc/zaad: payment was already processed by Flutter via /payment/initiate
+            // We just record the confirmation here.
+
             EWOrderPayment::create([
                 'order_id' => $order->id,
                 'type'     => 'balance',

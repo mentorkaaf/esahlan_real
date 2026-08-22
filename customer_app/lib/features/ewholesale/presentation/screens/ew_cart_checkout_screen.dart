@@ -5,6 +5,7 @@ import '../providers/ew_provider.dart';
 import '../ui/ew_theme.dart';
 import '../ui/widgets/ew_widgets.dart';
 import '../../data/models/ew_models.dart';
+import '../../../../features/payment/waafi_pay_sheet.dart';
 
 // ─── Cart Screen ──────────────────────────────────────────────────────────────
 
@@ -407,6 +408,53 @@ class _EwCheckoutScreenState extends ConsumerState<EwCheckoutScreen> {
       final orders = await repo.checkout(groupPayloads);
       ref.read(ewCartProvider.notifier).clear();
       ref.invalidate(ewOrdersProvider(null));
+
+      if (!mounted) return;
+
+      // ── Payment processing ─────────────────────────────────────────────────
+      // For mobile money methods, show the WaafiPay sheet to collect payment.
+      // Wallet and COD are handled either by backend or on delivery.
+      final needsMobilePay = _paymentMethod == 'waafi' ||
+                             _paymentMethod == 'evc'   ||
+                             _paymentMethod == 'zaad';
+
+      if (needsMobilePay) {
+        final totalDue = orders.fold(0.0, (s, o) => s + o.total);
+        final result = await showWaafiPaySheet(
+          context,
+          amount: totalDue,
+          type: 'order',
+          description: 'eWholesale order payment',
+        );
+
+        if (!mounted) return;
+
+        if (result == null || !result.success) {
+          // Payment cancelled or failed — orders are still created as awaiting_payment
+          // User can pay later from the Orders screen
+          _showError(result?.message ?? 'Payment cancelled. You can pay later from My Orders.');
+          context.pushReplacement('/ewholesale/orders/success',
+            extra: orders.map((o) => o.orderNo).toList());
+          return;
+        }
+
+        // Payment succeeded — update each order's payment status via payBalance
+        for (final order in orders) {
+          try {
+            await repo.payBalance(order.id, method: _paymentMethod);
+          } catch (_) {}
+        }
+      } else if (_paymentMethod == 'wallet') {
+        // Wallet deduction — call payBalance for each order
+        for (final order in orders) {
+          try {
+            await repo.payBalance(order.id, method: 'wallet');
+          } catch (e) {
+            if (mounted) _showError('Wallet payment failed: ${e.toString()}');
+            return;
+          }
+        }
+      }
 
       if (mounted) {
         context.pushReplacement('/ewholesale/orders/success',

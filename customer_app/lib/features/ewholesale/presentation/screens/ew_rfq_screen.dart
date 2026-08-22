@@ -226,7 +226,7 @@ class EwMyRfqsScreen extends ConsumerWidget {
         title: const Text('My RFQs', style: TextStyle(fontWeight: FontWeight.w700)),
         actions: [
           TextButton.icon(
-            onPressed: () => context.push('/ewholesale/rfq/create'),
+            onPressed: () => context.push('/ewholesale/rfq/new'),
             icon: const Icon(Icons.add, color: EwTheme.orange),
             label: const Text('Post RFQ', style: TextStyle(color: EwTheme.orange)),
           ),
@@ -244,7 +244,7 @@ class EwMyRfqsScreen extends ConsumerWidget {
                 title: 'No RFQs yet',
                 subtitle: 'Post an RFQ and get quotes from multiple suppliers',
                 actionLabel: 'Post RFQ',
-                onAction: () => context.push('/ewholesale/rfq/create'),
+                onAction: () => context.push('/ewholesale/rfq/new'),
               )
             : ListView.builder(
                 padding: const EdgeInsets.all(12),

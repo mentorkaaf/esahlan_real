@@ -97,7 +97,7 @@ class _EwHomeScreenState extends ConsumerState<EwHomeScreen> {
             ),
             const SizedBox(width: 10),
             GestureDetector(
-              onTap: () => context.push('/ewholesale/rfq/create'),
+              onTap: () => context.push('/ewholesale/rfq/new'),
               child: Container(
                 height: 42,
                 padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -347,7 +347,7 @@ class _EwHomeScreenState extends ConsumerState<EwHomeScreen> {
               child: Column(children: [
                 Expanded(child: WholesaleProductCard(
                   product: p,
-                  onTap: () => context.push('/ewholesale/product/${p.slug}'),
+                  onTap: () { if (p.slug.isNotEmpty) context.push('/ewholesale/product/${p.slug}'); },
                 )),
                 if (showCountdown && p.dealEndsAt != null)
                   _CountdownChip(endsAt: p.dealEndsAt!),
@@ -407,7 +407,7 @@ class _EwHomeScreenState extends ConsumerState<EwHomeScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: GestureDetector(
-        onTap: () => context.push('/ewholesale/rfq/create'),
+        onTap: () => context.push('/ewholesale/rfq/new'),
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
