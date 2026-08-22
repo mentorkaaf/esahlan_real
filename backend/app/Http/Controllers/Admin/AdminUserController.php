@@ -109,65 +109,79 @@ class AdminUserController extends Controller
 
     private static function purgeUser(int $userId): void
     {
-        $walletIds = DB::table('wallets')
-            ->where('owner_type', 'App\\Models\\User')
-            ->where('owner_id', $userId)
-            ->pluck('id');
+        DB::statement('SET FOREIGN_KEY_CHECKS=0');
+        try {
+            // Wallet
+            $walletIds = DB::table('wallets')
+                ->where('owner_type', 'App\\Models\\User')
+                ->where('owner_id', $userId)
+                ->pluck('id');
+            DB::table('transactions')->whereIn('wallet_id', $walletIds)->delete();
+            DB::table('wallet_transactions')->whereIn('wallet_id', $walletIds)->delete();
+            DB::table('withdrawal_requests')->where('owner_type', 'App\\Models\\User')->where('owner_id', $userId)->delete();
+            DB::table('wallets')->whereIn('id', $walletIds)->delete();
 
-        DB::table('transactions')->whereIn('wallet_id', $walletIds)->delete();
-        DB::table('withdrawal_requests')->where('owner_type', 'App\\Models\\User')->where('owner_id', $userId)->delete();
-        DB::table('wallets')->whereIn('id', $walletIds)->delete();
-        DB::table('personal_access_tokens')->where('tokenable_type', 'App\\Models\\User')->where('tokenable_id', $userId)->delete();
+            // Auth
+            DB::table('personal_access_tokens')->where('tokenable_type', 'App\\Models\\User')->where('tokenable_id', $userId)->delete();
 
-        $orderIds = DB::table('orders')->where('user_id', $userId)->pluck('id');
-        if ($orderIds->isNotEmpty()) {
-            DB::table('order_status_history')->whereIn('order_id', $orderIds)->delete();
-            DB::table('order_items')->whereIn('order_id', $orderIds)->delete();
-            DB::table('orders')->whereIn('id', $orderIds)->delete();
-        }
-
-        if (DB::getSchemaBuilder()->hasTable('payment_transactions')) {
-            DB::table('payment_transactions')->where('user_id', $userId)->delete();
-        }
-        if (DB::getSchemaBuilder()->hasTable('notifications')) {
-            DB::table('notifications')->where('notifiable_type', 'App\\Models\\User')->where('notifiable_id', $userId)->delete();
-        }
-        foreach (['community_comments', 'community_likes', 'community_posts'] as $tbl) {
-            if (DB::getSchemaBuilder()->hasTable($tbl)) {
-                DB::table($tbl)->where('user_id', $userId)->delete();
+            // Core orders
+            $orderIds = DB::table('orders')->where('user_id', $userId)->pluck('id');
+            if ($orderIds->isNotEmpty()) {
+                DB::table('order_status_history')->whereIn('order_id', $orderIds)->delete();
+                DB::table('order_items')->whereIn('order_id', $orderIds)->delete();
+                DB::table('orders')->whereIn('id', $orderIds)->delete();
             }
-        }
 
-        // E-commerce module orders — delete child rows first, then parent
-        $ecomTables = [
-            // egrocery
-            'egrocery_order_items'   => 'order_id',
-            'egrocery_order_status'  => 'order_id',
-        ];
-        if (DB::getSchemaBuilder()->hasTable('egrocery_orders')) {
-            $egroceryOrderIds = DB::table('egrocery_orders')->where('user_id', $userId)->pluck('id');
-            foreach ($ecomTables as $tbl => $fk) {
-                if ($egroceryOrderIds->isNotEmpty() && DB::getSchemaBuilder()->hasTable($tbl)) {
-                    DB::table($tbl)->whereIn($fk, $egroceryOrderIds)->delete();
+            // Misc
+            foreach (['payment_transactions', 'notifications', 'user_addresses',
+                      'user_fcm_tokens', 'device_tokens'] as $tbl) {
+                if (DB::getSchemaBuilder()->hasTable($tbl)) {
+                    $col = ($tbl === 'notifications') ? null : 'user_id';
+                    if ($col) {
+                        DB::table($tbl)->where($col, $userId)->delete();
+                    } else {
+                        DB::table($tbl)->where('notifiable_type', 'App\\Models\\User')
+                            ->where('notifiable_id', $userId)->delete();
+                    }
                 }
             }
-            DB::table('egrocery_orders')->where('user_id', $userId)->delete();
-        }
-        // Other e-commerce modules with user_id FK
-        foreach ([
-            'efood_orders', 'eshop_orders', 'eparcel_orders', 'emoving_orders',
-            'erent_bookings', 'eexchange_orders', 'elearning_enrollments',
-            'ew_orders', 'user_addresses', 'user_fcm_tokens', 'device_tokens',
-            'feed_seen_posts', 'feed_interactions', 'user_interests',
-            'community_follows', 'community_profiles', 'community_stories',
-            'community_notifications', 'community_messages',
-        ] as $tbl) {
-            if (DB::getSchemaBuilder()->hasTable($tbl)) {
-                DB::table($tbl)->where('user_id', $userId)->delete();
-            }
-        }
 
-        DB::table('users')->where('id', $userId)->delete();
+            // E-commerce modules (all use user_id)
+            foreach (['egrocery_orders', 'efood_orders', 'eshop_orders', 'eparcel_orders',
+                      'emoving_orders', 'erent_bookings', 'eexchange_orders',
+                      'elearning_enrollments', 'ew_orders'] as $tbl) {
+                if (DB::getSchemaBuilder()->hasTable($tbl)) {
+                    DB::table($tbl)->where('user_id', $userId)->delete();
+                }
+            }
+
+            // Feed & interests
+            foreach (['feed_seen_posts', 'feed_interactions', 'user_interests'] as $tbl) {
+                if (DB::getSchemaBuilder()->hasTable($tbl)) {
+                    DB::table($tbl)->where('user_id', $userId)->delete();
+                }
+            }
+
+            // Community (varied column names — delete by user_id where applicable)
+            foreach (['community_posts', 'community_post_media', 'community_comments',
+                      'community_likes', 'community_stories', 'community_profiles',
+                      'community_notifications', 'community_messages',
+                      'community_chats'] as $tbl) {
+                if (DB::getSchemaBuilder()->hasTable($tbl)) {
+                    DB::table($tbl)->where('user_id', $userId)->delete();
+                }
+            }
+            // community_follows uses follower_id / following_id
+            if (DB::getSchemaBuilder()->hasTable('community_follows')) {
+                DB::table('community_follows')->where('follower_id', $userId)
+                    ->orWhere('following_id', $userId)->delete();
+            }
+
+            // Finally delete the user
+            DB::table('users')->where('id', $userId)->delete();
+        } finally {
+            DB::statement('SET FOREIGN_KEY_CHECKS=1');
+        }
     }
 
     public function resetPin(Request $request, User $user)
