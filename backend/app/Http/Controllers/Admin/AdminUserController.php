@@ -24,7 +24,18 @@ class AdminUserController extends Controller
 
         $users = $query->paginate(20);
 
-        return view('admin.users.index', compact('users'));
+        // GPS counts across ALL users (not just current page) — for accurate map header
+        $now = now();
+        $allGpsUsers = User::whereNull('deleted_at')
+            ->whereNotNull('latitude')->whereNotNull('longitude')
+            ->get(['location_updated_at']);
+
+        $gpsTotal    = $allGpsUsers->count();
+        $gpsDaily    = $allGpsUsers->filter(fn($u) => $u->location_updated_at && $u->location_updated_at->diffInDays($now) <= 3)->count();
+        $gpsSemi     = $allGpsUsers->filter(fn($u) => $u->location_updated_at && $u->location_updated_at->diffInDays($now) > 3 && $u->location_updated_at->diffInDays($now) <= 14)->count();
+        $gpsInactive = $allGpsUsers->filter(fn($u) => !$u->location_updated_at || $u->location_updated_at->diffInDays($now) > 14)->count();
+
+        return view('admin.users.index', compact('users', 'gpsTotal', 'gpsDaily', 'gpsSemi', 'gpsInactive'));
     }
 
     public function liveLocations()

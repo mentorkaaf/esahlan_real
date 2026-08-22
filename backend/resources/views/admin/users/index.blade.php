@@ -33,12 +33,8 @@
 @section('content')
 
 @php
-// Only users with real GPS — no district-center fallback to avoid km-off confusion
-$now = now();
-$mappableUsers = $users->getCollection()->filter(fn($u) => $u->latitude && $u->longitude);
-$countDaily    = $mappableUsers->filter(fn($u) => $u->location_updated_at && $u->location_updated_at->diffInDays($now) <= 3)->count();
-$countSemi     = $mappableUsers->filter(fn($u) => $u->location_updated_at && $u->location_updated_at->diffInDays($now) > 3 && $u->location_updated_at->diffInDays($now) <= 14)->count();
-$countInactive = $mappableUsers->filter(fn($u) => !$u->location_updated_at || $u->location_updated_at->diffInDays($now) > 14)->count();
+// counts come from controller — all GPS users across all pages
+// $gpsTotal, $gpsDaily, $gpsSemi, $gpsInactive are passed from AdminUserController
 @endphp
 
 <div class="page-header">
@@ -59,28 +55,28 @@ $countInactive = $mappableUsers->filter(fn($u) => !$u->location_updated_at || $u
                 <i class="fas fa-map-marked-alt"></i>
             </div>
             Real-Time User Locations
-            <span class="badge badge-warning" style="margin-left:4px;">{{ $mappableUsers->count() }} GPS users</span>
+            <span class="badge badge-warning" style="margin-left:4px;">{{ $gpsTotal }} GPS users</span>
         </div>
         <div style="font-size:11px;color:#888;display:flex;gap:14px;align-items:center;">
-            <span><span style="color:#22C55E;font-weight:800;">●</span> Daily active: <b>{{ $countDaily }}</b></span>
-            <span><span style="color:#EAB308;font-weight:800;">●</span> Semi-active: <b>{{ $countSemi }}</b></span>
-            <span><span style="color:#9CA3AF;font-weight:800;">●</span> Inactive: <b>{{ $countInactive }}</b></span>
+            <span><span style="color:#22C55E;font-weight:800;">●</span> Daily active: <b>{{ $gpsDaily }}</b></span>
+            <span><span style="color:#EAB308;font-weight:800;">●</span> Semi-active: <b>{{ $gpsSemi }}</b></span>
+            <span><span style="color:#9CA3AF;font-weight:800;">●</span> Inactive: <b>{{ $gpsInactive }}</b></span>
         </div>
     </div>
 
     {{-- Filter chips --}}
     <div class="map-filter-bar">
         <button class="map-chip map-chip-all active" id="filterAll" onclick="mapFilter('all')">
-            All ({{ $mappableUsers->count() }})
+            All ({{ $gpsTotal }})
         </button>
         <button class="map-chip map-chip-daily" id="filterDaily" onclick="mapFilter('daily')">
-            <span class="dot"></span> Daily Active ({{ $countDaily }})
+            <span class="dot"></span> Daily Active ({{ $gpsDaily }})
         </button>
         <button class="map-chip map-chip-semi" id="filterSemi" onclick="mapFilter('semi')">
-            <span class="dot"></span> Semi-Active ({{ $countSemi }})
+            <span class="dot"></span> Semi-Active ({{ $gpsSemi }})
         </button>
         <button class="map-chip map-chip-inactive" id="filterInactive" onclick="mapFilter('inactive')">
-            <span class="dot"></span> Inactive ({{ $countInactive }})
+            <span class="dot"></span> Inactive ({{ $gpsInactive }})
         </button>
         <div style="margin-left:auto;font-size:11px;color:#aaa;">
             <i class="fas fa-sync-alt" style="margin-right:4px;"></i>Refreshes every 30s
@@ -293,22 +289,8 @@ var ACTIVITY_LABELS = {
     inactive: 'Inactive (>14 days)',
 };
 
-var __usersMapData = {{ Illuminate\Support\Js::from($mappableUsers->map(function($u) use ($now) {
-    $daysAgo = $u->location_updated_at ? $u->location_updated_at->diffInDays($now) : 9999;
-    if ($daysAgo <= 3)       $activity = 'daily';
-    elseif ($daysAgo <= 14)  $activity = 'semi';
-    else                     $activity = 'inactive';
-    return [
-        'id'       => $u->id,
-        'name'     => $u->name,
-        'phone'    => $u->phone ?? '',
-        'lat'      => (float) $u->latitude,
-        'lng'      => (float) $u->longitude,
-        'url'      => route('admin.users.show', $u->id),
-        'updated'  => $u->location_updated_at ? $u->location_updated_at->diffForHumans() : 'Never',
-        'activity' => $activity,
-    ];
-})->values()) }};
+// Initial data loaded via API (all GPS users, not paginated subset)
+var __usersMapData = [];
 
 var __usersMap, __usersMarkers = {}, __usersInfoWindow;
 var __currentFilter = 'all';
@@ -409,33 +391,33 @@ function initUsersMap() {
     });
 
     __usersInfoWindow = new google.maps.InfoWindow();
-    var bounds = new google.maps.LatLngBounds();
-    var hasPoints = false;
 
-    __usersMapData.forEach(function(u) {
-        addOrUpdateMarker(u);
-        bounds.extend({ lat: u.lat, lng: u.lng });
-        hasPoints = true;
-    });
-
-    if (hasPoints) {
-        if (__usersMapData.length === 1) {
-            __usersMap.setCenter({ lat: __usersMapData[0].lat, lng: __usersMapData[0].lng });
-            __usersMap.setZoom(15);
-        } else {
-            __usersMap.fitBounds(bounds);
-        }
-    }
-
-    // Refresh real GPS positions every 30 seconds
-    setInterval(function() {
+    // Load ALL GPS users immediately (not paginated) + refresh every 30s
+    function loadAllMarkers() {
         fetch('{{ route("admin.users.live-locations") }}')
             .then(function(r) { return r.json(); })
             .then(function(data) {
-                data.forEach(function(u) { addOrUpdateMarker(u); });
+                __usersMapData = data;
+                var bounds = new google.maps.LatLngBounds();
+                var count = 0;
+                data.forEach(function(u) {
+                    addOrUpdateMarker(u);
+                    if (markerVisible(u)) { bounds.extend({ lat: u.lat, lng: u.lng }); count++; }
+                });
+                if (count > 0) {
+                    if (count === 1) {
+                        var vis = Object.values(__usersMarkers).find(function(m){ return m.getVisible(); });
+                        if (vis) { __usersMap.setCenter(vis.getPosition()); __usersMap.setZoom(15); }
+                    } else {
+                        __usersMap.fitBounds(bounds);
+                    }
+                }
             })
             .catch(function() {});
-    }, 30000);
+    }
+
+    loadAllMarkers();
+    setInterval(loadAllMarkers, 30000);
 }
 </script>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC1pxwcaFZxDXwqDpxK_gDfPAdpFM8bTnc&callback=initUsersMap" async defer></script>
