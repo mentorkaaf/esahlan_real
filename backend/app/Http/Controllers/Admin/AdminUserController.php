@@ -29,23 +29,30 @@ class AdminUserController extends Controller
 
     public function liveLocations()
     {
-        $users = User::with('district')
-            ->whereNull('deleted_at')
-            ->get(['id', 'name', 'phone', 'latitude', 'longitude', 'location_updated_at', 'district_id']);
+        $now   = now();
+        $users = User::whereNull('deleted_at')
+            ->whereNotNull('latitude')
+            ->whereNotNull('longitude')
+            ->get(['id', 'name', 'phone', 'latitude', 'longitude', 'location_updated_at']);
 
-        $data = $users->filter(function ($u) {
-            return ($u->latitude && $u->longitude) || ($u->district && $u->district->latitude && $u->district->longitude);
-        })->map(function ($u) {
-            $hasGps = $u->latitude && $u->longitude;
+        $data = $users->map(function ($u) use ($now) {
+            $updatedAt  = $u->location_updated_at;
+            $daysAgo    = $updatedAt ? $updatedAt->diffInDays($now) : 9999;
+
+            // Activity tier based on how recently the user opened the app
+            if ($daysAgo <= 3)  $activity = 'daily';      // opened last 3 days
+            elseif ($daysAgo <= 14) $activity = 'semi';   // 4-14 days
+            else                    $activity = 'inactive'; // >14 days or never
+
             return [
-                'id'      => $u->id,
-                'name'    => $u->name,
-                'phone'   => $u->phone ?? '',
-                'lat'     => (float) ($hasGps ? $u->latitude  : $u->district?->latitude),
-                'lng'     => (float) ($hasGps ? $u->longitude : $u->district?->longitude),
-                'url'     => route('admin.users.show', $u->id),
-                'updated' => $hasGps ? (optional($u->location_updated_at)->diffForHumans() ?? 'Unknown') : ('District: ' . ($u->district?->name ?? '—')),
-                'hasGps'  => $hasGps,
+                'id'       => $u->id,
+                'name'     => $u->name,
+                'phone'    => $u->phone ?? '',
+                'lat'      => (float) $u->latitude,
+                'lng'      => (float) $u->longitude,
+                'url'      => route('admin.users.show', $u->id),
+                'updated'  => $updatedAt ? $updatedAt->diffForHumans() : 'Never',
+                'activity' => $activity,
             ];
         })->values();
 

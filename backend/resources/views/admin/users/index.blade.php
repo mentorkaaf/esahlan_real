@@ -3,23 +3,42 @@
 
 @push('styles')
 <style>
-#users-map { height: 420px; border-radius: 16px; overflow: hidden; }
-.gm-popup { padding: 12px 16px; font-family: inherit; min-width: 180px; }
+#users-map { height: 480px; border-radius: 16px; overflow: hidden; }
+.gm-popup { padding: 12px 16px; font-family: inherit; min-width: 190px; }
 .gm-popup .name  { font-weight: 800; font-size: 14px; color: #07003B; }
 .gm-popup .phone { font-size: 12px; color: #888; margin-top: 2px; }
-.gm-popup .role  { display:inline-block; margin-top:6px; background:#EEF2FF; color:#3949AB; font-size:11px; font-weight:700; padding:2px 8px; border-radius:6px; }
+.gm-popup .act-badge { display:inline-flex;align-items:center;gap:4px;margin-top:6px;font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px; }
+.gm-popup .act-daily    { background:#DCFCE7;color:#16A34A; }
+.gm-popup .act-semi     { background:#FEF9C3;color:#CA8A04; }
+.gm-popup .act-inactive { background:#F3F4F6;color:#6B7280; }
 .gm-popup a      { display:block; margin-top:8px; text-align:center; background:#07003B; color:#fff; text-decoration:none; padding:5px 10px; border-radius:8px; font-size:12px; font-weight:700; }
 .gm-popup .ts    { font-size:10px; color:#bbb; margin-top:4px; }
+/* map filter chips */
+.map-filter-bar { display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:12px 16px 0; }
+.map-chip { display:inline-flex;align-items:center;gap:6px;padding:5px 14px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;border:2px solid transparent;transition:all .15s; }
+.map-chip .dot { width:10px;height:10px;border-radius:50%;display:inline-block; }
+.map-chip.active  { border-color:#07003B; }
+.map-chip-all     { background:#EEF2FF;color:#3949AB; }
+.map-chip-daily   { background:#DCFCE7;color:#16A34A; }
+.map-chip-daily .dot   { background:#22C55E; }
+.map-chip-semi    { background:#FEF9C3;color:#CA8A04; }
+.map-chip-semi .dot    { background:#EAB308; }
+.map-chip-inactive{ background:#F3F4F6;color:#6B7280; }
+.map-chip-inactive .dot{ background:#9CA3AF; }
+.map-stats { margin-left:auto;display:flex;gap:12px;font-size:12px;color:#888; }
+.map-stats b { color:#07003B; }
 </style>
 @endpush
 
 @section('content')
 
 @php
-// Use GPS location if available, otherwise fall back to district center
-$mappableUsers = $users->getCollection()->filter(function($u) {
-    return ($u->latitude && $u->longitude) || ($u->district?->latitude && $u->district?->longitude);
-});
+// Only users with real GPS — no district-center fallback to avoid km-off confusion
+$now = now();
+$mappableUsers = $users->getCollection()->filter(fn($u) => $u->latitude && $u->longitude);
+$countDaily    = $mappableUsers->filter(fn($u) => $u->location_updated_at && $u->location_updated_at->diffInDays($now) <= 3)->count();
+$countSemi     = $mappableUsers->filter(fn($u) => $u->location_updated_at && $u->location_updated_at->diffInDays($now) > 3 && $u->location_updated_at->diffInDays($now) <= 14)->count();
+$countInactive = $mappableUsers->filter(fn($u) => !$u->location_updated_at || $u->location_updated_at->diffInDays($now) > 14)->count();
 @endphp
 
 <div class="page-header">
@@ -39,11 +58,36 @@ $mappableUsers = $users->getCollection()->filter(function($u) {
             <div class="card-header-icon" style="background:rgba(255,138,0,0.1);color:#FF8A00;">
                 <i class="fas fa-map-marked-alt"></i>
             </div>
-            Live User Locations
-            <span class="badge badge-warning" style="margin-left:4px;">{{ $mappableUsers->count() }} on map</span>
+            Real-Time User Locations
+            <span class="badge badge-warning" style="margin-left:4px;">{{ $mappableUsers->count() }} GPS users</span>
+        </div>
+        <div style="font-size:11px;color:#888;display:flex;gap:14px;align-items:center;">
+            <span><span style="color:#22C55E;font-weight:800;">●</span> Daily active: <b>{{ $countDaily }}</b></span>
+            <span><span style="color:#EAB308;font-weight:800;">●</span> Semi-active: <b>{{ $countSemi }}</b></span>
+            <span><span style="color:#9CA3AF;font-weight:800;">●</span> Inactive: <b>{{ $countInactive }}</b></span>
         </div>
     </div>
-    <div style="padding:16px;">
+
+    {{-- Filter chips --}}
+    <div class="map-filter-bar">
+        <button class="map-chip map-chip-all active" id="filterAll" onclick="mapFilter('all')">
+            All ({{ $mappableUsers->count() }})
+        </button>
+        <button class="map-chip map-chip-daily" id="filterDaily" onclick="mapFilter('daily')">
+            <span class="dot"></span> Daily Active ({{ $countDaily }})
+        </button>
+        <button class="map-chip map-chip-semi" id="filterSemi" onclick="mapFilter('semi')">
+            <span class="dot"></span> Semi-Active ({{ $countSemi }})
+        </button>
+        <button class="map-chip map-chip-inactive" id="filterInactive" onclick="mapFilter('inactive')">
+            <span class="dot"></span> Inactive ({{ $countInactive }})
+        </button>
+        <div style="margin-left:auto;font-size:11px;color:#aaa;">
+            <i class="fas fa-sync-alt" style="margin-right:4px;"></i>Refreshes every 30s
+        </div>
+    </div>
+
+    <div style="padding:12px 16px 16px;">
         <div id="users-map"></div>
     </div>
 </div>
@@ -236,53 +280,115 @@ $mappableUsers = $users->getCollection()->filter(function($u) {
     @endif
 </div>
 <script>
-var __usersMapData = {{ Illuminate\Support\Js::from($mappableUsers->map(function($u) {
-    $hasGps = $u->latitude && $u->longitude;
+// Activity color map
+var ACTIVITY_COLORS = {
+    daily:    { fill: '#22C55E', stroke: '#15803D', scale: 11 }, // green
+    semi:     { fill: '#EAB308', stroke: '#A16207', scale: 10 }, // yellow
+    inactive: { fill: '#9CA3AF', stroke: '#4B5563', scale: 8  }, // gray
+};
+
+var ACTIVITY_LABELS = {
+    daily:    'Daily Active (last 3 days)',
+    semi:     'Semi-Active (4–14 days)',
+    inactive: 'Inactive (>14 days)',
+};
+
+var __usersMapData = {{ Illuminate\Support\Js::from($mappableUsers->map(function($u) use ($now) {
+    $daysAgo = $u->location_updated_at ? $u->location_updated_at->diffInDays($now) : 9999;
+    if ($daysAgo <= 3)       $activity = 'daily';
+    elseif ($daysAgo <= 14)  $activity = 'semi';
+    else                     $activity = 'inactive';
     return [
-        'id'      => $u->id,
-        'name'    => $u->name,
-        'phone'   => $u->phone ?? '',
-        'role'    => ucwords(str_replace('_', ' ', $u->role?->name ?? 'User')),
-        'lat'     => (float) ($hasGps ? $u->latitude  : $u->district?->latitude),
-        'lng'     => (float) ($hasGps ? $u->longitude : $u->district?->longitude),
-        'url'     => route('admin.users.show', $u->id),
-        'updated' => $hasGps ? (optional($u->location_updated_at)->diffForHumans() ?? 'Unknown') : ('District: ' . ($u->district?->name ?? 'â€”')),
-        'hasGps'  => $hasGps,
+        'id'       => $u->id,
+        'name'     => $u->name,
+        'phone'    => $u->phone ?? '',
+        'lat'      => (float) $u->latitude,
+        'lng'      => (float) $u->longitude,
+        'url'      => route('admin.users.show', $u->id),
+        'updated'  => $u->location_updated_at ? $u->location_updated_at->diffForHumans() : 'Never',
+        'activity' => $activity,
     ];
 })->values()) }};
 
 var __usersMap, __usersMarkers = {}, __usersInfoWindow;
+var __currentFilter = 'all';
+
+function activityIcon(activity) {
+    var c = ACTIVITY_COLORS[activity] || ACTIVITY_COLORS.inactive;
+    return {
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: c.scale,
+        fillColor: c.fill,
+        fillOpacity: 1,
+        strokeColor: c.stroke,
+        strokeWeight: 2.5,
+    };
+}
+
+function markerVisible(u) {
+    return __currentFilter === 'all' || u.activity === __currentFilter;
+}
 
 function addOrUpdateMarker(u) {
     var pos = { lat: u.lat, lng: u.lng };
-    var icon = {
-        path: google.maps.SymbolPath.CIRCLE,
-        scale: 10,
-        fillColor: u.hasGps ? '#FF8A00' : '#3949AB',
-        fillOpacity: 1,
-        strokeColor: '#07003B',
-        strokeWeight: 3,
-    };
     if (__usersMarkers[u.id]) {
         __usersMarkers[u.id].setPosition(pos);
-        __usersMarkers[u.id].setIcon(icon);
+        __usersMarkers[u.id].setIcon(activityIcon(u.activity));
         __usersMarkers[u.id].__data = u;
+        __usersMarkers[u.id].setVisible(markerVisible(u));
     } else {
-        var marker = new google.maps.Marker({ position: pos, map: __usersMap, title: u.name, icon: icon });
+        var marker = new google.maps.Marker({
+            position: pos,
+            map: __usersMap,
+            title: u.name,
+            icon: activityIcon(u.activity),
+            visible: markerVisible(u),
+        });
         marker.__data = u;
         marker.addListener('click', function() {
             var d = this.__data;
+            var actLabel = ACTIVITY_LABELS[d.activity] || d.activity;
+            var badgeClass = 'act-' + d.activity;
             __usersInfoWindow.setContent(
-                '<div class="gm-popup">' +
-                '<div class="name">' + d.name + '</div>' +
-                '<div class="phone">' + d.phone + '</div>' +
-                '<div class="ts">' + d.updated + '</div>' +
-                '<a href="' + d.url + '">View Profile</a>' +
+                '<div class=”gm-popup”>' +
+                '<div class=”name”>' + d.name + '</div>' +
+                '<div class=”phone”>' + d.phone + '</div>' +
+                '<div class=”act-badge ' + badgeClass + '”>● ' + actLabel + '</div>' +
+                '<div class=”ts”>📍 GPS · Updated: ' + d.updated + '</div>' +
+                '<a href=”' + d.url + '”>View Profile</a>' +
                 '</div>'
             );
             __usersInfoWindow.open(__usersMap, this);
         });
         __usersMarkers[u.id] = marker;
+    }
+}
+
+function mapFilter(filter) {
+    __currentFilter = filter;
+    // Update chip styles
+    ['filterAll','filterDaily','filterSemi','filterInactive'].forEach(function(id) {
+        document.getElementById(id).classList.remove('active');
+    });
+    var idMap = { all:'filterAll', daily:'filterDaily', semi:'filterSemi', inactive:'filterInactive' };
+    if (idMap[filter]) document.getElementById(idMap[filter]).classList.add('active');
+
+    // Show/hide markers and re-fit bounds
+    var bounds = new google.maps.LatLngBounds();
+    var visible = 0;
+    Object.values(__usersMarkers).forEach(function(m) {
+        var show = filter === 'all' || m.__data.activity === filter;
+        m.setVisible(show);
+        if (show) { bounds.extend(m.getPosition()); visible++; }
+    });
+    if (visible > 0) {
+        if (visible === 1) {
+            var pos = Object.values(__usersMarkers).find(function(m){ return m.getVisible(); }).getPosition();
+            __usersMap.setCenter(pos);
+            __usersMap.setZoom(15);
+        } else {
+            __usersMap.fitBounds(bounds);
+        }
     }
 }
 
@@ -321,9 +427,9 @@ function initUsersMap() {
         }
     }
 
-    // Refresh marker positions every 30 seconds
+    // Refresh real GPS positions every 30 seconds
     setInterval(function() {
-        fetch('{{ route("admin.users.live-locations") }}')
+        fetch('{{ route(“admin.users.live-locations”) }}')
             .then(function(r) { return r.json(); })
             .then(function(data) {
                 data.forEach(function(u) { addOrUpdateMarker(u); });
@@ -332,6 +438,6 @@ function initUsersMap() {
     }, 30000);
 }
 </script>
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC1pxwcaFZxDXwqDpxK_gDfPAdpFM8bTnc&callback=initUsersMap" async defer></script>
+<script src=”https://maps.googleapis.com/maps/api/js?key=AIzaSyC1pxwcaFZxDXwqDpxK_gDfPAdpFM8bTnc&callback=initUsersMap” async defer></script>
 
 @endsection
