@@ -138,6 +138,35 @@ class AdminUserController extends Controller
             }
         }
 
+        // E-commerce module orders — delete child rows first, then parent
+        $ecomTables = [
+            // egrocery
+            'egrocery_order_items'   => 'order_id',
+            'egrocery_order_status'  => 'order_id',
+        ];
+        if (DB::getSchemaBuilder()->hasTable('egrocery_orders')) {
+            $egroceryOrderIds = DB::table('egrocery_orders')->where('user_id', $userId)->pluck('id');
+            foreach ($ecomTables as $tbl => $fk) {
+                if ($egroceryOrderIds->isNotEmpty() && DB::getSchemaBuilder()->hasTable($tbl)) {
+                    DB::table($tbl)->whereIn($fk, $egroceryOrderIds)->delete();
+                }
+            }
+            DB::table('egrocery_orders')->where('user_id', $userId)->delete();
+        }
+        // Other e-commerce modules with user_id FK
+        foreach ([
+            'efood_orders', 'eshop_orders', 'eparcel_orders', 'emoving_orders',
+            'erent_bookings', 'eexchange_orders', 'elearning_enrollments',
+            'ew_orders', 'user_addresses', 'user_fcm_tokens', 'device_tokens',
+            'feed_seen_posts', 'feed_interactions', 'user_interests',
+            'community_follows', 'community_profiles', 'community_stories',
+            'community_notifications', 'community_messages',
+        ] as $tbl) {
+            if (DB::getSchemaBuilder()->hasTable($tbl)) {
+                DB::table($tbl)->where('user_id', $userId)->delete();
+            }
+        }
+
         DB::table('users')->where('id', $userId)->delete();
     }
 
