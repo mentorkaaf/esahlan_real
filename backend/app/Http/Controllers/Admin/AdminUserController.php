@@ -12,8 +12,17 @@ class AdminUserController extends Controller
 {
     public function index(Request $request)
     {
+        // Tab-based role grouping
+        $tabRoles = match($request->tab) {
+            'vendors'     => ['vendor_owner', 'rent_agent', 'admin'],
+            'deliverymen' => ['deliveryman'],
+            'customers'   => ['customer'],
+            default       => null,
+        };
+
         $query = User::with(['role', 'district'])
-            ->when($request->role, fn($q) => $q->whereHas('role', fn($r) => $r->where('slug', $request->role)))
+            ->when($tabRoles, fn($q) => $q->whereHas('role', fn($r) => $r->whereIn('slug', $tabRoles)))
+            ->when(!$tabRoles && $request->role, fn($q) => $q->whereHas('role', fn($r) => $r->where('slug', $request->role)))
             ->when($request->status, fn($q) => $q->where('status', $request->status))
             ->when($request->search, fn($q) => $q->where(fn($s) =>
                 $s->where('name', 'like', "%{$request->search}%")
@@ -23,6 +32,14 @@ class AdminUserController extends Controller
             ->latest();
 
         $users = $query->paginate(20);
+
+        // Tab counts
+        $tabCounts = [
+            'all'         => User::whereNull('deleted_at')->count(),
+            'customers'   => User::whereNull('deleted_at')->whereHas('role', fn($r) => $r->whereIn('slug', ['customer']))->count(),
+            'vendors'     => User::whereNull('deleted_at')->whereHas('role', fn($r) => $r->whereIn('slug', ['vendor_owner','rent_agent','admin']))->count(),
+            'deliverymen' => User::whereNull('deleted_at')->whereHas('role', fn($r) => $r->whereIn('slug', ['deliveryman']))->count(),
+        ];
 
         // GPS counts across ALL users (not just current page) — for accurate map header
         $now = now();
@@ -35,7 +52,7 @@ class AdminUserController extends Controller
         $gpsSemi     = $allGpsUsers->filter(fn($u) => $u->location_updated_at && $u->location_updated_at->diffInDays($now) > 3 && $u->location_updated_at->diffInDays($now) <= 14)->count();
         $gpsInactive = $allGpsUsers->filter(fn($u) => !$u->location_updated_at || $u->location_updated_at->diffInDays($now) > 14)->count();
 
-        return view('admin.users.index', compact('users', 'gpsTotal', 'gpsDaily', 'gpsSemi', 'gpsInactive'));
+        return view('admin.users.index', compact('users', 'gpsTotal', 'gpsDaily', 'gpsSemi', 'gpsInactive', 'tabCounts'));
     }
 
     public function liveLocations()

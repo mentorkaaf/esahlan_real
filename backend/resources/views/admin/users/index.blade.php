@@ -88,21 +88,46 @@
     </div>
 </div>
 
-<div class="card">
+{{-- User Tabs --}}
+@php $activeTab = request('tab','all'); @endphp
+<div class="card" style="margin-bottom:0;border-bottom:none;border-radius:12px 12px 0 0;">
+    <div style="display:flex;gap:0;border-bottom:2px solid var(--border);overflow-x:auto;">
+        @php
+        $tabs = [
+            'all'         => ['label'=>'All Users',       'icon'=>'fa-users',          'color'=>'#6366F1'],
+            'customers'   => ['label'=>'Customers',        'icon'=>'fa-user',           'color'=>'#3B82F6'],
+            'vendors'     => ['label'=>'Vendors / Agents', 'icon'=>'fa-store',          'color'=>'#8B5CF6'],
+            'deliverymen' => ['label'=>'Deliverymen',      'icon'=>'fa-motorcycle',     'color'=>'#10B981'],
+        ];
+        @endphp
+        @foreach($tabs as $key => $tab)
+        @php $isActive = $activeTab === $key; @endphp
+        <a href="{{ route('admin.users.index', array_merge(request()->only(['search','status']), $key==='all'?[]:['tab'=>$key])) }}"
+           style="display:flex;align-items:center;gap:8px;padding:14px 22px;text-decoration:none;white-space:nowrap;
+                  font-size:13px;font-weight:700;border-bottom:3px solid {{ $isActive ? $tab['color'] : 'transparent' }};
+                  color:{{ $isActive ? $tab['color'] : 'var(--text-muted)' }};
+                  margin-bottom:-2px;transition:all .15s;background:transparent;">
+            <i class="fas {{ $tab['icon'] }}" style="font-size:14px;"></i>
+            {{ $tab['label'] }}
+            <span style="background:{{ $isActive ? $tab['color'] : 'var(--border)' }};color:{{ $isActive ? '#fff' : 'var(--text-muted)' }};
+                         padding:2px 8px;border-radius:20px;font-size:11px;font-weight:800;min-width:24px;text-align:center;">
+                {{ $tabCounts[$key] }}
+            </span>
+        </a>
+        @endforeach
+    </div>
+</div>
+
+<div class="card" style="border-radius:0 0 12px 12px;margin-top:0;">
     <div class="filter-bar">
         <form method="GET" style="display:flex;gap:10px;flex-wrap:wrap;width:100%;align-items:center;">
+            @if($activeTab !== 'all')<input type="hidden" name="tab" value="{{ $activeTab }}">@endif
             <div style="flex:1;min-width:200px;">
                 <div class="input-group">
-                    <input type="text" name="search" class="form-control" placeholder="Search name, phone, emailâ€¦" value="{{ request('search') }}">
+                    <input type="text" name="search" class="form-control" placeholder="Search name, phone, email..." value="{{ request('search') }}">
                     <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i></button>
                 </div>
             </div>
-            <select name="role" class="form-control" style="width:160px;">
-                <option value="">All Roles</option>
-                <option value="customer"     {{ request('role')==='customer'     ?'selected':'' }}>Customer</option>
-                <option value="vendor_owner" {{ request('role')==='vendor_owner' ?'selected':'' }}>Vendor Owner</option>
-                <option value="deliveryman"  {{ request('role')==='deliveryman'  ?'selected':'' }}>Deliveryman</option>
-            </select>
             <select name="status" class="form-control" style="width:140px;">
                 <option value="">All Status</option>
                 <option value="active"   {{ request('status')==='active'   ?'selected':'' }}>Active</option>
