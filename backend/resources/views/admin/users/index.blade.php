@@ -51,7 +51,7 @@ $countInactive = $mappableUsers->filter(fn($u) => !$u->location_updated_at || $u
     </div>
 </div>
 
-{{-- â”€â”€ Live User Map â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ --}}
+{{-- â"€â"€ Live User Map â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ --}}
 <div class="card" style="margin-bottom:20px;">
     <div class="card-header">
         <div class="card-header-title">
@@ -350,12 +350,12 @@ function addOrUpdateMarker(u) {
             var actLabel = ACTIVITY_LABELS[d.activity] || d.activity;
             var badgeClass = 'act-' + d.activity;
             __usersInfoWindow.setContent(
-                '<div class=”gm-popup”>' +
-                '<div class=”name”>' + d.name + '</div>' +
-                '<div class=”phone”>' + d.phone + '</div>' +
-                '<div class=”act-badge ' + badgeClass + '”>● ' + actLabel + '</div>' +
-                '<div class=”ts”>📍 GPS · Updated: ' + d.updated + '</div>' +
-                '<a href=”' + d.url + '”>View Profile</a>' +
+                '<div class="gm-popup">' +
+                '<div class="name">' + d.name + '</div>' +
+                '<div class="phone">' + d.phone + '</div>' +
+                '<div class="act-badge ' + badgeClass + '">● ' + actLabel + '</div>' +
+                '<div class="ts">📍 GPS · Updated: ' + d.updated + '</div>' +
+                '<a href="' + d.url + '">View Profile</a>' +
                 '</div>'
             );
             __usersInfoWindow.open(__usersMap, this);
@@ -429,7 +429,7 @@ function initUsersMap() {
 
     // Refresh real GPS positions every 30 seconds
     setInterval(function() {
-        fetch('{{ route(“admin.users.live-locations”) }}')
+        fetch('{{ route("admin.users.live-locations") }}')
             .then(function(r) { return r.json(); })
             .then(function(data) {
                 data.forEach(function(u) { addOrUpdateMarker(u); });
@@ -438,6 +438,6 @@ function initUsersMap() {
     }, 30000);
 }
 </script>
-<script src=”https://maps.googleapis.com/maps/api/js?key=AIzaSyC1pxwcaFZxDXwqDpxK_gDfPAdpFM8bTnc&callback=initUsersMap” async defer></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC1pxwcaFZxDXwqDpxK_gDfPAdpFM8bTnc&callback=initUsersMap" async defer></script>
 
 @endsection
