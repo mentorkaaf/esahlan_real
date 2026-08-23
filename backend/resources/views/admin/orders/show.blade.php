@@ -778,10 +778,20 @@ $tz = \App\Helpers\AppSettings::timezone();
                 </div>
             </div>
         </div>
-        @if(!empty($note['description']))
-        <div style="background:rgba(255,255,255,.1);border-radius:8px;padding:12px 16px;margin-bottom:20px;">
-            <div style="font-size:10px;opacity:.6;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">ðŸ“ Contents</div>
-            <div style="font-size:13px;">{{ $note['description'] }}</div>
+        @if(!empty($note['parcel_type']) || !empty($note['description']))
+        <div style="background:rgba(255,255,255,.1);border-radius:8px;padding:12px 16px;margin-bottom:20px;display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;">
+            @if(!empty($note['parcel_type']))
+            <div>
+                <div style="font-size:10px;opacity:.6;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">📦 Package Type</div>
+                <div style="font-size:14px;font-weight:800;">{{ $note['parcel_type'] }}</div>
+            </div>
+            @endif
+            @if(!empty($note['description']))
+            <div>
+                <div style="font-size:10px;opacity:.6;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">📝 Contents</div>
+                <div style="font-size:13px;">{{ $note['description'] }}</div>
+            </div>
+            @endif
         </div>
         @endif
         <div style="height:16px;background:linear-gradient(135deg,#E65100,#FF8A00);position:relative;">
