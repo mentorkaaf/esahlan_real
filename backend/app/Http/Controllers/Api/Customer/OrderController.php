@@ -419,6 +419,7 @@ class OrderController extends Controller
 
     public function analytics(Request $request)
     {
+        try {
         $userId = $request->user()->id;
         $now    = now();
 
@@ -469,6 +470,10 @@ class OrderController extends Controller
             'trend'       => $trend,
             'statuses'    => $statuses,
         ]]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('[analytics] ' . $e->getMessage() . ' ' . $e->getTraceAsString());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
     }
 
     public function tracking(Request $request, Order $order)
