@@ -9,7 +9,14 @@
     <a href="{{ route('admin.module-data.wholesale.orders') }}" style="color:#6b7280;text-decoration:none;font-size:13px">← Orders</a>
     <h2 style="margin:0;font-size:18px;font-weight:700;color:#1B1444;font-family:monospace">{{ $order->order_no }}</h2>
     <span style="padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;background:#f3f4f6;color:#374151">{{ str_replace('_',' ',strtoupper($order->status)) }}</span>
-    <div style="margin-left:auto;font-size:13px;color:#6b7280">{{ $order->created_at->format('M d, Y H:i') }}</div>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:10px;">
+        <span style="font-size:13px;color:#6b7280">{{ $order->created_at->format('M d, Y H:i') }}</span>
+        <a href="{{ route('admin.module-data.wholesale.orders.print', $order) }}" target="_blank"
+           style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:#1B1444;
+                  color:#fff;border-radius:8px;text-decoration:none;font-size:12px;font-weight:700;">
+            <i class="fas fa-print"></i> Picking Slip
+        </a>
+    </div>
 </div>
 
 @if(session('success'))<div style="background:#d1fae5;color:#065f46;padding:10px 16px;border-radius:6px;margin-bottom:16px">{{ session('success') }}</div>@endif

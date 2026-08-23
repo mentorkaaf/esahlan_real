@@ -131,6 +131,12 @@ class AdminOrderController extends Controller
         return view('admin.orders.show', compact('order', 'deliverymen'));
     }
 
+    public function print(Order $order)
+    {
+        $order->load(['user', 'vendor', 'deliveryman', 'items.product']);
+        return view('admin.orders.print', compact('order'));
+    }
+
     public function updateStatus(Request $request, Order $order)
     {
         $this->authorizeOrderAccess($order);

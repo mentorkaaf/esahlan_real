@@ -483,6 +483,12 @@ class AdminEWholesaleController extends Controller
         return view('admin.ewholesale.orders.show', compact('order'));
     }
 
+    public function orderPrint(EWOrder $order)
+    {
+        $order->load(['buyer.user','supplier','items.product','items.variant']);
+        return view('admin.ewholesale.orders.print', compact('order'));
+    }
+
     public function orderStatusUpdate(Request $r, EWOrder $order)
     {
         $allowed = [

@@ -371,6 +371,7 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::get('/poll-new', [AdminOrderController::class, 'pollNew'])->name('poll');
             Route::post('/bulk', [AdminOrderController::class, 'bulkAction'])->name('bulk');
             Route::get('/{order}', [AdminOrderController::class, 'show'])->name('show');
+            Route::get('/{order}/print', [AdminOrderController::class, 'print'])->name('print');
             Route::patch('/{order}/status', [AdminOrderController::class, 'updateStatus'])->name('status');
             Route::post('/{order}/assign', [AdminOrderController::class, 'assignDeliveryman'])->name('assign');
             Route::post('/{order}/unassign-driver', [AdminOrderController::class, 'unassignDriver'])->name('unassign-driver');
@@ -877,6 +878,7 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
                 // Orders
                 Route::get('/orders',                           [$ew, 'orders'])->name('orders');
                 Route::get('/orders/{order}',                   [$ew, 'orderShow'])->name('orders.show');
+                Route::get('/orders/{order}/print',             [$ew, 'orderPrint'])->name('orders.print');
                 Route::patch('/orders/{order}/status',          [$ew, 'orderStatusUpdate'])->name('orders.status');
                 Route::post('/orders/{order}/payment',          [$ew, 'orderPaymentRecord'])->name('orders.payment');
                 Route::post('/orders/{order}/shipment',         [$ew, 'orderShipmentStore'])->name('orders.shipment');

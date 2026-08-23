@@ -7,7 +7,7 @@ use App\Models\EGrocery\{
     EGroceryOrder, EGroceryOrderItem, EGroceryProductVariant,
     EGroceryDeliverySlot, EGroceryDeliveryZone, EGroceryFlashDeal, EGroceryReview
 };
-use App\Models\{Coupon, CouponUsage, Order};
+use App\Models\{Coupon, CouponUsage, Order, Wallet};
 use App\Services\EGrocery\{PricingService, StockService};
 use App\Services\FcmService;
 use App\Services\RealtimeService;
@@ -237,6 +237,20 @@ class EGroceryOrderController extends Controller
                 $total    = round($subtotal + $deliveryFee - $discount, 2);
                 $orderNo  = 'EGR-' . strtoupper(Str::random(8));
 
+                // ── Wallet payment: check balance BEFORE creating order ────────
+                $walletUsed  = false;
+                $walletObj   = null;
+                if ($request->payment_method === 'wallet') {
+                    $walletObj = Wallet::getOrCreateFor(\App\Models\User::class, $user->id);
+                    if ((float) $walletObj->balance < $total) {
+                        throw new \DomainException('INSUFFICIENT_WALLET_BALANCE:' . json_encode([
+                            'balance'  => (float) $walletObj->balance,
+                            'required' => $total,
+                        ]));
+                    }
+                    $walletUsed = true;
+                }
+
                 // Create order
                 $order = EGroceryOrder::create([
                     'order_no'          => $orderNo,
@@ -244,7 +258,7 @@ class EGroceryOrderController extends Controller
                     'address_id'        => $request->address_id,
                     'status'            => 'pending',
                     'payment_method'    => $request->payment_method,
-                    'payment_status'    => 'unpaid',
+                    'payment_status'    => $walletUsed ? 'paid' : 'unpaid',
                     'subtotal'          => $subtotal,
                     'discount'          => $discount,
                     'delivery_fee'      => $deliveryFee,
@@ -271,6 +285,20 @@ class EGroceryOrderController extends Controller
                     ]);
                 }
 
+                // ── Deduct wallet after order row is committed ────────────────
+                if ($walletUsed && $walletObj) {
+                    $walletObj->decrement('balance', $total);
+                    DB::table('wallet_transactions')->insert([
+                        'wallet_id'   => $walletObj->id,
+                        'type'        => 'debit',
+                        'amount'      => $total,
+                        'description' => 'eGrocery order #' . $orderNo,
+                        'reference'   => $orderNo,
+                        'created_at'  => now(),
+                        'updated_at'  => now(),
+                    ]);
+                }
+
                 // Mirror to main orders table (for admin dashboard / analytics / orders page)
                 try {
                     Order::create([
@@ -279,7 +307,7 @@ class EGroceryOrderController extends Controller
                         'module_slug'     => 'egrocery',
                         'module_id'       => 10, // modules.id for egrocery
                         'status'          => 'pending',
-                        'payment_status'  => 'unpaid',
+                        'payment_status'  => $walletUsed ? 'paid' : 'unpaid',
                         'payment_method'  => $request->payment_method ?? 'cash',
                         'subtotal'        => $subtotal,
                         'delivery_fee'    => $deliveryFee,
@@ -325,6 +353,16 @@ class EGroceryOrderController extends Controller
             }
             if (str_starts_with($msg, 'MIN_ORDER_NOT_MET:')) {
                 return response()->json(['success' => false, 'code' => 'MIN_ORDER_NOT_MET', 'min_order' => substr($msg, 18)], 422);
+            }
+            if (str_starts_with($msg, 'INSUFFICIENT_WALLET_BALANCE:')) {
+                $data = json_decode(substr($msg, 28), true);
+                return response()->json([
+                    'success'  => false,
+                    'code'     => 'INSUFFICIENT_WALLET_BALANCE',
+                    'message'  => 'Insufficient ePay wallet balance. Please top up your wallet.',
+                    'balance'  => $data['balance'] ?? 0,
+                    'required' => $data['required'] ?? 0,
+                ], 422);
             }
             return response()->json(['success' => false, 'message' => $msg], 422);
         }

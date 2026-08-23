@@ -225,11 +225,18 @@ $tz = \App\Helpers\AppSettings::timezone();
             <li class="breadcrumb-item active">#{{ $order->order_number }}</li>
         </ol>
     </div>
-    <div class="od-status-badge">
-        <span style="background:{{ $scColor }}22;color:{{ $scColor }};padding:8px 20px;border-radius:30px;font-weight:800;font-size:14px;border:2px solid {{ $scColor }}44;">
-            <i class="fas fa-circle" style="font-size:8px;margin-right:6px;"></i>
-            {{ ucfirst(str_replace('_',' ',$order->status)) }}
-        </span>
+    <div style="display:flex;align-items:center;gap:10px;">
+        <a href="{{ route('admin.orders.print', $order) }}" target="_blank"
+           style="display:inline-flex;align-items:center;gap:6px;padding:9px 18px;background:rgba(255,255,255,0.15);
+                  color:#fff;border-radius:10px;text-decoration:none;font-size:13px;font-weight:700;border:1.5px solid rgba(255,255,255,0.3);">
+            <i class="fas fa-print"></i> Picking Slip
+        </a>
+        <div class="od-status-badge">
+            <span style="background:{{ $scColor }}22;color:{{ $scColor }};padding:8px 20px;border-radius:30px;font-weight:800;font-size:14px;border:2px solid {{ $scColor }}44;">
+                <i class="fas fa-circle" style="font-size:8px;margin-right:6px;"></i>
+                {{ ucfirst(str_replace('_',' ',$order->status)) }}
+            </span>
+        </div>
     </div>
 </div>
 
