@@ -312,45 +312,111 @@ class _AnalyticsDashboard extends StatelessWidget {
           // ── Divider ──────────────────────────────────────────────────────
           Container(height: 1, color: Colors.white.withValues(alpha: 0.08), margin: const EdgeInsets.symmetric(horizontal: 16)),
 
-          // ── Row 3: module chips (horizontal scroll) ──────────────────────
+          // ── Row 3: module chips (auto-scrolling marquee) ─────────────────
           if (modules.isNotEmpty)
-            SizedBox(
-              height: 48,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                itemCount: modules.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 6),
-                itemBuilder: (_, i) {
-                  final m     = Map<String, dynamic>.from(modules[i] as Map);
-                  final slug  = m['slug'] as String? ?? '';
-                  final count = (m['count'] as num?)?.toInt() ?? 0;
-                  final color = _modColor(slug);
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.18),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: color.withValues(alpha: 0.35), width: 1),
-                    ),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Text(_modIcon(slug), style: const TextStyle(fontSize: 12)),
-                      const SizedBox(width: 5),
-                      Text(_modLabel(slug), style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
-                      const SizedBox(width: 5),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                        decoration: BoxDecoration(color: color.withValues(alpha: 0.35), borderRadius: BorderRadius.circular(10)),
-                        child: Text('$count', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
-                      ),
-                    ]),
-                  );
-                },
-              ),
-            )
+            _ModuleMarquee(modules: modules)
           else
             const SizedBox(height: 12),
         ],
+      ),
+    );
+  }
+}
+
+// ── Module auto-scrolling marquee ─────────────────────────────────────────────
+class _ModuleMarquee extends StatefulWidget {
+  final List modules;
+  const _ModuleMarquee({required this.modules});
+  @override
+  State<_ModuleMarquee> createState() => _ModuleMarqueeState();
+}
+
+class _ModuleMarqueeState extends State<_ModuleMarquee>
+    with SingleTickerProviderStateMixin {
+  late final ScrollController _ctrl;
+  late final AnimationController _anim;
+
+  // Width of one chip + separator (estimated; marquee scrolls by pixel)
+  static const double _speed = 35.0; // pixels per second
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = ScrollController();
+    // Use an animation controller purely as a ticker source
+    _anim = AnimationController(vsync: this, duration: const Duration(seconds: 1))
+      ..addListener(_tick)
+      ..repeat();
+  }
+
+  DateTime? _last;
+
+  void _tick() {
+    if (!_ctrl.hasClients) return;
+    final now = DateTime.now();
+    final dt = _last == null ? 0.016 : now.difference(_last!).inMicroseconds / 1e6;
+    _last = now;
+
+    final max = _ctrl.position.maxScrollExtent;
+    if (max <= 0) return;
+    final next = _ctrl.offset + _speed * dt;
+    if (next >= max) {
+      // Jump back to start seamlessly (items are duplicated)
+      _ctrl.jumpTo(next - max / 2);
+    } else {
+      _ctrl.jumpTo(next);
+    }
+  }
+
+  @override
+  void dispose() {
+    _anim.dispose();
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  Widget _chip(Map m) {
+    final slug  = m['slug'] as String? ?? '';
+    final count = (m['count'] as num?)?.toInt() ?? 0;
+    final color = _modColor(slug);
+    return Container(
+      margin: const EdgeInsets.only(right: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.35), width: 1),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Text(_modIcon(slug), style: const TextStyle(fontSize: 12)),
+        const SizedBox(width: 5),
+        Text(_modLabel(slug),
+            style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+        const SizedBox(width: 5),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+          decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.35), borderRadius: BorderRadius.circular(10)),
+          child: Text('$count',
+              style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
+        ),
+      ]),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Duplicate items so seamless loop works
+    final items = [...widget.modules, ...widget.modules];
+    return SizedBox(
+      height: 48,
+      child: ListView.builder(
+        controller: _ctrl,
+        scrollDirection: Axis.horizontal,
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        itemCount: items.length,
+        itemBuilder: (_, i) => _chip(Map<String, dynamic>.from(items[i] as Map)),
       ),
     );
   }
