@@ -618,10 +618,10 @@ Route::prefix('v1')->group(function () {
             // Orders
             Route::get('orders',            [OrderController::class, 'index']);
             Route::post('orders',           [OrderController::class, 'store']);
+            Route::get('orders/analytics',  [OrderController::class, 'analytics']);
             Route::get('orders/{order}',    [OrderController::class, 'show']);
             Route::post('orders/{order}/cancel', [OrderController::class, 'cancel']);
             Route::get('orders/{order}/tracking', [OrderController::class, 'tracking']);
-            Route::get('orders/analytics', [OrderController::class, 'analytics']);
 
             // Wallet + Payment (throttle:payment — max 10/min, fraud protection)
             Route::middleware('throttle:payment')->group(function () {
