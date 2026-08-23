@@ -355,12 +355,10 @@ class _OrderDetailBody extends StatelessWidget {
       if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
 
       // 5. Share image
-      await SharePlus.instance.share(
-        ShareParams(
-          files: [XFile(file.path, mimeType: 'image/png')],
-          subject: 'Picking Slip — ${order.orderNumber}',
-          text: 'eSahlan Picking Slip\nOrder: ${order.orderNumber}',
-        ),
+      await Share.shareXFiles(
+        [XFile(file.path, mimeType: 'image/png')],
+        subject: 'Picking Slip — ${order.orderNumber}',
+        text: 'eSahlan Picking Slip\nOrder: ${order.orderNumber}',
       );
     } catch (e) {
       if (context.mounted) {

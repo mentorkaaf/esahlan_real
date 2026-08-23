@@ -60,14 +60,14 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen>
     final l = AppL10n.of(context);
     final tabLabels = [l.tabAll, l.tabPending, l.tabPreparing, l.tabDelivered, l.tabCancelled];
     return Scaffold(
-      backgroundColor: context.colors.bg,
+      backgroundColor: context.colors.scaffoldBg,
       body: NestedScrollView(
         headerSliverBuilder: (ctx, inner) => [
           SliverAppBar(
             title: Text(l.myOrders,
                 style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
             foregroundColor: context.colors.navyText,
-            backgroundColor: context.colors.bg,
+            backgroundColor: context.colors.scaffoldBg,
             surfaceTintColor: Colors.transparent,
             elevation: 0,
             floating: true,
@@ -525,7 +525,7 @@ class _OrderCard extends StatelessWidget {
             ),
           ]),
           const SizedBox(height: 12),
-          Container(height: 1, color: context.colors.border),
+          Container(height: 1, color: context.colors.borderColor),
           const SizedBox(height: 12),
           Row(children: [
             Icon(Icons.access_time_rounded, size: 13, color: AppColors.textLight),
