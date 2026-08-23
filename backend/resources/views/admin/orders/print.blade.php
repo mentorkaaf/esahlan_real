@@ -88,22 +88,30 @@ tbody tr:nth-child(even) td { background: #f9f9f9; }
 {{-- ===== MODULE-SPECIFIC DETAILS ===== --}}
 
 @if($slug === 'eparcel' && !empty($notes))
+@php
+    $pickupDistrictName = $notes['pickup_district_name']
+        ?? (\DB::table('districts')->find($notes['pickup']['district_id'] ?? 0)?->name ?? ('ID: '.($notes['pickup']['district_id'] ?? '—')));
+    $deliveryDistrictName = $notes['delivery_district_name']
+        ?? (\DB::table('districts')->find($notes['delivery_address']['district_id'] ?? 0)?->name ?? '—');
+@endphp
 <div class="section-title">Parcel Details</div>
 <div class="detail-grid">
+    <div class="detail-label">Parcel Type</div>
+    <div class="detail-value" style="font-weight:700;">{{ $notes['parcel_type'] ?? '—' }}</div>
+    <div class="detail-label">Package Description</div>
+    <div class="detail-value">{{ $notes['description'] ?? '—' }}</div>
     <div class="detail-label">Sender Name</div>
     <div class="detail-value">{{ $notes['pickup']['name'] ?? '—' }}</div>
     <div class="detail-label">Sender Phone</div>
     <div class="detail-value">{{ $notes['pickup']['phone'] ?? '—' }}</div>
     <div class="detail-label">Pickup District</div>
-    <div class="detail-value">{{ $notes['pickup']['name'] ?? ($notes['pickup']['district_id'] ?? '—') }}</div>
+    <div class="detail-value" style="font-weight:700;">{{ $pickupDistrictName }}</div>
     <div class="detail-label">Recipient Name</div>
     <div class="detail-value">{{ $notes['recipient'] ?? '—' }}</div>
     <div class="detail-label">Recipient Phone</div>
-    <div class="detail-value">{{ $notes['recipient_phone'] ?? '—' }}</div>
-    @if(!empty($notes['description']))
-    <div class="detail-label">Description</div>
-    <div class="detail-value">{{ $notes['description'] }}</div>
-    @endif
+    <div class="detail-value" style="font-weight:700;">{{ $notes['recipient_phone'] ?? '—' }}</div>
+    <div class="detail-label">Delivery District</div>
+    <div class="detail-value" style="font-weight:700;">{{ $deliveryDistrictName }}</div>
 </div>
 
 @elseif($slug === 'edata' && !empty($notes))

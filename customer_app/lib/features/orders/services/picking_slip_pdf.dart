@@ -154,13 +154,20 @@ class PickingSlipPdf {
   // ─── eParcel ─────────────────────────────────────────────────────────────────
   static pw.Widget _buildEParcel(Map<String, dynamic> n) {
     final pickup = n['pickup'] is Map ? n['pickup'] as Map : {};
+    final delivery = n['delivery_address'] is Map ? n['delivery_address'] as Map : {};
     return _sectionCard('📦 Parcel Details', [
-      ['Sender Name',      pickup['name']?.toString() ?? '—'],
-      ['Sender Phone',     pickup['phone']?.toString() ?? '—'],
-      ['Recipient Name',   n['recipient']?.toString() ?? '—'],
-      ['Recipient Phone',  n['recipient_phone']?.toString() ?? '—'],
+      if ((n['parcel_type'] ?? '').toString().isNotEmpty)
+        ['Parcel Type',        n['parcel_type'].toString()],
       if ((n['description'] ?? '').toString().isNotEmpty)
-        ['Description',    n['description'].toString()],
+        ['Package Description', n['description'].toString()],
+      ['Sender Name',          pickup['name']?.toString() ?? '—'],
+      ['Sender Phone',         pickup['phone']?.toString() ?? '—'],
+      ['Pickup District',      n['pickup_district_name']?.toString()
+                                ?? pickup['district_id']?.toString() ?? '—'],
+      ['Recipient Name',       n['recipient']?.toString() ?? '—'],
+      ['Recipient Phone',      n['recipient_phone']?.toString() ?? '—'],
+      ['Delivery District',    n['delivery_district_name']?.toString()
+                                ?? delivery['district_id']?.toString() ?? '—'],
     ]);
   }
 

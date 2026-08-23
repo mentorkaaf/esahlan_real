@@ -134,7 +134,12 @@ class EParcelController extends Controller
             }
         }
 
-        $order = DB::transaction(function () use ($request, $user, $totalAmount, $loyalty) {
+        // Resolve district names for picking slip
+        $pickupDistrict   = DB::table('districts')->find($request->input('pickup_address.district_id'));
+        $deliveryDistrict = DB::table('districts')->find($request->input('delivery_address.district_id'));
+        $parcelType       = DB::table('parcel_types')->find($request->parcel_type_id);
+
+        $order = DB::transaction(function () use ($request, $user, $totalAmount, $loyalty, $pickupDistrict, $deliveryDistrict, $parcelType) {
             $order = Order::create([
                 'order_number'    => 'PCL-' . strtoupper(Str::random(8)),
                 'user_id'         => $user->id,
@@ -149,10 +154,14 @@ class EParcelController extends Controller
                 'points_used'     => $loyalty['points_used'],
                 'points_discount' => $loyalty['points_discount'],
                 'note'            => json_encode([
-                    'pickup'          => $request->pickup_address,
-                    'recipient'       => $request->recipient_name,
-                    'recipient_phone' => $request->recipient_phone,
-                    'description'     => $request->description,
+                    'pickup'               => $request->pickup_address,
+                    'pickup_district_name' => $pickupDistrict?->name,
+                    'delivery_address'     => $request->delivery_address,
+                    'delivery_district_name' => $deliveryDistrict?->name,
+                    'recipient'            => $request->recipient_name,
+                    'recipient_phone'      => $request->recipient_phone,
+                    'description'          => $request->description,
+                    'parcel_type'          => $parcelType?->name,
                 ]),
                 'placed_at'       => now(),
             ]);
