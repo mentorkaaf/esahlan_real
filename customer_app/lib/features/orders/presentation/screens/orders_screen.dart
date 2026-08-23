@@ -125,7 +125,25 @@ class _OrdersList extends ConsumerWidget {
               SliverToBoxAdapter(
                 child: analyticsAsync.when(
                   loading: () => _AnalyticsShimmer(),
-                  error: (_, __) => const SizedBox.shrink(),
+                  error: (e, _) => Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                    child: GestureDetector(
+                      onTap: () => ref.refresh(orderAnalyticsProvider),
+                      child: Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF3E0),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFFF8A00).withValues(alpha: 0.3)),
+                        ),
+                        child: Row(children: [
+                          const Icon(Icons.refresh_rounded, color: Color(0xFFFF8A00), size: 18),
+                          const SizedBox(width: 8),
+                          const Expanded(child: Text('Analytics loading failed — tap to retry', style: TextStyle(color: Color(0xFFE65100), fontSize: 12))),
+                        ]),
+                      ),
+                    ),
+                  ),
                   data: (data) => _AnalyticsDashboard(data: data),
                 ),
               ),
