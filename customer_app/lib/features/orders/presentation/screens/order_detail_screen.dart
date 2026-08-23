@@ -45,13 +45,61 @@ class OrderDetailScreen extends ConsumerWidget {
   }
 }
 
-class _OrderDetailBody extends StatelessWidget {
+// In-memory cache: orderId → generated image file path
+final _slipCache = <int, String>{};
+
+class _OrderDetailBody extends StatefulWidget {
   final OrderModel order;
   final int orderId;
   final WidgetRef ref;
   const _OrderDetailBody({required this.order, required this.orderId, required this.ref});
+  @override
+  State<_OrderDetailBody> createState() => _OrderDetailBodyState();
+}
 
+class _OrderDetailBodyState extends State<_OrderDetailBody> {
+  OrderModel get order => widget.order;
+  int get orderId => widget.orderId;
+  WidgetRef get ref => widget.ref;
   bool get isParcel => order.moduleSlug == 'eparcel';
+
+  @override
+  void initState() {
+    super.initState();
+    // Pre-generate in background so "View Picking Slip" is instant
+    if (!_slipCache.containsKey(orderId)) {
+      _generateSlipInBackground();
+    }
+  }
+
+  Future<void> _generateSlipInBackground() async {
+    try {
+      final path = await _buildSlipImage(order);
+      if (mounted) _slipCache[orderId] = path;
+    } catch (_) {/* silent — will retry on tap */}
+  }
+
+  // ── Generate picking slip image (shared helper) ───────────────────────────
+  static Future<String> _buildSlipImage(OrderModel order) async {
+    final pdfBytes = await PickingSlipPdf.generate(order);
+    final pages = await Printing.raster(pdfBytes, dpi: 300, pages: [0]).toList();
+    if (pages.isEmpty) throw Exception('Raster failed');
+    final page = pages.first;
+    final srcImage = await page.toImage();
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    canvas.drawRect(
+      Rect.fromLTWH(0, 0, page.width.toDouble(), page.height.toDouble()),
+      Paint()..color = Colors.white,
+    );
+    canvas.drawImage(srcImage, Offset.zero, Paint());
+    final composited = await recorder.endRecording().toImage(page.width, page.height);
+    final pngBytes = await composited.toByteData(format: ui.ImageByteFormat.png);
+    final tmpDir = await getTemporaryDirectory();
+    final file = File('${tmpDir.path}/PickingSlip-${order.orderNumber}.png');
+    await file.writeAsBytes(pngBytes!.buffer.asUint8List());
+    return file.path;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -320,7 +368,21 @@ class _OrderDetailBody extends StatelessWidget {
   }
 
   Future<void> _openPickingSlip(BuildContext context, OrderModel order) async {
-    // 1. Show loading spinner
+    // Cached → show instantly, no spinner
+    if (_slipCache.containsKey(order.id)) {
+      await showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => _PickingSlipPreview(
+          imagePath: _slipCache[order.id]!,
+          orderNumber: order.orderNumber,
+        ),
+      );
+      return;
+    }
+
+    // Not cached yet — show brief spinner
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -331,7 +393,7 @@ class _OrderDetailBody extends StatelessWidget {
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               CircularProgressIndicator(color: AppColors.primary),
               SizedBox(height: 14),
-              Text('Generating picking slip...', style: TextStyle(fontWeight: FontWeight.w600)),
+              Text('Preparing...', style: TextStyle(fontWeight: FontWeight.w600)),
             ]),
           ),
         ),
@@ -339,40 +401,16 @@ class _OrderDetailBody extends StatelessWidget {
     );
 
     try {
-      // 2. Generate PDF → raster → white-background JPEG
-      final pdfBytes = await PickingSlipPdf.generate(order);
-      final pages = await Printing.raster(pdfBytes, dpi: 300, pages: [0]).toList();
-      if (pages.isEmpty) throw Exception('Failed to raster picking slip');
-      final page = pages.first;
-
-      // Composite onto white background to avoid black transparent areas
-      final srcImage = await page.toImage();
-      final recorder = ui.PictureRecorder();
-      final canvas = Canvas(recorder);
-      canvas.drawRect(Rect.fromLTWH(0, 0, page.width.toDouble(), page.height.toDouble()),
-          Paint()..color = Colors.white);
-      canvas.drawImage(srcImage, Offset.zero, Paint());
-      final composited = await recorder.endRecording()
-          .toImage(page.width, page.height);
-      // Re-encode as PNG with white background
-      final pngBytes = await composited.toByteData(format: ui.ImageByteFormat.png);
-
-      // 3. Save to temp file
-      final tmpDir = await getTemporaryDirectory();
-      final file = File('${tmpDir.path}/PickingSlip-${order.orderNumber}.png');
-      await file.writeAsBytes(pngBytes!.buffer.asUint8List());
-
-      // 4. Dismiss loading
+      final path = await _buildSlipImage(order);
+      _slipCache[order.id] = path;
       if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
-
-      // 5. Show preview bottom sheet with share option
       if (context.mounted) {
         await showModalBottomSheet(
           context: context,
           isScrollControlled: true,
           backgroundColor: Colors.transparent,
           builder: (_) => _PickingSlipPreview(
-            imagePath: file.path,
+            imagePath: path,
             orderNumber: order.orderNumber,
           ),
         );
@@ -381,8 +419,7 @@ class _OrderDetailBody extends StatelessWidget {
       if (context.mounted) {
         Navigator.of(context, rootNavigator: true).pop();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}'),
-              backgroundColor: Colors.red),
+          SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red),
         );
       }
     }
@@ -411,39 +448,20 @@ class _PickingSlipPreview extends StatelessWidget {
         ),
         child: Column(
           children: [
-            // Handle
+            // ── Handle ───────────────────────────────────────────────────────
             Container(
               margin: const EdgeInsets.symmetric(vertical: 10),
               width: 40, height: 4,
               decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
             ),
-            // Header
+            // ── Header row: title + close ─────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.fromLTRB(16, 0, 8, 0),
               child: Row(
                 children: [
-                  const Text('Picking Slip', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF07003B))),
+                  const Text('Picking Slip',
+                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF07003B))),
                   const Spacer(),
-                  // Share button
-                  ElevatedButton.icon(
-                    onPressed: () async {
-                      await Share.shareXFiles(
-                        [XFile(imagePath, mimeType: 'image/png')],
-                        subject: 'Picking Slip — $orderNumber',
-                        text: 'eSahlan Picking Slip\nOrder: $orderNumber',
-                      );
-                    },
-                    icon: const Icon(Icons.share_rounded, size: 16),
-                    label: const Text('Share', style: TextStyle(fontWeight: FontWeight.w700)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF07003B),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      elevation: 0,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
                   IconButton(
                     icon: const Icon(Icons.close_rounded, color: Color(0xFF07003B)),
                     onPressed: () => Navigator.of(context).pop(),
@@ -452,17 +470,46 @@ class _PickingSlipPreview extends StatelessWidget {
               ),
             ),
             const Divider(height: 1),
-            // Image
+            // ── Image (scrollable + zoomable) ─────────────────────────────────
             Expanded(
               child: InteractiveViewer(
                 minScale: 0.5,
                 maxScale: 4.0,
                 child: SingleChildScrollView(
                   controller: scrollCtrl,
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: Image.file(File(imagePath), fit: BoxFit.fitWidth),
+                  ),
+                ),
+              ),
+            ),
+            // ── Share button — full width, always visible ─────────────────────
+            SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton.icon(
+                    onPressed: () async {
+                      await Share.shareXFiles(
+                        [XFile(imagePath, mimeType: 'image/png')],
+                        subject: 'Picking Slip — $orderNumber',
+                        text: 'eSahlan Picking Slip\nOrder: $orderNumber',
+                      );
+                    },
+                    icon: const Icon(Icons.share_rounded, size: 20),
+                    label: const Text('Share Picking Slip',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF07003B),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      elevation: 0,
+                    ),
                   ),
                 ),
               ),
