@@ -409,6 +409,25 @@ class _ParcelRouteCard extends StatelessWidget {
               )),
             ]),
 
+            // parcel type
+            if ((p['parcel_type'] ?? '').toString().isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF8A00).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFFFF8A00).withValues(alpha: 0.4)),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.inventory_2_rounded, color: Color(0xFFFF8A00), size: 13),
+                  const SizedBox(width: 5),
+                  Text('${p['parcel_type']}',
+                    style: const TextStyle(color: Color(0xFFFF8A00), fontSize: 12, fontWeight: FontWeight.w700)),
+                ]),
+              ),
+            ],
+
             // description
             if ((p['description'] ?? '').toString().isNotEmpty) ...[
               const SizedBox(height: 16),
@@ -416,7 +435,7 @@ class _ParcelRouteCard extends StatelessWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.07),
+                  color: Colors.white.withValues(alpha: 0.07),
                   borderRadius: BorderRadius.circular(10)),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(l.packageContents, style: const TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.w600)),
