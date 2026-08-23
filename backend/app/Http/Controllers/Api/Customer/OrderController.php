@@ -423,7 +423,7 @@ class OrderController extends Controller
         $userId = $request->user()->id;
         $now    = now();
 
-        $base = DB::table('orders')->where('user_id', $userId)->whereNull('deleted_at');
+        $base = DB::table('orders')->where('user_id', $userId);
 
         // Period counts
         $today    = (clone $base)->whereDate('placed_at', $now->toDateString())->count();
