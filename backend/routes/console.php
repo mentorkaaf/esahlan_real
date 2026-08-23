@@ -129,9 +129,10 @@ Schedule::command('fcm:validate-tokens')
     ->runInBackground();
 
 // ── Marketing: Re-engagement notifications ────────────────────────────────
-// Daily — processes all 4 inactive periods (3d, 7d, 14d, 30d) in one run.
+// Every 30 min — each slug checks its own send_time from DB (admin-configurable).
+// Falls back to once-daily if no send_time set.
 Schedule::command('marketing:reengagement')
-    ->daily()
+    ->everyThirtyMinutes()
     ->name('marketing:reengagement')
     ->withoutOverlapping()
     ->runInBackground();
@@ -154,9 +155,10 @@ Schedule::command('marketing:new-vendor')
     ->runInBackground();
 
 // ── Marketing: Loyalty notifications ─────────────────────────────────────
-// Daily at 09:00 — points expiry (3-day warning) + low wallet balance.
+// Every 30 min — each slug checks its own send_time from DB (admin-configurable).
+// Falls back to once-daily if no send_time set.
 Schedule::command('marketing:loyalty')
-    ->dailyAt('09:00')
+    ->everyThirtyMinutes()
     ->name('marketing:loyalty')
     ->withoutOverlapping()
     ->runInBackground();

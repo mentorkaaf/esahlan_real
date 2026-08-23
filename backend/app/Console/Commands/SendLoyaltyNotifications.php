@@ -32,10 +32,43 @@ class SendLoyaltyNotifications extends Command
 
     private const LOW_WALLET_THRESHOLD = 5.00;
 
+    /**
+     * Check if it's time to send based on template's send_time (admin-configurable).
+     * If send_time is set: fire only within ±15 min of that time, once per day.
+     * If send_time is NOT set: fire once per day (guard via last_sent_at).
+     */
+    private function shouldRunNow(?object $template, \Carbon\Carbon $now): bool
+    {
+        if (!$template) return false;
+
+        $sendTime = $template->send_time ?? null;
+
+        if ($sendTime) {
+            // Admin set a specific time — check ±15 min window
+            [$h, $m] = array_map('intval', explode(':', $sendTime));
+            $target  = $now->copy()->setTime($h, $m, 0);
+            if (abs($now->diffInMinutes($target, false)) > 15) return false;
+
+            // Within window — guard against double-fire on same day
+            $firedKey = "loyalty_{$template->slug}_fired:" . $now->toDateString();
+            if (Cache::has($firedKey)) return false;
+            Cache::put($firedKey, 1, 23 * 3600);
+            return true;
+        }
+
+        // No send_time: fall back to once-daily guard via last_sent_at
+        if ($template->last_sent_at) {
+            $lastSent = \Carbon\Carbon::parse($template->last_sent_at);
+            if ($lastSent->isToday()) return false;
+        }
+        return true;
+    }
+
     public function handle(): int
     {
         $dryRun  = $this->option('dry-run');
         $typeOpt = $this->option('type');
+        $now     = now();
 
         $types = ['points_expiry', 'wallet_low'];
         if ($typeOpt) {
@@ -48,6 +81,15 @@ class SendLoyaltyNotifications extends Command
 
         $totalSent = 0;
         foreach ($types as $type) {
+            $slug     = $type === 'points_expiry' ? 'points_expiry' : 'wallet_low';
+            $template = DB::table('auto_notification_templates')->where('slug', $slug)->first();
+
+            if (!$dryRun && !$typeOpt && !$this->shouldRunNow($template, $now)) {
+                $time = $template?->send_time ?? 'no time set';
+                $this->line("  [{$slug}] Not in send window ({$time}) — skipping.");
+                continue;
+            }
+
             $sent = match($type) {
                 'points_expiry' => $this->sendPointsExpiry($dryRun),
                 'wallet_low'    => $this->sendWalletLow($dryRun),

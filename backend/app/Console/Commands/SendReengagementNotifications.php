@@ -37,10 +37,41 @@ class SendReengagementNotifications extends Command
         30 => 'reengagement_30d',
     ];
 
+    /**
+     * Check if it's time to send based on template's send_time (admin-configurable).
+     * If send_time is set: fire only within ±15 min of that time, once per day.
+     * If send_time is NOT set: fire once per day (guard via last_sent_at).
+     */
+    private function shouldRunNow(?object $template, \Carbon\Carbon $now): bool
+    {
+        if (!$template) return false;
+
+        $sendTime = $template->send_time ?? null;
+
+        if ($sendTime) {
+            [$h, $m] = array_map('intval', explode(':', $sendTime));
+            $target  = $now->copy()->setTime($h, $m, 0);
+            if (abs($now->diffInMinutes($target, false)) > 15) return false;
+
+            $firedKey = "reeng_{$template->slug}_fired:" . $now->toDateString();
+            if (Cache::has($firedKey)) return false;
+            Cache::put($firedKey, 1, 23 * 3600);
+            return true;
+        }
+
+        // No send_time: once per day via last_sent_at
+        if ($template->last_sent_at) {
+            $lastSent = \Carbon\Carbon::parse($template->last_sent_at);
+            if ($lastSent->isToday()) return false;
+        }
+        return true;
+    }
+
     public function handle(): int
     {
         $dryRun     = $this->option('dry-run');
         $daysFilter = $this->option('days') ? (int) $this->option('days') : null;
+        $now        = now();
 
         $periods = $daysFilter
             ? (isset(self::PERIODS[$daysFilter]) ? [$daysFilter => self::PERIODS[$daysFilter]] : [])
@@ -54,6 +85,14 @@ class SendReengagementNotifications extends Command
         $totalSent = 0;
 
         foreach ($periods as $days => $slug) {
+            if (!$dryRun && !$daysFilter) {
+                $template = DB::table('auto_notification_templates')->where('slug', $slug)->first();
+                if (!$this->shouldRunNow($template, $now)) {
+                    $time = $template?->send_time ?? 'no time set';
+                    $this->line("  [{$slug}] Not in send window ({$time}) — skipping.");
+                    continue;
+                }
+            }
             $sent = $this->processPeriod($days, $slug, $dryRun);
             $totalSent += $sent;
         }
