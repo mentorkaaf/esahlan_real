@@ -1,7 +1,12 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'dart:io';
+
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../../../core/utils/error_handler.dart';
@@ -314,22 +319,55 @@ class _OrderDetailBody extends StatelessWidget {
   }
 
   Future<void> _openPickingSlip(BuildContext context, OrderModel order) async {
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              CircularProgressIndicator(color: AppColors.primary),
+              SizedBox(height: 14),
+              Text('Generating picking slip...', style: TextStyle(fontWeight: FontWeight.w600)),
+            ]),
+          ),
+        ),
+      ),
+    );
+
     try {
-      // Show loading snackbar
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Generating picking slip...'),
-          duration: Duration(seconds: 1)),
-      );
+      // 1. Generate PDF bytes
       final pdfBytes = await PickingSlipPdf.generate(order);
-      await Printing.layoutPdf(
-        onLayout: (_) async => pdfBytes,
-        name: 'PickingSlip-${order.orderNumber}.pdf',
+
+      // 2. Raster PDF page → PNG image (300 DPI)
+      final pages = await Printing.raster(pdfBytes, dpi: 300, pages: [0]).toList();
+      if (pages.isEmpty) throw Exception('Failed to raster picking slip');
+      final pngBytes = await pages.first.toPng();
+
+      // 3. Save to temp file
+      final tmpDir = await getTemporaryDirectory();
+      final file = File('${tmpDir.path}/PickingSlip-${order.orderNumber}.jpg');
+      await file.writeAsBytes(pngBytes);
+
+      // 4. Dismiss loading
+      if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
+
+      // 5. Share image
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path, mimeType: 'image/png')],
+          subject: 'Picking Slip — ${order.orderNumber}',
+          text: 'eSahlan Picking Slip\nOrder: ${order.orderNumber}',
+        ),
       );
     } catch (e) {
       if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: ${e.toString()}'),
-            backgroundColor: Colors.red),
+              backgroundColor: Colors.red),
         );
       }
     }

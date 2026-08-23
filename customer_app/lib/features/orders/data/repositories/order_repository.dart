@@ -36,6 +36,15 @@ class OrderRepository {
     }
   }
 
+  Future<Map<String, dynamic>> getAnalytics() async {
+    try {
+      final res = await _dio.get('/orders/analytics');
+      return Map<String, dynamic>.from(res.data['data']);
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
   Future<Map<String, dynamic>> getTracking(int id) async {
     try {
       final res = await _dio.get('/orders/$id/tracking');

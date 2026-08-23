@@ -11,3 +11,7 @@ final ordersProvider = FutureProvider.family<List<OrderModel>, String?>((ref, st
 final orderDetailProvider = FutureProvider.family<OrderModel, int>((ref, id) {
   return ref.read(orderRepositoryProvider).getOrder(id);
 });
+
+final orderAnalyticsProvider = FutureProvider<Map<String, dynamic>>((ref) {
+  return ref.read(orderRepositoryProvider).getAnalytics();
+});

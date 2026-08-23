@@ -417,6 +417,60 @@ class OrderController extends Controller
         return response()->json(['success' => true, 'message' => 'Order cancelled successfully']);
     }
 
+    public function analytics(Request $request)
+    {
+        $userId = $request->user()->id;
+        $now    = now();
+
+        $base = DB::table('orders')->where('user_id', $userId)->whereNull('deleted_at');
+
+        // Period counts
+        $today    = (clone $base)->whereDate('placed_at', $now->toDateString())->count();
+        $thisWeek = (clone $base)->whereBetween('placed_at', [$now->startOfWeek()->toDateTimeString(), $now->copy()->endOfWeek()->toDateTimeString()])->count();
+        $now      = now(); // reset after startOfWeek mutates
+        $thisMonth= (clone $base)->whereYear('placed_at', $now->year)->whereMonth('placed_at', $now->month)->count();
+        $thisYear = (clone $base)->whereYear('placed_at', $now->year)->count();
+        $total    = (clone $base)->count();
+
+        // Total spent
+        $totalSpent = (clone $base)->where('payment_status', 'paid')->sum('total_amount');
+
+        // Module breakdown
+        $modules = (clone $base)
+            ->select('module_slug', DB::raw('COUNT(*) as cnt'), DB::raw('SUM(total_amount) as spent'))
+            ->groupBy('module_slug')
+            ->orderByDesc('cnt')
+            ->get()
+            ->map(fn($r) => ['slug' => $r->module_slug ?? 'other', 'count' => $r->cnt, 'spent' => round($r->spent, 2)]);
+
+        // Monthly trend (last 6 months)
+        $trend = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $m = now()->subMonths($i);
+            $cnt = (clone $base)->whereYear('placed_at', $m->year)->whereMonth('placed_at', $m->month)->count();
+            $trend[] = ['month' => $m->format('M'), 'count' => $cnt];
+        }
+
+        // Status breakdown
+        $statuses = (clone $base)
+            ->select('status', DB::raw('COUNT(*) as cnt'))
+            ->groupBy('status')
+            ->get()
+            ->pluck('cnt', 'status');
+
+        return response()->json(['success' => true, 'data' => [
+            'total'       => $total,
+            'today'       => $today,
+            'this_week'   => $thisWeek,
+            'this_month'  => $thisMonth,
+            'this_year'   => $thisYear,
+            'total_spent' => round($totalSpent, 2),
+            'modules'     => $modules,
+            'trend'       => $trend,
+            'statuses'    => $statuses,
+        ]]);
+    }
+
     public function tracking(Request $request, Order $order)
     {
         if ($order->user_id !== $request->user()->id) {
