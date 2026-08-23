@@ -51,7 +51,7 @@ class PickingSlipPdf {
           _buildCustomerInfo(order),
           pw.SizedBox(height: 14),
           // Module-specific details
-          if (slug == 'eparcel')   _buildEParcel(notes),
+          if (slug == 'eparcel')   _buildEParcel(notes, order.parcelDetails),
           if (slug == 'edata')     _buildEData(notes),
           if (slug == 'erent')     _buildERent(notes),
           if (slug == 'emoving')   _buildEMoving(notes),
@@ -152,22 +152,28 @@ class PickingSlipPdf {
   }
 
   // ─── eParcel ─────────────────────────────────────────────────────────────────
-  static pw.Widget _buildEParcel(Map<String, dynamic> n) {
+  static pw.Widget _buildEParcel(Map<String, dynamic> n, Map<String, dynamic>? p) {
+    // p = parcelDetails from API (has resolved district names for all orders)
+    // n = notes JSON (only has district names for new orders)
     final pickup = n['pickup'] is Map ? n['pickup'] as Map : {};
-    final delivery = n['delivery_address'] is Map ? n['delivery_address'] as Map : {};
+    final senderName   = p?['sender_name']       ?? pickup['name']?.toString()      ?? '—';
+    final senderPhone  = p?['sender_phone']       ?? pickup['phone']?.toString()     ?? '—';
+    final pickupDist   = p?['pickup_district']    ?? n['pickup_district_name']?.toString()   ?? '—';
+    final recipName    = p?['recipient_name']     ?? n['recipient']?.toString()      ?? '—';
+    final recipPhone   = p?['recipient_phone']    ?? n['recipient_phone']?.toString() ?? '—';
+    final delivDist    = p?['delivery_district']  ?? n['delivery_district_name']?.toString()  ?? '—';
+    final parcelType   = n['parcel_type']?.toString()   ?? '';
+    final description  = p?['description'] ?? n['description']?.toString() ?? '';
+
     return _sectionCard('📦 Parcel Details', [
-      if ((n['parcel_type'] ?? '').toString().isNotEmpty)
-        ['Parcel Type',        n['parcel_type'].toString()],
-      if ((n['description'] ?? '').toString().isNotEmpty)
-        ['Package Description', n['description'].toString()],
-      ['Sender Name',          pickup['name']?.toString() ?? '—'],
-      ['Sender Phone',         pickup['phone']?.toString() ?? '—'],
-      ['Pickup District',      n['pickup_district_name']?.toString()
-                                ?? pickup['district_id']?.toString() ?? '—'],
-      ['Recipient Name',       n['recipient']?.toString() ?? '—'],
-      ['Recipient Phone',      n['recipient_phone']?.toString() ?? '—'],
-      ['Delivery District',    n['delivery_district_name']?.toString()
-                                ?? delivery['district_id']?.toString() ?? '—'],
+      if (parcelType.isNotEmpty)   ['Parcel Type',          parcelType],
+      if (description.isNotEmpty)  ['Package Description',  description],
+      ['Sender Name',              senderName],
+      ['Sender Phone',             senderPhone],
+      ['Pickup District',          pickupDist],
+      ['Recipient Name',           recipName],
+      ['Recipient Phone',          recipPhone],
+      ['Delivery District',        delivDist],
     ]);
   }
 

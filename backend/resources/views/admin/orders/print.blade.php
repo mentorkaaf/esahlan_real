@@ -90,9 +90,17 @@ tbody tr:nth-child(even) td { background: #f9f9f9; }
 @if($slug === 'eparcel' && !empty($notes))
 @php
     $pickupDistrictName = $notes['pickup_district_name']
-        ?? (\DB::table('districts')->find($notes['pickup']['district_id'] ?? 0)?->name ?? ('ID: '.($notes['pickup']['district_id'] ?? '—')));
+        ?? (\DB::table('districts')->find($notes['pickup']['district_id'] ?? 0)?->name ?? '—');
+    // delivery_address stored as separate column for old orders
+    $deliveryAddrCol = is_array($order->delivery_address)
+        ? $order->delivery_address
+        : (is_string($order->delivery_address) ? json_decode($order->delivery_address, true) : []);
+    $deliveryDistrictId = $notes['delivery_address']['district_id']
+        ?? $deliveryAddrCol['district_id']
+        ?? null;
     $deliveryDistrictName = $notes['delivery_district_name']
-        ?? (\DB::table('districts')->find($notes['delivery_address']['district_id'] ?? 0)?->name ?? '—');
+        ?? ($deliveryDistrictId ? \DB::table('districts')->find($deliveryDistrictId)?->name : null)
+        ?? '—';
 @endphp
 <div class="section-title">Parcel Details</div>
 <div class="detail-grid">

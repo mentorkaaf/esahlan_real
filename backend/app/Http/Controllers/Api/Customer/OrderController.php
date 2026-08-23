@@ -104,11 +104,12 @@ class OrderController extends Controller
             $parcelDetails = [
                 'sender_name'       => $note['pickup']['name']    ?? $request->user()->name,
                 'sender_phone'      => $note['pickup']['phone']   ?? $request->user()->phone,
-                'pickup_district'   => $pickupDistrict,
+                'pickup_district'   => $pickupDistrict ?? $note['pickup_district_name'] ?? null,
                 'recipient_name'    => $note['recipient']         ?? null,
                 'recipient_phone'   => $note['recipient_phone']   ?? null,
-                'delivery_district' => $deliveryDistrict,
+                'delivery_district' => $deliveryDistrict ?? $note['delivery_district_name'] ?? null,
                 'description'       => $note['description']       ?? null,
+                'parcel_type'       => $note['parcel_type']       ?? null,
             ];
         }
 
