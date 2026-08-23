@@ -215,254 +215,167 @@ class _OrdersList extends ConsumerWidget {
       );
 }
 
-// ── Analytics Dashboard ───────────────────────────────────────────────────────
+// ── Analytics Dashboard (compact single card) ────────────────────────────────
 class _AnalyticsDashboard extends StatelessWidget {
   final Map<String, dynamic> data;
   const _AnalyticsDashboard({required this.data});
 
   @override
   Widget build(BuildContext context) {
-    final total   = data['total'] ?? 0;
-    final today   = data['today'] ?? 0;
-    final week    = data['this_week'] ?? 0;
-    final month   = data['this_month'] ?? 0;
-    final year    = data['this_year'] ?? 0;
+    final total   = (data['total'] as num?)?.toInt() ?? 0;
+    final today   = (data['today'] as num?)?.toInt() ?? 0;
+    final week    = (data['this_week'] as num?)?.toInt() ?? 0;
+    final month   = (data['this_month'] as num?)?.toInt() ?? 0;
+    final year    = (data['this_year'] as num?)?.toInt() ?? 0;
     final spent   = (data['total_spent'] as num?)?.toDouble() ?? 0;
     final modules = (data['modules'] as List?) ?? [];
     final trend   = (data['trend'] as List?) ?? [];
+    final maxTrend = trend.fold<int>(1, (m, t) => math.max(m, (t['count'] as int? ?? 0)));
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Hero total card ──────────────────────────────────────────────
-          _HeroCard(total: total, spent: spent),
-          const SizedBox(height: 14),
-
-          // ── Period stats row ─────────────────────────────────────────────
-          Row(children: [
-            Expanded(child: _PeriodStat(label: 'Today', value: today, icon: Icons.wb_sunny_rounded, color: const Color(0xFFFF8A00))),
-            const SizedBox(width: 10),
-            Expanded(child: _PeriodStat(label: 'This Week', value: week, icon: Icons.date_range_rounded, color: const Color(0xFF5C6BC0))),
-            const SizedBox(width: 10),
-            Expanded(child: _PeriodStat(label: 'This Month', value: month, icon: Icons.calendar_month_rounded, color: const Color(0xFF26A69A))),
-            const SizedBox(width: 10),
-            Expanded(child: _PeriodStat(label: 'This Year', value: year, icon: Icons.bar_chart_rounded, color: const Color(0xFFAB47BC))),
-          ]),
-          const SizedBox(height: 14),
-
-          // ── 6-month trend chart ──────────────────────────────────────────
-          if (trend.isNotEmpty) ...[
-            _SectionHeader('Order Trend', '6 months'),
-            const SizedBox(height: 10),
-            _TrendChart(trend: trend.cast<Map>()),
-            const SizedBox(height: 14),
-          ],
-
-          // ── Module breakdown ─────────────────────────────────────────────
-          if (modules.isNotEmpty) ...[
-            _SectionHeader('By Module', '${modules.length} services'),
-            const SizedBox(height: 10),
-            ...modules.map((m) => _ModuleRow(m: Map<String, dynamic>.from(m as Map), total: total)),
-            const SizedBox(height: 6),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _HeroCard extends StatelessWidget {
-  final int total;
-  final double spent;
-  const _HeroCard({required this.total, required this.spent});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(22),
+      margin: const EdgeInsets.fromLTRB(16, 14, 16, 6),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF07003B), Color(0xFF1B0F6E)],
+          colors: [Color(0xFF07003B), Color(0xFF160B5C)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: const Color(0xFF07003B).withValues(alpha: 0.35), blurRadius: 20, offset: const Offset(0, 8))],
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [BoxShadow(color: const Color(0xFF07003B).withValues(alpha: 0.3), blurRadius: 16, offset: const Offset(0, 6))],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Total Orders', style: TextStyle(color: Colors.white.withValues(alpha: 0.65), fontSize: 12, fontWeight: FontWeight.w600)),
-              const SizedBox(height: 4),
-              Text('$total', style: const TextStyle(color: Colors.white, fontSize: 40, fontWeight: FontWeight.w900, height: 1)),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
-                child: Text('All Time', style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 11, fontWeight: FontWeight.w600)),
-              ),
+          // ── Row 1: totals + mini bar chart ──────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                // Left: total orders + spent
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('My Orders', style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+                    const SizedBox(height: 2),
+                    Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
+                      Text('$total', style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w900, height: 1)),
+                      const SizedBox(width: 6),
+                      Text('orders', style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 11, fontWeight: FontWeight.w500)),
+                      const SizedBox(width: 14),
+                      Text('\$${spent.toStringAsFixed(2)}', style: const TextStyle(color: Color(0xFFFF8A00), fontSize: 16, fontWeight: FontWeight.w800)),
+                    ]),
+                  ]),
+                ),
+                // Right: mini sparkline (6 bars)
+                if (trend.isNotEmpty)
+                  SizedBox(
+                    width: 72, height: 34,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: trend.map((t) {
+                        final c = (t['count'] as int? ?? 0);
+                        final h = maxTrend > 0 ? (c / maxTrend).clamp(0.06, 1.0) : 0.06;
+                        final isLast = t == trend.last;
+                        return Expanded(child: Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 1.5),
+                          height: 34 * h,
+                          decoration: BoxDecoration(
+                            color: isLast ? const Color(0xFFFF8A00) : Colors.white.withValues(alpha: 0.25),
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                        ));
+                      }).toList(),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          // ── Row 2: period pills ──────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(children: [
+              _PeriodPill('Today', today),
+              const SizedBox(width: 6),
+              _PeriodPill('Week', week),
+              const SizedBox(width: 6),
+              _PeriodPill('Month', month),
+              const SizedBox(width: 6),
+              _PeriodPill('Year', year),
             ]),
           ),
-          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            Text('Total Spent', style: TextStyle(color: Colors.white.withValues(alpha: 0.65), fontSize: 12, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 4),
-            Text('\$${spent.toStringAsFixed(2)}',
-                style: const TextStyle(color: Color(0xFFFF8A00), fontSize: 26, fontWeight: FontWeight.w900)),
-          ]),
+
+          const SizedBox(height: 12),
+
+          // ── Divider ──────────────────────────────────────────────────────
+          Container(height: 1, color: Colors.white.withValues(alpha: 0.08), margin: const EdgeInsets.symmetric(horizontal: 16)),
+
+          // ── Row 3: module chips (horizontal scroll) ──────────────────────
+          if (modules.isNotEmpty)
+            SizedBox(
+              height: 48,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                itemCount: modules.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 6),
+                itemBuilder: (_, i) {
+                  final m     = Map<String, dynamic>.from(modules[i] as Map);
+                  final slug  = m['slug'] as String? ?? '';
+                  final count = (m['count'] as num?)?.toInt() ?? 0;
+                  final color = _modColor(slug);
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: color.withValues(alpha: 0.35), width: 1),
+                    ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Text(_modIcon(slug), style: const TextStyle(fontSize: 12)),
+                      const SizedBox(width: 5),
+                      Text(_modLabel(slug), style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+                      const SizedBox(width: 5),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(color: color.withValues(alpha: 0.35), borderRadius: BorderRadius.circular(10)),
+                        child: Text('$count', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
+                      ),
+                    ]),
+                  );
+                },
+              ),
+            )
+          else
+            const SizedBox(height: 12),
         ],
       ),
     );
   }
 }
 
-class _PeriodStat extends StatelessWidget {
+class _PeriodPill extends StatelessWidget {
   final String label;
   final int value;
-  final IconData icon;
-  final Color color;
-  const _PeriodStat({required this.label, required this.value, required this.icon, required this.color});
+  const _PeriodPill(this.label, this.value);
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-      decoration: BoxDecoration(
-        color: context.colors.cardBg,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)],
-      ),
-      child: Column(children: [
-        Container(
-          width: 36, height: 36,
-          decoration: BoxDecoration(color: color.withValues(alpha: 0.12), shape: BoxShape.circle),
-          child: Icon(icon, color: color, size: 18),
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 5),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(8),
         ),
-        const SizedBox(height: 8),
-        Text('$value', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: context.colors.navyText)),
-        const SizedBox(height: 2),
-        Text(label, style: const TextStyle(fontSize: 9, color: AppColors.textGrey, fontWeight: FontWeight.w600), textAlign: TextAlign.center, maxLines: 2),
-      ]),
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  final String title, sub;
-  const _SectionHeader(this.title, this.sub);
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(children: [
-      Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: context.colors.navyText)),
-      const SizedBox(width: 8),
-      Text(sub, style: const TextStyle(fontSize: 11, color: AppColors.textGrey)),
-    ]);
-  }
-}
-
-// ── 6-month bar chart ─────────────────────────────────────────────────────────
-class _TrendChart extends StatelessWidget {
-  final List<Map> trend;
-  const _TrendChart({required this.trend});
-
-  @override
-  Widget build(BuildContext context) {
-    final maxVal = trend.fold<int>(1, (m, t) => math.max(m, (t['count'] as int? ?? 0)));
-    return Container(
-      height: 100,
-      padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
-      decoration: BoxDecoration(
-        color: context.colors.cardBg,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: trend.map((t) {
-          final count = t['count'] as int? ?? 0;
-          final frac  = maxVal > 0 ? count / maxVal : 0.0;
-          return Expanded(
-            child: Column(mainAxisAlignment: MainAxisAlignment.end, children: [
-              if (count > 0)
-                Text('$count', style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: AppColors.primary)),
-              const SizedBox(height: 3),
-              Flexible(
-                child: FractionallySizedBox(
-                  heightFactor: frac.clamp(0.04, 1.0),
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [AppColors.primary, const Color(0xFF4A3AE0)],
-                        begin: Alignment.bottomCenter,
-                        end: Alignment.topCenter,
-                      ),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(t['month'] as String? ?? '', style: const TextStyle(fontSize: 9, color: AppColors.textGrey, fontWeight: FontWeight.w600)),
-            ]),
-          );
-        }).toList(),
-      ),
-    );
-  }
-}
-
-// ── Module row ────────────────────────────────────────────────────────────────
-class _ModuleRow extends StatelessWidget {
-  final Map<String, dynamic> m;
-  final int total;
-  const _ModuleRow({required this.m, required this.total});
-
-  @override
-  Widget build(BuildContext context) {
-    final slug  = m['slug'] as String? ?? '';
-    final count = m['count'] as int? ?? 0;
-    final spent = (m['spent'] as num?)?.toDouble() ?? 0;
-    final color = _modColor(slug);
-    final pct   = total > 0 ? count / total : 0.0;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: context.colors.cardBg,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)],
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Text(_modIcon(slug), style: const TextStyle(fontSize: 18)),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(_modLabel(slug),
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.colors.navyText)),
-          ),
-          Text('$count orders',
-              style: const TextStyle(fontSize: 12, color: AppColors.textGrey, fontWeight: FontWeight.w600)),
-          const SizedBox(width: 8),
-          Text('\$${spent.toStringAsFixed(2)}',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: color)),
+        child: Column(children: [
+          Text('$value', style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900, height: 1)),
+          const SizedBox(height: 2),
+          Text(label, style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 9, fontWeight: FontWeight.w600)),
         ]),
-        const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: LinearProgressIndicator(
-            value: pct,
-            minHeight: 5,
-            backgroundColor: color.withValues(alpha: 0.12),
-            valueColor: AlwaysStoppedAnimation(color),
-          ),
-        ),
-      ]),
+      ),
     );
   }
 }
@@ -474,18 +387,10 @@ class _AnalyticsShimmer extends StatelessWidget {
     return Shimmer.fromColors(
       baseColor: Colors.grey.shade200,
       highlightColor: Colors.grey.shade100,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-        child: Column(children: [
-          Container(height: 100, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20))),
-          const SizedBox(height: 14),
-          Row(children: List.generate(4, (_) => Expanded(child: Container(
-            height: 80, margin: const EdgeInsets.symmetric(horizontal: 4),
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
-          )))),
-          const SizedBox(height: 14),
-          Container(height: 100, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16))),
-        ]),
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+        height: 120,
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18)),
       ),
     );
   }
