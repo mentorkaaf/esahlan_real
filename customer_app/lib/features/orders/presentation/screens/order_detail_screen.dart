@@ -1,12 +1,14 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:printing/printing.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../../../core/utils/error_handler.dart';
 import '../../../../core/widgets/network_image_widget.dart';
 import '../providers/order_provider.dart';
 import '../../data/models/order_model.dart';
+import '../../services/picking_slip_pdf.dart';
 import '../../../../core/l10n/app_strings.dart';
 
 const _navy  = Color(0xFF07003B);
@@ -60,6 +62,12 @@ class _OrderDetailBody extends StatelessWidget {
             onPressed: () => context.pop(),
           ),
           actions: [
+            // Picking Slip button
+            IconButton(
+              tooltip: 'Picking Slip',
+              icon: const Icon(Icons.receipt_outlined, color: Colors.white, size: 22),
+              onPressed: () => _openPickingSlip(context, order),
+            ),
             if (order.isActive)
               TextButton.icon(
                 onPressed: () => context.push('/orders/$orderId/tracking'),
@@ -258,6 +266,31 @@ class _OrderDetailBody extends StatelessWidget {
                 const SizedBox(height: 14),
               ],
 
+              // ── Picking Slip button ────────────────────────────────
+              GestureDetector(
+                onTap: () => _openPickingSlip(context, order),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF07003B), Color(0xFF1B0F6E)],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [BoxShadow(color: const Color(0xFF07003B).withOpacity(0.3),
+                      blurRadius: 10, offset: const Offset(0, 4))],
+                  ),
+                  child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    const Icon(Icons.receipt_outlined, color: Color(0xFFFF8A00), size: 20),
+                    const SizedBox(width: 8),
+                    const Text('View Picking Slip',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800,
+                        fontSize: 14, letterSpacing: 0.5)),
+                  ]),
+                ),
+              ),
+              const SizedBox(height: 12),
+
               // ── Cancel button ──────────────────────────────────────
               if (order.status == 'pending')
                 _CancelButton(orderId: orderId, ref: ref),
@@ -277,6 +310,28 @@ class _OrderDetailBody extends StatelessWidget {
       case 'preparing':      return Icons.restaurant_outlined;
       case 'out_for_delivery': return Icons.delivery_dining_rounded;
       default:               return Icons.receipt_long_outlined;
+    }
+  }
+
+  Future<void> _openPickingSlip(BuildContext context, OrderModel order) async {
+    try {
+      // Show loading snackbar
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Generating picking slip...'),
+          duration: Duration(seconds: 1)),
+      );
+      final pdfBytes = await PickingSlipPdf.generate(order);
+      await Printing.layoutPdf(
+        onLayout: (_) async => pdfBytes,
+        name: 'PickingSlip-${order.orderNumber}.pdf',
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red),
+        );
+      }
     }
   }
 }
