@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\CustomerLocationUpdated;
 use App\Events\OrderChatMessageSent;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
@@ -82,6 +83,32 @@ class OrderChatController extends Controller
                 'created_at'  => $createdAt,
             ],
         ]);
+    }
+
+    // ── POST /orders/{order}/chat/location (customer only) ───────────────────
+    public function shareLocation(Request $request, Order $order)
+    {
+        if (!$this->canAccess($request, $order)) {
+            return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
+        }
+
+        // Only the customer (order owner) can share their location
+        if ($order->user_id !== $request->user()->id) {
+            return response()->json(['success' => false, 'message' => 'Only the customer can share location'], 403);
+        }
+
+        $request->validate([
+            'lat' => 'required|numeric|between:-90,90',
+            'lng' => 'required|numeric|between:-180,180',
+        ]);
+
+        broadcast(new CustomerLocationUpdated(
+            orderId: $order->id,
+            lat:     (float) $request->lat,
+            lng:     (float) $request->lng,
+        ));
+
+        return response()->json(['success' => true]);
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

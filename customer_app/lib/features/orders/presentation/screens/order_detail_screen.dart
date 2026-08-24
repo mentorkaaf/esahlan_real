@@ -19,6 +19,7 @@ import '../../services/picking_slip_pdf.dart';
 import '../../../../core/l10n/app_strings.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../../core/services/realtime_client.dart';
+import 'package:geolocator/geolocator.dart';
 
 const _navy  = Color(0xFF07003B);
 const _navyL = Color(0xFF1B0F6E);
@@ -663,6 +664,8 @@ class _DriverChatSheetState extends State<_DriverChatSheet> {
   final List<_ChatMsg> _msgs = [];
   bool _loading = true;
   bool _sending = false;
+  bool _sharingLocation = false;
+  String? _locationSharedAt;
 
   String get _channel => 'private-order-chat.${widget.orderId}';
 
@@ -726,6 +729,39 @@ class _DriverChatSheetState extends State<_DriverChatSheet> {
       await ApiClient.instance.post('/orders/${widget.orderId}/chat', data: {'message': text});
     } catch (_) {}
     if (mounted) setState(() => _sending = false);
+  }
+
+  @override
+  Future<void> _shareLocation() async {
+    if (_sharingLocation) return;
+    setState(() => _sharingLocation = true);
+    try {
+      final permission = await Geolocator.checkPermission();
+      LocationPermission perm = permission;
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+      if (perm == LocationPermission.deniedForever || perm == LocationPermission.denied) {
+        if (mounted) _showSnack('Location permission denied');
+        return;
+      }
+      final pos = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, timeLimit: Duration(seconds: 10)));
+      await ApiClient.instance.post('/orders/${widget.orderId}/chat/location',
+          data: {'lat': pos.latitude, 'lng': pos.longitude});
+      if (mounted) {
+        setState(() => _locationSharedAt = 'Just now');
+        _showSnack('📍 Location shared with driver');
+      }
+    } catch (e) {
+      if (mounted) _showSnack('Could not get location');
+    } finally {
+      if (mounted) setState(() => _sharingLocation = false);
+    }
+  }
+
+  void _showSnack(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), duration: const Duration(seconds: 2)));
   }
 
   @override
@@ -804,27 +840,64 @@ class _DriverChatSheetState extends State<_DriverChatSheet> {
                   );
                 },
               )),
+          // Location share bar
+          if (_locationSharedAt != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              color: const Color(0xFF22C55E).withOpacity(0.1),
+              child: Row(children: [
+                const Icon(Icons.location_on_rounded, color: Color(0xFF22C55E), size: 14),
+                const SizedBox(width: 6),
+                Text('Location shared • $_locationSharedAt',
+                    style: const TextStyle(color: Color(0xFF22C55E), fontSize: 12, fontWeight: FontWeight.w600)),
+                const Spacer(),
+                GestureDetector(
+                  onTap: _shareLocation,
+                  child: const Text('Update', style: TextStyle(color: Color(0xFF22C55E), fontSize: 12, fontWeight: FontWeight.w700)),
+                ),
+              ]),
+            ),
           // Input
           SafeArea(
             top: false,
-            child: Padding(padding: const EdgeInsets.fromLTRB(12, 8, 12, 8), child: Row(children: [
-              Expanded(child: TextField(
-                controller: _ctrl,
-                decoration: InputDecoration(
-                  hintText: 'Message driver...',
-                  filled: true,
-                  fillColor: context.colors.cardBg,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: Padding(padding: const EdgeInsets.fromLTRB(12, 8, 12, 8), child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Row(children: [
+                // Share location button
+                GestureDetector(
+                  onTap: _shareLocation,
+                  child: Container(
+                    width: 44, height: 44,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF22C55E).withOpacity(0.12),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0xFF22C55E).withOpacity(0.3)),
+                    ),
+                    child: _sharingLocation
+                      ? const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF22C55E)))
+                      : const Icon(Icons.location_on_rounded, color: Color(0xFF22C55E), size: 20),
+                  ),
                 ),
-              )),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: _send,
-                child: Container(width: 44, height: 44,
-                  decoration: const BoxDecoration(color: Color(0xFF07003B), shape: BoxShape.circle),
-                  child: const Icon(Icons.send_rounded, color: Colors.white, size: 20)),
-              ),
+                const SizedBox(width: 8),
+                Expanded(child: TextField(
+                  controller: _ctrl,
+                  decoration: InputDecoration(
+                    hintText: 'Message driver...',
+                    filled: true,
+                    fillColor: context.colors.cardBg,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  ),
+                )),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: _send,
+                  child: Container(width: 44, height: 44,
+                    decoration: const BoxDecoration(color: Color(0xFF07003B), shape: BoxShape.circle),
+                    child: const Icon(Icons.send_rounded, color: Colors.white, size: 20)),
+                ),
+              ]),
             ])),
           ),
         ]),

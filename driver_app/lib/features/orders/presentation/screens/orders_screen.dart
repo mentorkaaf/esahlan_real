@@ -435,11 +435,14 @@ class _ActiveCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.dc;
-    final vendor = order['vendor'] as Map<String, dynamic>?;
-    final customer = order['customer'] as Map<String, dynamic>?;
+    // formatOrder returns pickup/delivery keys
+    final pickup   = (order['pickup']   ?? order['vendor'])   as Map<String, dynamic>?;
+    final delivery = (order['delivery'] ?? order['customer']) as Map<String, dynamic>?;
     final module = (order['module_slug'] ?? '').toString();
     final fee = double.tryParse('${order['delivery_fee'] ?? 0}') ?? 0;
     final status = order['status']?.toString() ?? '';
+    final orderId = (order['id'] as num).toInt();
+    final customerPhone = delivery?['phone']?.toString();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -461,20 +464,58 @@ class _ActiveCard extends StatelessWidget {
             child: Text(status.replaceAll('_', ' '), style: const TextStyle(color: DC.success, fontSize: 10, fontWeight: FontWeight.w700))),
         ]),
         const SizedBox(height: 12),
-        Text(vendor?['name'] ?? '', style: TextStyle(color: c.text, fontWeight: FontWeight.w700, fontSize: 15)),
+        Text(pickup?['name'] ?? '—', style: TextStyle(color: c.text, fontWeight: FontWeight.w700, fontSize: 15)),
         const SizedBox(height: 4),
         Row(children: [
           Icon(Icons.person_rounded, color: c.textMuted, size: 14),
           const SizedBox(width: 4),
-          Text(customer?['name'] ?? '', style: TextStyle(color: c.textSec, fontSize: 13)),
+          Text(delivery?['name'] ?? '—', style: TextStyle(color: c.textSec, fontSize: 13)),
           const Spacer(),
           Text('\$${fee.toStringAsFixed(2)}', style: const TextStyle(color: DC.success, fontWeight: FontWeight.w800, fontSize: 14)),
         ]),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         Row(children: [
           Text('#${order['order_number'] ?? ''}', style: TextStyle(color: c.textMuted, fontSize: 11)),
           const Spacer(),
-          const Text('Tap for details →', style: TextStyle(color: DC.orange, fontSize: 11, fontWeight: FontWeight.w600)),
+          // Chat button
+          GestureDetector(
+            onTap: () => showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (_) => _CustomerChatSheet(customer: delivery, orderId: orderId),
+            ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: DC.success.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: DC.success.withValues(alpha: 0.3)),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                const Icon(Icons.chat_bubble_rounded, color: DC.success, size: 12),
+                const SizedBox(width: 4),
+                const Text('Chat', style: TextStyle(color: DC.success, fontSize: 11, fontWeight: FontWeight.w700)),
+              ]),
+            ),
+          ),
+          const SizedBox(width: 8),
+          if (customerPhone != null) GestureDetector(
+            onTap: () => launchUrl(Uri.parse('tel:$customerPhone')),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: DC.orange.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: DC.orange.withValues(alpha: 0.3)),
+              ),
+              child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.phone_rounded, color: DC.orange, size: 12),
+                SizedBox(width: 4),
+                Text('Call', style: TextStyle(color: DC.orange, fontSize: 11, fontWeight: FontWeight.w700)),
+              ]),
+            ),
+          ),
         ]),
       ]),
     );
@@ -494,20 +535,53 @@ class _ActiveDeliveryPage extends ConsumerStatefulWidget {
 
 class _ActiveDeliveryState extends ConsumerState<_ActiveDeliveryPage> {
   bool _loading = false;
+  LatLng? _customerLoc;
+
+  late final int _orderId;
+  late final String _realtimeChannel;
+
+  @override
+  void initState() {
+    super.initState();
+    _orderId = (widget.order['id'] as num).toInt();
+    _realtimeChannel = 'private-order-chat.$_orderId';
+    _subscribeCustomerLocation();
+  }
+
+  void _subscribeCustomerLocation() {
+    RealtimeService.instance.listen(_realtimeChannel, 'customer_location', _onCustomerLocation);
+  }
+
+  void _onCustomerLocation(dynamic data) {
+    if (!mounted) return;
+    final m = data is Map ? data : <String, dynamic>{};
+    final lat = double.tryParse('${m['lat'] ?? ''}');
+    final lng = double.tryParse('${m['lng'] ?? ''}');
+    if (lat != null && lng != null) {
+      setState(() => _customerLoc = LatLng(lat, lng));
+    }
+  }
+
+  @override
+  void dispose() {
+    RealtimeService.instance.removeListener(_realtimeChannel, 'customer_location', _onCustomerLocation);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final c = context.dc;
     final o = widget.order;
-    final vendor = o['vendor'] as Map<String, dynamic>?;
-    final customer = o['customer'] as Map<String, dynamic>?;
+    // API returns customer info under 'delivery' key (not 'customer')
+    final vendor   = (o['vendor']   ?? o['pickup'])   as Map<String, dynamic>?;
+    final customer = (o['delivery'] ?? o['customer']) as Map<String, dynamic>?;
     final module = (o['module_slug'] ?? '').toString();
     final distance = o['distance_km'];
     final status = o['status']?.toString() ?? '';
     final vLat = double.tryParse('${vendor?['lat'] ?? 0}') ?? 0;
     final vLng = double.tryParse('${vendor?['lng'] ?? 0}') ?? 0;
     final addr = o['delivery_address'];
-    final district = addr is Map ? (addr['district'] ?? addr['city'] ?? '') : '';
+    final district = customer?['district']?.toString() ?? (addr is Map ? (addr['district'] ?? addr['city'] ?? '') : '');
     final hasLoc = vLat != 0 && vLng != 0;
 
     final isPickup = status != 'out_for_delivery';
@@ -544,13 +618,20 @@ class _ActiveDeliveryState extends ConsumerState<_ActiveDeliveryPage> {
         ],
       ),
       body: Column(children: [
-        // Map
+        // Map (shows pickup + customer location when shared)
         if (hasLoc) SizedBox(height: 240, child: GoogleMap(
           initialCameraPosition: CameraPosition(target: LatLng(vLat, vLng), zoom: 14),
           markers: {
             Marker(markerId: const MarkerId('pickup'), position: LatLng(vLat, vLng),
               icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
               infoWindow: InfoWindow(title: 'Pickup', snippet: vendor?['name'])),
+            if (_customerLoc != null)
+              Marker(
+                markerId: const MarkerId('customer'),
+                position: _customerLoc!,
+                icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+                infoWindow: InfoWindow(title: customer?['name'] ?? 'Customer', snippet: 'Shared location'),
+              ),
           },
           myLocationEnabled: true, myLocationButtonEnabled: true,
           zoomControlsEnabled: false, mapToolbarEnabled: false,

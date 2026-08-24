@@ -624,8 +624,9 @@ Route::prefix('v1')->group(function () {
             Route::post('orders/{order}/cancel', [OrderController::class, 'cancel']);
             Route::get('orders/{order}/tracking', [OrderController::class, 'tracking']);
             // Order chat (customer ↔ driver real-time)
-            Route::get('orders/{order}/chat',  [OrderChatController::class, 'messages']);
-            Route::post('orders/{order}/chat', [OrderChatController::class, 'send']);
+            Route::get('orders/{order}/chat',               [OrderChatController::class, 'messages']);
+            Route::post('orders/{order}/chat',              [OrderChatController::class, 'send']);
+            Route::post('orders/{order}/chat/location',     [OrderChatController::class, 'shareLocation']);
 
             // Wallet + Payment (throttle:payment — max 10/min, fraud protection)
             Route::middleware('throttle:payment')->group(function () {
