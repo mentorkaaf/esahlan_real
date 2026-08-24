@@ -102,6 +102,14 @@ class _AvailableTab extends ConsumerWidget {
                       if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'), backgroundColor: DC.error));
                     }
                   },
+                  onDecline: () async {
+                    try {
+                      await ref.read(authRepoProvider).rejectOrder((list[i]['id'] as num).toInt());
+                      ref.invalidate(_availableProvider);
+                    } catch (e) {
+                      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'), backgroundColor: DC.error));
+                    }
+                  },
                 ),
               ),
             ),
@@ -116,7 +124,8 @@ class _AvailableTab extends ConsumerWidget {
 class _NewOrderCard extends StatelessWidget {
   final Map<String, dynamic> order;
   final VoidCallback onAccept;
-  const _NewOrderCard({required this.order, required this.onAccept});
+  final VoidCallback onDecline;
+  const _NewOrderCard({required this.order, required this.onAccept, required this.onDecline});
 
   static const _moduleLabels = {'efood': 'eFood Delivery', 'eshop': 'eShop Delivery', 'eparcel': 'eParcel Delivery', 'egrocery': 'eGrocery Delivery', 'elaundry': 'eLaundry Pickup', 'emoving': 'eMoving Service'};
 
@@ -243,7 +252,7 @@ class _NewOrderCard extends StatelessWidget {
                   Divider(color: c.divider, height: 14),
                   Text('Packages:', style: TextStyle(color: c.textMuted, fontSize: 11, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 4),
-                  ...(moving!['packages'] as List).map((p) => Padding(
+                  ...(moving?['packages'] as List).map((p) => Padding(
                     padding: const EdgeInsets.only(bottom: 2),
                     child: Text('• ${p is Map ? (p['name'] ?? p.toString()) : p}', style: TextStyle(color: c.textSec, fontSize: 11)),
                   )),
@@ -295,7 +304,7 @@ class _NewOrderCard extends StatelessWidget {
         // Decline / Accept
         Padding(padding: const EdgeInsets.all(14), child: Row(children: [
           Expanded(child: SizedBox(height: 48, child: OutlinedButton(
-            onPressed: () {},
+            onPressed: onDecline,
             style: OutlinedButton.styleFrom(foregroundColor: c.textSec, side: BorderSide(color: c.border), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
             child: const Text('Decline', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
           ))),

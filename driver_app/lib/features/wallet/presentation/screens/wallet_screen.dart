@@ -195,13 +195,14 @@ class WalletScreen extends ConsumerWidget {
                         accountNumber: accountCtrl.text.trim(),
                         accountName: nameCtrl.text.trim(),
                       );
+                      if (!ctx.mounted) return;
                       Navigator.pop(ctx);
                       ref.invalidate(_walletProvider);
                       ref.invalidate(_txnProvider);
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Withdrawal request submitted!'), backgroundColor: DC.success));
+                      if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Withdrawal request submitted!'), backgroundColor: DC.success));
                     } catch (e) {
                       setState(() => loading = false);
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'), backgroundColor: DC.error));
+                      if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('$e'), backgroundColor: DC.error));
                     }
                   },
                   child: loading

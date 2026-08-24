@@ -69,6 +69,10 @@ class AuthRepository {
     await _dio.post('/delivery/orders/$orderId/accept');
   }
 
+  Future<void> rejectOrder(int orderId) async {
+    await _dio.post('/delivery/orders/$orderId/reject');
+  }
+
   Future<void> updateOrderStatus(int orderId, String status) async {
     await _dio.post('/delivery/orders/$orderId/status', data: {'status': status});
   }
