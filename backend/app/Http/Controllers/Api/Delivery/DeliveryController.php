@@ -361,12 +361,19 @@ class DeliveryController extends Controller
             $dm->update(['status' => 'busy', 'is_available' => false]);
         });
 
-        // Notify customer
+        // Notify customer — driver accepted, include driver name
         try {
-            $order->load('user');
+            $order->load(['user', 'deliveryman.user']);
             if ($order->user?->fcm_token) {
-                \App\Services\FcmService::sendOrderUpdate(
-                    $order->user->fcm_token, $order->order_number, 'out_for_delivery', $order->id, $order->module_slug
+                $driverName  = $order->deliveryman?->user?->name ?? $dm->user?->name ?? 'a driver';
+                $driverPhone = $order->deliveryman?->user?->phone ?? $dm->user?->phone ?? '';
+                \App\Services\FcmService::sendDriverAssigned(
+                    $order->user->fcm_token,
+                    $order->order_number,
+                    $order->id,
+                    $order->module_slug,
+                    $driverName,
+                    $driverPhone
                 );
             }
         } catch (\Throwable) {}

@@ -217,6 +217,42 @@ class FcmService
         return $sent;
     }
 
+    // ── Driver assigned to customer ───────────────────────────────────────────
+    // Sent when admin dispatches or driver self-accepts an order.
+    public static function sendDriverAssigned(
+        string  $fcmToken,
+        string  $orderNumber,
+        int     $orderId,
+        ?string $moduleSlug,
+        string  $driverName,
+        string  $driverPhone,
+    ): bool {
+        $moduleLabel = match ($moduleSlug) {
+            'efood'    => 'your food',
+            'egrocery' => 'your groceries',
+            'eparcel'  => 'your parcel',
+            'eshop'    => 'your package',
+            'emoving'  => 'your move',
+            'elaundry' => 'your laundry',
+            default    => 'your order',
+        };
+
+        return self::sendToToken($fcmToken,
+            '🚴 Driver On the Way!',
+            "{$driverName} is delivering {$moduleLabel} (#$orderNumber). Call: {$driverPhone}",
+            [
+                'type'         => 'driver_assigned',
+                'order_id'     => (string) $orderId,
+                'order_number' => $orderNumber,
+                'status'       => 'out_for_delivery',
+                'module'       => (string) ($moduleSlug ?? ''),
+                'driver_name'  => $driverName,
+                'driver_phone' => $driverPhone,
+                'deep_link'    => '/orders/' . $orderId,
+            ]
+        );
+    }
+
     // ── Order status notification (uses DB templates) ─────────────────────────
     public static function sendOrderUpdate(
         string  $fcmToken,

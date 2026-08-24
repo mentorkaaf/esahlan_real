@@ -81,7 +81,12 @@ class OrderController extends Controller
         }
 
         try {
-            $order->load(['vendor:id,name,logo,phone,address', 'items.product:id,name,thumbnail,image', 'statusHistory']);
+            $order->load([
+                'vendor:id,name,logo,phone,address',
+                'items.product:id,name,thumbnail,image',
+                'statusHistory',
+                'deliveryman.user:id,name,phone',
+            ]);
         } catch (\Throwable) {
             $order->load(['vendor', 'items']);
         }
@@ -149,6 +154,14 @@ class OrderController extends Controller
                     ];
                 }),
                 'history'        => $order->statusHistory ?? [],
+                'driver'         => $order->deliveryman ? [
+                    'id'           => $order->deliveryman->id,
+                    'name'         => $order->deliveryman->user?->name ?? 'Driver',
+                    'phone'        => $order->deliveryman->user?->phone,
+                    'vehicle_type' => $order->deliveryman->vehicle_type,
+                    'rating'       => (float) ($order->deliveryman->rating ?? 5.0),
+                    'photo'        => $order->deliveryman->photo,
+                ] : null,
             ],
         ]);
     }

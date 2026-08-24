@@ -122,12 +122,30 @@ class DispatchController extends Controller
             $dm->update(['status' => 'busy', 'is_available' => false]);
         });
 
-        // Notify driver
+        // Notify driver (correct driver template)
         try {
-            if ($dm->fcm_token || $dm->user?->fcm_token) {
-                \App\Services\FcmService::sendOrderUpdate(
-                    $dm->fcm_token ?? $dm->user->fcm_token,
+            $driverToken = $dm->fcm_token ?? $dm->user?->fcm_token;
+            if ($driverToken) {
+                \App\Services\FcmService::sendDriverOrderUpdate(
+                    $driverToken,
                     $order->order_number, 'out_for_delivery', $order->id, $order->module_slug
+                );
+            }
+        } catch (\Throwable) {}
+
+        // Notify customer — driver assigned
+        try {
+            $order->load('user');
+            if ($order->user?->fcm_token) {
+                $driverName = $dm->user?->name ?? 'a driver';
+                $driverPhone = $dm->user?->phone ?? '';
+                \App\Services\FcmService::sendDriverAssigned(
+                    $order->user->fcm_token,
+                    $order->order_number,
+                    $order->id,
+                    $order->module_slug,
+                    $driverName,
+                    $driverPhone
                 );
             }
         } catch (\Throwable) {}

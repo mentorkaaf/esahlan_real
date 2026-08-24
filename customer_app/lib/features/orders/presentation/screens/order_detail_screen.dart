@@ -2,6 +2,7 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
@@ -179,6 +180,12 @@ class _OrderDetailBodyState extends State<_OrderDetailBody> {
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+
+              // ── Driver card (shown when driver is assigned) ────────
+              if (order.driver != null) ...[
+                _DriverCard(driver: order.driver!),
+                const SizedBox(height: 14),
+              ],
 
               // ── Parcel route card ──────────────────────────────────
               if (isParcel && order.parcelDetails != null) ...[
@@ -519,6 +526,247 @@ class _PickingSlipPreview extends StatelessWidget {
       ),
     );
   }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// DRIVER CARD
+// ══════════════════════════════════════════════════════════════════════════════
+
+class _DriverCard extends StatelessWidget {
+  final OrderDriverModel driver;
+  const _DriverCard({required this.driver});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: context.colors.cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF22C55E).withOpacity(0.3)),
+        boxShadow: [BoxShadow(color: const Color(0xFF22C55E).withOpacity(0.06), blurRadius: 12)],
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(width: 8, height: 8, decoration: const BoxDecoration(color: Color(0xFF22C55E), shape: BoxShape.circle,
+            boxShadow: [BoxShadow(color: Color(0x6622C55E), blurRadius: 6)])),
+          const SizedBox(width: 8),
+          const Text('YOUR DRIVER', style: TextStyle(color: Color(0xFF22C55E), fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1)),
+          const Spacer(),
+          // Star rating
+          Row(children: [
+            const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 14),
+            const SizedBox(width: 3),
+            Text(driver.rating.toStringAsFixed(1), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: Color(0xFFFFB800))),
+          ]),
+        ]),
+        const SizedBox(height: 14),
+        Row(children: [
+          // Avatar
+          Container(
+            width: 52, height: 52,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(colors: [Color(0xFF07003B), Color(0xFF1B0F6E)]),
+              shape: BoxShape.circle,
+            ),
+            child: Center(child: Text(
+              driver.name.isNotEmpty ? driver.name[0].toUpperCase() : 'D',
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 22),
+            )),
+          ),
+          const SizedBox(width: 14),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(driver.name, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText)),
+            if (driver.vehicleType != null)
+              Text(driver.vehicleType!.replaceAll('_', ' ').toUpperCase(),
+                style: const TextStyle(color: AppColors.textGrey, fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+          ])),
+        ]),
+        if (driver.phone != null) ...[
+          const SizedBox(height: 14),
+          Row(children: [
+            Expanded(child: _DriverActionBtn(
+              icon: Icons.phone_rounded,
+              label: 'Call Driver',
+              color: const Color(0xFF22C55E),
+              onTap: () async {
+                final uri = Uri.parse('tel:${driver.phone}');
+                // ignore: deprecated_member_use
+                if (await canLaunchUrl(uri)) launchUrl(uri);
+              },
+            )),
+            const SizedBox(width: 10),
+            Expanded(child: _DriverActionBtn(
+              icon: Icons.chat_bubble_rounded,
+              label: 'Chat',
+              color: const Color(0xFF3B82F6),
+              onTap: () => _openDriverChat(context, driver),
+            )),
+          ]),
+        ],
+      ]),
+    );
+  }
+
+  void _openDriverChat(BuildContext context, OrderDriverModel driver) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _DriverChatSheet(driver: driver),
+    );
+  }
+}
+
+class _DriverActionBtn extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+  const _DriverActionBtn({required this.icon, required this.label, required this.color, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.25)),
+        ),
+        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(icon, color: color, size: 16),
+          const SizedBox(width: 6),
+          Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 13)),
+        ]),
+      ),
+    );
+  }
+}
+
+class _DriverChatSheet extends StatefulWidget {
+  final OrderDriverModel driver;
+  const _DriverChatSheet({required this.driver});
+  @override
+  State<_DriverChatSheet> createState() => _DriverChatSheetState();
+}
+
+class _DriverChatSheetState extends State<_DriverChatSheet> {
+  final _ctrl = TextEditingController();
+  final List<_ChatMsg> _msgs = [];
+
+  @override
+  void dispose() { _ctrl.dispose(); super.dispose(); }
+
+  void _send() {
+    final text = _ctrl.text.trim();
+    if (text.isEmpty) return;
+    setState(() { _msgs.add(_ChatMsg(text: text, isMe: true)); });
+    _ctrl.clear();
+    // TODO: wire to CommunityChatController or dedicated order chat endpoint
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.7,
+      maxChildSize: 0.95,
+      minChildSize: 0.4,
+      builder: (_, sc) => Container(
+        decoration: BoxDecoration(
+          color: context.colors.scaffoldBg,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(children: [
+          // Handle
+          Container(margin: const EdgeInsets.only(top: 10), width: 36, height: 4,
+            decoration: BoxDecoration(color: context.colors.borderColor, borderRadius: BorderRadius.circular(2))),
+          // Header
+          Padding(padding: const EdgeInsets.fromLTRB(16, 12, 16, 0), child: Row(children: [
+            Container(width: 36, height: 36,
+              decoration: const BoxDecoration(color: Color(0xFF07003B), shape: BoxShape.circle),
+              child: Center(child: Text(widget.driver.name[0].toUpperCase(),
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16)))),
+            const SizedBox(width: 10),
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(widget.driver.name, style: TextStyle(fontWeight: FontWeight.w800, color: context.colors.navyText)),
+              const Text('Driver', style: TextStyle(color: AppColors.textGrey, fontSize: 11)),
+            ]),
+            const Spacer(),
+            if (widget.driver.phone != null)
+              IconButton(
+                icon: const Icon(Icons.phone_rounded, color: Color(0xFF22C55E)),
+                onPressed: () async {
+                  final uri = Uri.parse('tel:${widget.driver.phone}');
+                  // ignore: deprecated_member_use
+                  if (await canLaunchUrl(uri)) launchUrl(uri);
+                },
+              ),
+          ])),
+          const Divider(),
+          // Messages
+          Expanded(child: _msgs.isEmpty
+            ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.chat_bubble_outline_rounded, size: 48, color: context.colors.borderColor),
+                const SizedBox(height: 8),
+                Text('Send a message to your driver', style: TextStyle(color: context.colors.borderColor)),
+              ]))
+            : ListView.builder(
+                controller: sc,
+                padding: const EdgeInsets.all(16),
+                itemCount: _msgs.length,
+                itemBuilder: (_, i) {
+                  final m = _msgs[i];
+                  return Align(
+                    alignment: m.isMe ? Alignment.centerRight : Alignment.centerLeft,
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: m.isMe ? const Color(0xFF07003B) : context.colors.cardBg,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Text(m.text, style: TextStyle(
+                        color: m.isMe ? Colors.white : context.colors.navyText, fontSize: 14)),
+                    ),
+                  );
+                },
+              )),
+          // Input
+          SafeArea(
+            top: false,
+            child: Padding(padding: const EdgeInsets.fromLTRB(12, 8, 12, 8), child: Row(children: [
+              Expanded(child: TextField(
+                controller: _ctrl,
+                decoration: InputDecoration(
+                  hintText: 'Message driver...',
+                  filled: true,
+                  fillColor: context.colors.cardBg,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                ),
+              )),
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: _send,
+                child: Container(width: 44, height: 44,
+                  decoration: const BoxDecoration(color: Color(0xFF07003B), shape: BoxShape.circle),
+                  child: const Icon(Icons.send_rounded, color: Colors.white, size: 20)),
+              ),
+            ])),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+class _ChatMsg {
+  final String text;
+  final bool isMe;
+  const _ChatMsg({required this.text, required this.isMe});
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

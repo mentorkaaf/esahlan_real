@@ -519,6 +519,16 @@ class _ActiveDeliveryState extends ConsumerState<_ActiveDeliveryPage> {
         backgroundColor: c.navyLight,
         title: Text('Active Delivery', style: TextStyle(fontWeight: FontWeight.w800, color: c.text)),
         actions: [
+          if (customer != null) IconButton(
+            icon: const Icon(Icons.chat_bubble_rounded, color: DC.success),
+            tooltip: 'Chat with customer',
+            onPressed: () => showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (_) => _CustomerChatSheet(customer: customer!),
+            ),
+          ),
           if (customer?['phone'] != null) IconButton(
             icon: const Icon(Icons.phone_rounded, color: DC.success),
             onPressed: () => launchUrl(Uri.parse('tel:${customer!['phone']}')),
@@ -879,6 +889,122 @@ class _PhotoConfirmState extends ConsumerState<_PhotoConfirmPage> {
         const SizedBox(height: 10),
         TextButton(onPressed: _loading ? null : _confirm, child: Text('Skip photo', style: TextStyle(color: c.textMuted))),
       ])),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// CUSTOMER CHAT SHEET (driver → customer)
+// ══════════════════════════════════════════════════════════════════
+
+class _CustomerChatSheet extends StatefulWidget {
+  final Map<String, dynamic> customer;
+  const _CustomerChatSheet({required this.customer});
+  @override
+  State<_CustomerChatSheet> createState() => _CustomerChatSheetState();
+}
+
+class _CustomerChatSheetState extends State<_CustomerChatSheet> {
+  final _ctrl = TextEditingController();
+  final List<({String text, bool isMe})> _msgs = [];
+
+  @override
+  void dispose() { _ctrl.dispose(); super.dispose(); }
+
+  void _send() {
+    final text = _ctrl.text.trim();
+    if (text.isEmpty) return;
+    setState(() => _msgs.add((text: text, isMe: true)));
+    _ctrl.clear();
+    // TODO: wire to order chat API endpoint
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.dc;
+    final name = widget.customer['name'] ?? 'Customer';
+    final phone = widget.customer['phone']?.toString();
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.75,
+      maxChildSize: 0.95,
+      minChildSize: 0.5,
+      builder: (_, sc) => Container(
+        decoration: BoxDecoration(
+          color: c.navy,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(children: [
+          Container(margin: const EdgeInsets.only(top: 10), width: 36, height: 4,
+            decoration: BoxDecoration(color: c.border, borderRadius: BorderRadius.circular(2))),
+          Padding(padding: const EdgeInsets.fromLTRB(16, 14, 8, 0), child: Row(children: [
+            Container(width: 38, height: 38,
+              decoration: BoxDecoration(color: DC.success.withValues(alpha: 0.15), shape: BoxShape.circle),
+              child: Center(child: Text(name.isNotEmpty ? name[0].toUpperCase() : 'C',
+                style: const TextStyle(color: DC.success, fontWeight: FontWeight.w900, fontSize: 16)))),
+            const SizedBox(width: 10),
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(name, style: TextStyle(fontWeight: FontWeight.w800, color: c.text)),
+              Text('Customer', style: TextStyle(color: c.textMuted, fontSize: 11)),
+            ]),
+            const Spacer(),
+            if (phone != null)
+              IconButton(icon: const Icon(Icons.phone_rounded, color: DC.success),
+                onPressed: () => launchUrl(Uri.parse('tel:$phone'))),
+          ])),
+          Divider(color: c.border),
+          Expanded(child: _msgs.isEmpty
+            ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.chat_bubble_outline_rounded, size: 48, color: c.textMuted.withValues(alpha: 0.3)),
+                const SizedBox(height: 8),
+                Text('Send a message to your customer', style: TextStyle(color: c.textMuted)),
+              ]))
+            : ListView.builder(
+                controller: sc,
+                padding: const EdgeInsets.all(16),
+                itemCount: _msgs.length,
+                itemBuilder: (_, i) {
+                  final m = _msgs[i];
+                  return Align(
+                    alignment: m.isMe ? Alignment.centerRight : Alignment.centerLeft,
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: m.isMe ? DC.orange : c.card,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Text(m.text, style: TextStyle(color: m.isMe ? Colors.white : c.text, fontSize: 14)),
+                    ),
+                  );
+                },
+              )),
+          SafeArea(
+            top: false,
+            child: Padding(padding: const EdgeInsets.fromLTRB(12, 8, 12, 8), child: Row(children: [
+              Expanded(child: TextField(
+                controller: _ctrl,
+                style: TextStyle(color: c.text),
+                decoration: InputDecoration(
+                  hintText: 'Message customer...',
+                  hintStyle: TextStyle(color: c.textMuted),
+                  filled: true,
+                  fillColor: c.card,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                ),
+              )),
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: _send,
+                child: Container(width: 44, height: 44,
+                  decoration: const BoxDecoration(color: DC.orange, shape: BoxShape.circle),
+                  child: const Icon(Icons.send_rounded, color: Colors.white, size: 20)),
+              ),
+            ])),
+          ),
+        ]),
+      ),
     );
   }
 }

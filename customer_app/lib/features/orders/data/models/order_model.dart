@@ -17,6 +17,7 @@ class OrderModel {
   final String createdAt;
   final Map<String, dynamic>? parcelDetails;
   final dynamic history;
+  final OrderDriverModel? driver;
 
   const OrderModel({
     required this.id,
@@ -35,6 +36,7 @@ class OrderModel {
     required this.createdAt,
     this.parcelDetails,
     this.history,
+    this.driver,
   });
 
   factory OrderModel.fromJson(Map<String, dynamic> j) => OrderModel(
@@ -61,6 +63,7 @@ class OrderModel {
         ? Map<String, dynamic>.from(j['parcel_details'])
         : null,
     history: j['history'],
+    driver: j['driver'] is Map ? OrderDriverModel.fromJson(Map<String, dynamic>.from(j['driver'])) : null,
   );
 
   String get statusLabel {
@@ -82,6 +85,33 @@ class OrderModel {
   }
 
   bool get isActive => !['delivered', 'cancelled', 'failed'].contains(status);
+}
+
+class OrderDriverModel {
+  final int id;
+  final String name;
+  final String? phone;
+  final String? vehicleType;
+  final double rating;
+  final String? photo;
+
+  const OrderDriverModel({
+    required this.id,
+    required this.name,
+    this.phone,
+    this.vehicleType,
+    this.rating = 5.0,
+    this.photo,
+  });
+
+  factory OrderDriverModel.fromJson(Map<String, dynamic> j) => OrderDriverModel(
+    id: j['id'] as int,
+    name: j['name'] ?? 'Driver',
+    phone: j['phone']?.toString(),
+    vehicleType: j['vehicle_type']?.toString(),
+    rating: (j['rating'] as num?)?.toDouble() ?? 5.0,
+    photo: j['photo']?.toString(),
+  );
 }
 
 class OrderItemModel {
