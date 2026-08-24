@@ -50,6 +50,9 @@ return Application::configure(basePath: dirname(__DIR__))
         // CORS must run before everything — prepend to global stack
         $middleware->prepend(\Illuminate\Http\Middleware\HandleCors::class);
 
+        // CSP header — strict for public/API, permissive for admin/vendor panels
+        $middleware->append(\App\Http\Middleware\ContentSecurityPolicy::class);
+
         $middleware->api(prepend: [
             \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
         ]);
