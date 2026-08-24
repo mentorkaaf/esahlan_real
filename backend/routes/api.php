@@ -52,6 +52,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\Auth\AuthController;
 
 // ─── Customer ────────────────────────────────────────────────────────────────
+use App\Http\Controllers\Api\OrderChatController;
 use App\Http\Controllers\Api\Customer\HomeController;
 use App\Http\Controllers\Api\Customer\OrderController;
 use App\Http\Controllers\Api\Customer\WalletController;
@@ -622,6 +623,9 @@ Route::prefix('v1')->group(function () {
             Route::get('orders/{order}',    [OrderController::class, 'show']);
             Route::post('orders/{order}/cancel', [OrderController::class, 'cancel']);
             Route::get('orders/{order}/tracking', [OrderController::class, 'tracking']);
+            // Order chat (customer ↔ driver real-time)
+            Route::get('orders/{order}/chat',  [OrderChatController::class, 'messages']);
+            Route::post('orders/{order}/chat', [OrderChatController::class, 'send']);
 
             // Wallet + Payment (throttle:payment — max 10/min, fraud protection)
             Route::middleware('throttle:payment')->group(function () {
@@ -920,6 +924,9 @@ Route::prefix('v1')->group(function () {
             Route::get('wallet/transactions',               [DeliveryController::class, 'walletTransactions']);
             Route::post('wallet/withdraw',                  [DeliveryController::class, 'withdrawRequest']);
             Route::post('documents/upload',                 [DeliveryController::class, 'uploadDocument']);
+            // Order chat (driver ↔ customer) — same controller, role:deliveryman guard
+            Route::get('orders/{order}/chat',               [OrderChatController::class, 'messages']);
+            Route::post('orders/{order}/chat',              [OrderChatController::class, 'send']);
         });
 
         // ─── VENDOR ───────────────────────────────────────────────

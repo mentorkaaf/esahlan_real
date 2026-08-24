@@ -6,6 +6,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:dio/dio.dart';
 import 'dart:io';
 import 'dart:async';
+import '../../../../core/services/realtime_service.dart';
 import '../../../../core/theme/driver_colors.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -526,7 +527,10 @@ class _ActiveDeliveryState extends ConsumerState<_ActiveDeliveryPage> {
               context: context,
               isScrollControlled: true,
               backgroundColor: Colors.transparent,
-              builder: (_) => _CustomerChatSheet(customer: customer!),
+              builder: (_) => _CustomerChatSheet(
+                customer: customer,
+                orderId: (o['id'] as num).toInt(),
+              ),
             ),
           ),
           if (customer?['phone'] != null) IconButton(
@@ -894,36 +898,102 @@ class _PhotoConfirmState extends ConsumerState<_PhotoConfirmPage> {
 }
 
 // ══════════════════════════════════════════════════════════════════
-// CUSTOMER CHAT SHEET (driver → customer)
+// CUSTOMER CHAT SHEET (driver → customer, real-time via Reverb)
 // ══════════════════════════════════════════════════════════════════
 
 class _CustomerChatSheet extends StatefulWidget {
-  final Map<String, dynamic> customer;
-  const _CustomerChatSheet({required this.customer});
+  final Map<String, dynamic>? customer;
+  final int orderId;
+  const _CustomerChatSheet({required this.customer, required this.orderId});
   @override
   State<_CustomerChatSheet> createState() => _CustomerChatSheetState();
 }
 
 class _CustomerChatSheetState extends State<_CustomerChatSheet> {
   final _ctrl = TextEditingController();
+  final _scrollCtrl = ScrollController();
   final List<({String text, bool isMe})> _msgs = [];
+  bool _loading = true;
+  bool _sending = false;
+
+  String get _channel => 'private-order-chat.${widget.orderId}';
 
   @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
+  void initState() {
+    super.initState();
+    _loadHistory();
+    _subscribeRealtime();
+  }
 
-  void _send() {
-    final text = _ctrl.text.trim();
+  Future<void> _loadHistory() async {
+    try {
+      final resp = await ApiClient.instance.get('/delivery/orders/${widget.orderId}/chat');
+      final data = resp.data as Map<String, dynamic>;
+      final msgs = (data['data'] as List?) ?? [];
+      if (mounted) {
+        setState(() {
+          _msgs.clear();
+          for (final m in msgs) {
+            _msgs.add((text: m['message'] as String, isMe: m['sender_type'] == 'driver'));
+          }
+          _loading = false;
+        });
+        _scrollToBottom();
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _subscribeRealtime() {
+    RealtimeService.instance.listen(_channel, 'new_message', _onRealtime);
+  }
+
+  void _onRealtime(dynamic data) {
+    if (!mounted) return;
+    final m = data is Map ? data : <String, dynamic>{};
+    final senderType = m['sender_type'] as String? ?? '';
+    final text = m['message'] as String? ?? '';
     if (text.isEmpty) return;
-    setState(() => _msgs.add((text: text, isMe: true)));
+    setState(() => _msgs.add((text: text, isMe: senderType == 'driver')));
+    _scrollToBottom();
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollCtrl.hasClients) {
+        _scrollCtrl.animateTo(_scrollCtrl.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
+      }
+    });
+  }
+
+  Future<void> _send() async {
+    final text = _ctrl.text.trim();
+    if (text.isEmpty || _sending) return;
     _ctrl.clear();
-    // TODO: wire to order chat API endpoint
+    setState(() { _msgs.add((text: text, isMe: true)); _sending = true; });
+    _scrollToBottom();
+    try {
+      await ApiClient.instance.post('/delivery/orders/${widget.orderId}/chat',
+          data: {'message': text});
+    } catch (_) {}
+    if (mounted) setState(() => _sending = false);
+  }
+
+  @override
+  void dispose() {
+    RealtimeService.instance.removeListener(_channel, 'new_message', _onRealtime);
+    _ctrl.dispose();
+    _scrollCtrl.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final c = context.dc;
-    final name = widget.customer['name'] ?? 'Customer';
-    final phone = widget.customer['phone']?.toString();
+    final name = (widget.customer?['name'] ?? 'Customer') as String;
+    final phone = widget.customer?['phone']?.toString();
 
     return DraggableScrollableSheet(
       initialChildSize: 0.75,
@@ -953,14 +1023,16 @@ class _CustomerChatSheetState extends State<_CustomerChatSheet> {
                 onPressed: () => launchUrl(Uri.parse('tel:$phone'))),
           ])),
           Divider(color: c.border),
-          Expanded(child: _msgs.isEmpty
+          Expanded(child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : _msgs.isEmpty
             ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
                 Icon(Icons.chat_bubble_outline_rounded, size: 48, color: c.textMuted.withValues(alpha: 0.3)),
                 const SizedBox(height: 8),
                 Text('Send a message to your customer', style: TextStyle(color: c.textMuted)),
               ]))
             : ListView.builder(
-                controller: sc,
+                controller: _scrollCtrl,
                 padding: const EdgeInsets.all(16),
                 itemCount: _msgs.length,
                 itemBuilder: (_, i) {

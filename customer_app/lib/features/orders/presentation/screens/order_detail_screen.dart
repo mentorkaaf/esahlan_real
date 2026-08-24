@@ -17,6 +17,8 @@ import '../providers/order_provider.dart';
 import '../../data/models/order_model.dart';
 import '../../services/picking_slip_pdf.dart';
 import '../../../../core/l10n/app_strings.dart';
+import '../../../../core/api/api_client.dart';
+import '../../../../core/services/realtime_client.dart';
 
 const _navy  = Color(0xFF07003B);
 const _navyL = Color(0xFF1B0F6E);
@@ -183,7 +185,7 @@ class _OrderDetailBodyState extends State<_OrderDetailBody> {
 
               // ── Driver card (shown when driver is assigned) ────────
               if (order.driver != null) ...[
-                _DriverCard(driver: order.driver!),
+                _DriverCard(driver: order.driver!, orderId: orderId),
                 const SizedBox(height: 14),
               ],
 
@@ -534,7 +536,8 @@ class _PickingSlipPreview extends StatelessWidget {
 
 class _DriverCard extends StatelessWidget {
   final OrderDriverModel driver;
-  const _DriverCard({required this.driver});
+  final int orderId;
+  const _DriverCard({required this.driver, required this.orderId});
 
   @override
   Widget build(BuildContext context) {
@@ -600,7 +603,7 @@ class _DriverCard extends StatelessWidget {
               icon: Icons.chat_bubble_rounded,
               label: 'Chat',
               color: const Color(0xFF3B82F6),
-              onTap: () => _openDriverChat(context, driver),
+              onTap: () => _openDriverChat(context, driver, orderId),
             )),
           ]),
         ],
@@ -608,12 +611,12 @@ class _DriverCard extends StatelessWidget {
     );
   }
 
-  void _openDriverChat(BuildContext context, OrderDriverModel driver) {
+  void _openDriverChat(BuildContext context, OrderDriverModel driver, int orderId) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _DriverChatSheet(driver: driver),
+      builder: (_) => _DriverChatSheet(driver: driver, orderId: orderId),
     );
   }
 }
@@ -648,24 +651,89 @@ class _DriverActionBtn extends StatelessWidget {
 
 class _DriverChatSheet extends StatefulWidget {
   final OrderDriverModel driver;
-  const _DriverChatSheet({required this.driver});
+  final int orderId;
+  const _DriverChatSheet({required this.driver, required this.orderId});
   @override
   State<_DriverChatSheet> createState() => _DriverChatSheetState();
 }
 
 class _DriverChatSheetState extends State<_DriverChatSheet> {
   final _ctrl = TextEditingController();
+  final _scrollCtrl = ScrollController();
   final List<_ChatMsg> _msgs = [];
+  bool _loading = true;
+  bool _sending = false;
+
+  String get _channel => 'private-order-chat.${widget.orderId}';
 
   @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
+  void initState() {
+    super.initState();
+    _loadHistory();
+    _subscribeRealtime();
+  }
 
-  void _send() {
-    final text = _ctrl.text.trim();
+  Future<void> _loadHistory() async {
+    try {
+      final resp = await ApiClient.instance.get('/orders/${widget.orderId}/chat');
+      final data = resp.data as Map<String, dynamic>;
+      final msgs = (data['data'] as List?) ?? [];
+      if (mounted) {
+        setState(() {
+          _msgs.clear();
+          for (final m in msgs) {
+            _msgs.add(_ChatMsg(text: m['message'] as String, isMe: m['sender_type'] == 'customer'));
+          }
+          _loading = false;
+        });
+        _scrollToBottom();
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _subscribeRealtime() {
+    RealtimeClient.instance.listen(_channel, 'new_message', _onRealtime);
+  }
+
+  void _onRealtime(dynamic data) {
+    if (!mounted) return;
+    final m = data is Map ? data : <String, dynamic>{};
+    final senderType = m['sender_type'] as String? ?? '';
+    final text = m['message'] as String? ?? '';
     if (text.isEmpty) return;
-    setState(() { _msgs.add(_ChatMsg(text: text, isMe: true)); });
+    setState(() => _msgs.add(_ChatMsg(text: text, isMe: senderType == 'customer')));
+    _scrollToBottom();
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollCtrl.hasClients) {
+        _scrollCtrl.animateTo(_scrollCtrl.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
+      }
+    });
+  }
+
+  Future<void> _send() async {
+    final text = _ctrl.text.trim();
+    if (text.isEmpty || _sending) return;
     _ctrl.clear();
-    // TODO: wire to CommunityChatController or dedicated order chat endpoint
+    setState(() { _msgs.add(_ChatMsg(text: text, isMe: true)); _sending = true; });
+    _scrollToBottom();
+    try {
+      await ApiClient.instance.post('/orders/${widget.orderId}/chat', data: {'message': text});
+    } catch (_) {}
+    if (mounted) setState(() => _sending = false);
+  }
+
+  @override
+  void dispose() {
+    RealtimeClient.instance.removeListener(_channel, 'new_message', _onRealtime);
+    _ctrl.dispose();
+    _scrollCtrl.dispose();
+    super.dispose();
   }
 
   @override
@@ -707,14 +775,16 @@ class _DriverChatSheetState extends State<_DriverChatSheet> {
           ])),
           const Divider(),
           // Messages
-          Expanded(child: _msgs.isEmpty
+          Expanded(child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : _msgs.isEmpty
             ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
                 Icon(Icons.chat_bubble_outline_rounded, size: 48, color: context.colors.borderColor),
                 const SizedBox(height: 8),
                 Text('Send a message to your driver', style: TextStyle(color: context.colors.borderColor)),
               ]))
             : ListView.builder(
-                controller: sc,
+                controller: _scrollCtrl,
                 padding: const EdgeInsets.all(16),
                 itemCount: _msgs.length,
                 itemBuilder: (_, i) {

@@ -2,46 +2,52 @@
 
 namespace App\Events;
 
-use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Broadcasting\PrivateChannel;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class DriverLocationUpdated implements ShouldBroadcast
+/**
+ * Admin live-map event — broadcasts driver GPS to the admin dispatch dashboard.
+ * Separate from OrderDriverLocationUpdated which targets the customer on the
+ * per-order chat channel.
+ */
+class DriverLocationUpdated implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public function __construct(
-        public int $driverId,
-        public int $userId,
-        public string $driverName,
-        public float $latitude,
-        public float $longitude,
-        public string $status,
-        public ?int $orderId = null,
+        public readonly int     $deliverymanId,
+        public readonly int     $userId,
+        public readonly string  $name,
+        public readonly float   $lat,
+        public readonly float   $lng,
+        public readonly string  $status,
+        public readonly ?int    $orderId = null,
     ) {}
 
-    public function broadcastOn(): Channel
+    public function broadcastOn(): array
     {
-        return new Channel('admin.drivers');
+        return [new PrivateChannel('admin.dispatch')];
     }
 
     public function broadcastAs(): string
     {
-        return 'location.updated';
+        return 'driver_location';
     }
 
     public function broadcastWith(): array
     {
         return [
-            'driver_id'   => $this->driverId,
-            'driver_name' => $this->driverName,
-            'latitude'    => $this->latitude,
-            'longitude'   => $this->longitude,
-            'status'      => $this->status,
-            'order_id'    => $this->orderId,
-            'timestamp'   => now()->toISOString(),
+            'deliveryman_id' => $this->deliverymanId,
+            'user_id'        => $this->userId,
+            'name'           => $this->name,
+            'lat'            => $this->lat,
+            'lng'            => $this->lng,
+            'status'         => $this->status,
+            'order_id'       => $this->orderId,
+            'updated_at'     => now()->toIso8601String(),
         ];
     }
 }

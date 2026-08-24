@@ -549,12 +549,11 @@ class DeliveryController extends Controller
                     'longitude'      => $request->longitude,
                     'created_at'     => now(),
                 ]);
-                // Broadcast to order channel for customer tracking
-                event(new DeliveryLocationUpdated(
+                // Broadcast to order-chat channel for customer real-time tracking
+                broadcast(new \App\Events\OrderDriverLocationUpdated(
                     $order->id,
-                    $request->latitude,
-                    $request->longitude,
-                    $order->status
+                    (float) $request->latitude,
+                    (float) $request->longitude,
                 ));
             }
         }

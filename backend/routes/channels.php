@@ -117,6 +117,20 @@ Broadcast::channel('ewholesale.order.{orderId}', function ($user, $orderId) {
 });
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Order chat — customer who owns the order OR the assigned driver
+Broadcast::channel('order-chat.{orderId}', function ($user, $orderId) {
+    $order = \App\Models\Order::find($orderId);
+    if (!$order) return false;
+    // Customer
+    if ((int) $order->user_id === (int) $user->id) return true;
+    // Driver
+    if ($order->deliveryman_id) {
+        $dm = \App\Models\Deliveryman::where('user_id', $user->id)->first();
+        if ($dm && (int) $dm->id === (int) $order->deliveryman_id) return true;
+    }
+    return false;
+});
+
 // Inbox support chat — user in conversation OR assigned admin/agent
 Broadcast::channel('inbox.{conversationUuid}', function ($user, $conversationUuid) {
     $conv = \App\Models\InboxConversation::where('uuid', $conversationUuid)->first();
