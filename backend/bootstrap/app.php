@@ -53,6 +53,9 @@ return Application::configure(basePath: dirname(__DIR__))
         // CSP header — strict for public/API, permissive for admin/vendor panels
         $middleware->append(\App\Http\Middleware\ContentSecurityPolicy::class);
 
+        // Strip server-disclosure headers (X-Powered-By, X-Runtime, etc.)
+        $middleware->append(\App\Http\Middleware\SanitizeResponseHeaders::class);
+
         $middleware->api(prepend: [
             \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
         ]);

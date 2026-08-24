@@ -61,22 +61,48 @@ class AppServiceProvider extends ServiceProvider
 
     private function configureRateLimiting(): void
     {
-        // Auth endpoints (unauthenticated — keyed by IP)
+        // Auth endpoints — dual key: IP + identifier
+        // Prevents distributed attacks (many IPs → one account)
+        // and single-IP spray attacks (one IP → many accounts)
         RateLimiter::for('auth', function (Request $request) {
-            return Limit::perMinute(10)->by($request->ip())
-                ->response(fn () => response()->json([
-                    'success' => false,
-                    'message' => 'Too many requests. Slow down.',
-                ], 429));
+            $identifier = strtolower(trim(
+                $request->input('phone') ?? $request->input('email') ?? 'unknown'
+            ));
+            return [
+                // Per-IP: 10 attempts/min (spray attack protection)
+                Limit::perMinute(10)->by('auth:ip:' . $request->ip())
+                    ->response(fn () => response()->json([
+                        'success' => false,
+                        'message' => 'Too many requests from your network. Try again in a minute.',
+                    ], 429)),
+                // Per-identifier: 5 attempts/min (credential stuffing protection)
+                Limit::perMinute(5)->by('auth:id:' . $identifier)
+                    ->response(fn () => response()->json([
+                        'success' => false,
+                        'message' => 'Too many attempts for this account. Try again in a minute.',
+                    ], 429)),
+            ];
         });
 
-        // OTP: stricter — 5 per 5 minutes per IP to prevent SMS pumping
+        // OTP: dual key — IP + phone/email (SMS pumping + account enumeration protection)
         RateLimiter::for('otp', function (Request $request) {
-            return Limit::perMinutes(5, 5)->by($request->ip())
-                ->response(fn () => response()->json([
-                    'success' => false,
-                    'message' => 'Too many OTP requests. Try again in 5 minutes.',
-                ], 429));
+            $identifier = strtolower(trim(
+                $request->input('phone') ?? $request->input('email') ?? 'unknown'
+            ));
+            return [
+                // Per-IP: 5 OTPs per 10 minutes
+                Limit::perMinutes(10, 5)->by('otp:ip:' . $request->ip())
+                    ->response(fn () => response()->json([
+                        'success' => false,
+                        'message' => 'Too many OTP requests from your network. Try again in 10 minutes.',
+                    ], 429)),
+                // Per-identifier: 3 OTPs per 10 minutes (strict — prevents SMS cost abuse)
+                Limit::perMinutes(10, 3)->by('otp:id:' . $identifier)
+                    ->response(fn () => response()->json([
+                        'success' => false,
+                        'message' => 'Too many OTP requests for this number. Try again in 10 minutes.',
+                    ], 429)),
+            ];
         });
 
         // Standard authenticated API calls
