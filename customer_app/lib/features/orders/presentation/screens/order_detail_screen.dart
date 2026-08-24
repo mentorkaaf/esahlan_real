@@ -679,19 +679,24 @@ class _DriverChatSheetState extends State<_DriverChatSheet> {
   Future<void> _loadHistory() async {
     try {
       final resp = await ApiClient.instance.get('/orders/${widget.orderId}/chat');
-      final data = resp.data as Map<String, dynamic>;
-      final msgs = (data['data'] as List?) ?? [];
+      final data = resp.data;
+      final List msgs = (data is Map ? data['data'] : null) ?? [];
       if (mounted) {
         setState(() {
           _msgs.clear();
           for (final m in msgs) {
-            _msgs.add(_ChatMsg(text: m['message'] as String, isMe: m['sender_type'] == 'customer'));
+            if (m is Map) {
+              _msgs.add(_ChatMsg(
+                text: (m['message'] ?? '').toString(),
+                isMe: m['sender_type'] == 'customer',
+              ));
+            }
           }
           _loading = false;
         });
         _scrollToBottom();
       }
-    } catch (_) {
+    } catch (e) {
       if (mounted) setState(() => _loading = false);
     }
   }
@@ -731,30 +736,41 @@ class _DriverChatSheetState extends State<_DriverChatSheet> {
     if (mounted) setState(() => _sending = false);
   }
 
-  @override
   Future<void> _shareLocation() async {
     if (_sharingLocation) return;
     setState(() => _sharingLocation = true);
     try {
-      final permission = await Geolocator.checkPermission();
-      LocationPermission perm = permission;
+      // Check if location service is enabled
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (mounted) _showSnack('Please enable GPS in settings');
+        return;
+      }
+      // Check / request permission
+      LocationPermission perm = await Geolocator.checkPermission();
       if (perm == LocationPermission.denied) {
         perm = await Geolocator.requestPermission();
       }
-      if (perm == LocationPermission.deniedForever || perm == LocationPermission.denied) {
-        if (mounted) _showSnack('Location permission denied');
+      if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
+        if (mounted) _showSnack('Location permission required');
         return;
       }
+      // Get position — 30s timeout, medium accuracy is faster than high for first fix
       final pos = await Geolocator.getCurrentPosition(
-          locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, timeLimit: Duration(seconds: 10)));
-      await ApiClient.instance.post('/orders/${widget.orderId}/chat/location',
-          data: {'lat': pos.latitude, 'lng': pos.longitude});
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium),
+      ).timeout(const Duration(seconds: 30), onTimeout: () {
+        throw Exception('GPS timeout — try again');
+      });
+      await ApiClient.instance.post(
+        '/orders/${widget.orderId}/chat/location',
+        data: {'lat': pos.latitude, 'lng': pos.longitude},
+      );
       if (mounted) {
         setState(() => _locationSharedAt = 'Just now');
         _showSnack('📍 Location shared with driver');
       }
     } catch (e) {
-      if (mounted) _showSnack('Could not get location');
+      if (mounted) _showSnack(e.toString().contains('GPS') ? 'GPS timeout — try again outdoors' : 'Could not share location');
     } finally {
       if (mounted) setState(() => _sharingLocation = false);
     }

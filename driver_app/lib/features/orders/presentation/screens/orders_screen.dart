@@ -1009,19 +1009,24 @@ class _CustomerChatSheetState extends State<_CustomerChatSheet> {
   Future<void> _loadHistory() async {
     try {
       final resp = await ApiClient.instance.get('/delivery/orders/${widget.orderId}/chat');
-      final data = resp.data as Map<String, dynamic>;
-      final msgs = (data['data'] as List?) ?? [];
+      final data = resp.data;
+      final List msgs = (data is Map ? data['data'] : null) ?? [];
       if (mounted) {
         setState(() {
           _msgs.clear();
           for (final m in msgs) {
-            _msgs.add((text: m['message'] as String, isMe: m['sender_type'] == 'driver'));
+            if (m is Map) {
+              _msgs.add((
+                text: (m['message'] ?? '').toString(),
+                isMe: m['sender_type'] == 'driver',
+              ));
+            }
           }
           _loading = false;
         });
         _scrollToBottom();
       }
-    } catch (_) {
+    } catch (e) {
       if (mounted) setState(() => _loading = false);
     }
   }

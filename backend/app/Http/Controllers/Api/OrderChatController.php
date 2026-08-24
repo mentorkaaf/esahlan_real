@@ -118,13 +118,13 @@ class OrderChatController extends Controller
         $user = $request->user();
         if (!$user) return false;
 
-        // Customer owns the order
-        if ($order->user_id === $user->id) return true;
+        // Customer owns the order (loose == handles int/string mismatch)
+        if ((int) $order->user_id === (int) $user->id) return true;
 
         // Driver is assigned to the order
         if ($order->deliveryman_id) {
             $dm = \App\Models\Deliveryman::where('user_id', $user->id)->first();
-            if ($dm && $dm->id === $order->deliveryman_id) return true;
+            if ($dm && (int) $dm->id === (int) $order->deliveryman_id) return true;
         }
 
         return false;
