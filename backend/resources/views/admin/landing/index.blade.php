@@ -258,6 +258,11 @@ textarea.lfi{padding-top:12px;resize:vertical;min-height:90px;line-height:1.65}
             <div class="lpm-nav-text"><span class="lpm-nav-name">Logos</span><span class="lpm-nav-desc">Nav, hero & footer</span></div>
         </a>
     <div class="lpm-nav-sep"></div>
+        <a class="lpm-nav-item" style="--item-color:#22c55e" onclick="nav('sections',this)">
+            <div class="lpm-nav-icon" style="background:linear-gradient(135deg,#22c55e,#16a34a)"><i class="fas fa-toggle-on"></i></div>
+            <div class="lpm-nav-text"><span class="lpm-nav-name">Section Visibility</span><span class="lpm-nav-desc">Show / hide sections</span></div>
+        </a>
+    <div class="lpm-nav-sep"></div>
         <a class="lpm-nav-item" style="--item-color:#ec4899" onclick="nav('espace',this)">
             <div class="lpm-nav-icon" style="background:linear-gradient(135deg,#ec4899,#be185d)"><i class="fas fa-users"></i></div>
             <div class="lpm-nav-text"><span class="lpm-nav-name">eSpace</span><span class="lpm-nav-desc">Community section</span></div>
@@ -815,21 +820,171 @@ textarea.lfi{padding-top:12px;resize:vertical;min-height:90px;line-height:1.65}
         @include('admin.landing._savebar')
     </div>
 
+    {{-- ══════ SECTION VISIBILITY ══════ --}}
+    <div class="lpm-panel" id="pan-sections">
+        <div class="lpm-panel-hero" style="background:linear-gradient(135deg,#16a34a 0%,#15803d 60%,#166534 100%)">
+            <div class="lpm-panel-hero-left">
+                <div class="lpm-panel-hero-icon"><i class="fas fa-toggle-on"></i></div>
+                <div><h2>Section Visibility</h2><p>Show or hide any section or service card on esahlan.com — changes take effect in real-time</p></div>
+            </div>
+            <div class="lpm-panel-hero-badge"><i class="fas fa-bolt"></i> Realtime</div>
+        </div>
+
+        @php
+        $landingSections = \App\Models\LandingSection::orderBy('sort_order')->get();
+        $topSections = $landingSections->where('parent_slug', null)->values();
+        $groupGradients = [
+            'hero'       => ['#f97316','#ea580c','fas fa-star'],
+            'services'   => ['#0ea5e9','#0284c7','fas fa-th-large'],
+            'espace'     => ['#ec4899','#be185d','fas fa-play-circle'],
+            'why_esahlan'=> ['#10b981','#059669','fas fa-check-circle'],
+            'cta'        => ['#6366f1','#4f46e5','fas fa-rocket'],
+        ];
+        $itemColors = [
+            'efood'=>'#f97316','eshop'=>'#0ea5e9','ewholesale'=>'#8b5cf6',
+            'egrocery'=>'#10b981','eparcel'=>'#f59e0b','elaundry'=>'#06b6d4',
+            'emoving'=>'#ef4444','ehealth'=>'#ec4899','erent'=>'#6366f1',
+            'eticket'=>'#84cc16','eexchange'=>'#14b8a6','edata'=>'#a78bfa',
+            'feed_reels'=>'#ec4899','live_streaming'=>'#ef4444','podcasts'=>'#f59e0b',
+            'premium_content'=>'#8b5cf6','business_advertising'=>'#f97316',
+            'direct_messages'=>'#0ea5e9','stories'=>'#10b981',
+            'hashtag_discovery'=>'#06b6d4','follow_connect'=>'#6366f1',
+        ];
+        @endphp
+
+        <style>
+        .sv-group{background:var(--bg);border:1.5px solid var(--border);border-radius:14px;margin-bottom:14px;overflow:hidden}
+        .sv-group-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;cursor:pointer;user-select:none}
+        .sv-group-head-left{display:flex;align-items:center;gap:12px}
+        .sv-gicon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:.85rem;color:#fff;flex-shrink:0}
+        .sv-gtitle{font-size:.9rem;font-weight:800;color:var(--text)}
+        .sv-gmeta{font-size:.7rem;color:var(--text-muted);margin-top:2px}
+        .sv-chevron{font-size:.68rem;color:var(--text-muted);transition:transform .2s}
+        .sv-group.open .sv-chevron{transform:rotate(180deg)}
+        .sv-children{display:none;padding:0 18px 16px;border-top:1px solid var(--border)}
+        .sv-group.open .sv-children{display:block}
+        .sv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;margin-top:14px}
+        .sv-item{background:var(--surface);border:1.5px solid var(--border);border-radius:11px;padding:11px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;transition:all .18s}
+        .sv-item.sv-disabled{opacity:.45}
+        .sv-item-left{display:flex;align-items:center;gap:9px;min-width:0}
+        .sv-dot{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.65rem;color:#fff;flex-shrink:0}
+        .sv-name{font-size:.82rem;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .sv-disabled .sv-name{text-decoration:line-through;color:var(--text-muted)}
+        .sv-ts{position:relative;width:42px;height:23px;flex-shrink:0}
+        .sv-ts input{opacity:0;width:0;height:0;position:absolute}
+        .sv-ts-sl{position:absolute;inset:0;background:var(--border);border-radius:23px;cursor:pointer;transition:.22s}
+        .sv-ts-sl::before{content:'';position:absolute;width:17px;height:17px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.22s;box-shadow:0 1px 4px rgba(0,0,0,.2)}
+        .sv-ts input:checked+.sv-ts-sl{background:var(--sv-color,#22c55e)}
+        .sv-ts input:checked+.sv-ts-sl::before{transform:translateX(19px)}
+        .sv-info{display:flex;align-items:center;gap:10px;background:color-mix(in srgb,#22c55e 8%,transparent);border:1px solid color-mix(in srgb,#22c55e 20%,transparent);border-radius:11px;padding:12px 16px;margin-bottom:16px;font-size:.8rem;color:var(--text-muted)}
+        .sv-info i{color:#22c55e;flex-shrink:0}
+        .sv-master{display:flex;align-items:center;gap:9px}
+        .sv-master-lbl{font-size:.75rem;font-weight:700;color:var(--text-muted)}
+        </style>
+
+        <div class="sv-info">
+            <i class="fas fa-bolt"></i>
+            Each toggle instantly broadcasts to the landing page via WebSocket. The landing page uses <code style="background:rgba(0,0,0,.07);padding:1px 5px;border-radius:4px;font-size:.75rem">data-section="slug"</code> attributes to show/hide elements.
+        </div>
+
+        @foreach($topSections as $sec)
+        @php
+            $children = $landingSections->where('parent_slug', $sec->slug)->values();
+            $gc = $groupGradients[$sec->slug] ?? ['#64748b','#475569','fas fa-layer-group'];
+            $enabledKids = $children->where('is_enabled', true)->count();
+        @endphp
+        <div class="sv-group open" id="svg-{{ $sec->slug }}">
+            <div class="sv-group-head" onclick="svToggleGroup('{{ $sec->slug }}')">
+                <div class="sv-group-head-left">
+                    <div class="sv-gicon" style="background:linear-gradient(135deg,{{ $gc[0] }},{{ $gc[1] }})"><i class="{{ $gc[2] }}"></i></div>
+                    <div>
+                        <div class="sv-gtitle">{{ $sec->label }}</div>
+                        <div class="sv-gmeta">
+                            @if($children->count()) {{ $enabledKids }}/{{ $children->count() }} items enabled · @endif
+                            <span style="color:{{ $sec->is_enabled ? '#22c55e' : '#ef4444' }};font-weight:700">{{ $sec->is_enabled ? 'Visible' : 'Hidden' }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:14px" onclick="event.stopPropagation()">
+                    <div class="sv-master">
+                        <span class="sv-master-lbl">Section</span>
+                        <label class="sv-ts" style="--sv-color:{{ $gc[0] }}">
+                            <input type="checkbox" {{ $sec->is_enabled ? 'checked' : '' }} onchange="svToggle('{{ $sec->slug }}',this,'{{ $gc[0] }}')">
+                            <span class="sv-ts-sl"></span>
+                        </label>
+                    </div>
+                    <i class="fas fa-chevron-down sv-chevron"></i>
+                </div>
+            </div>
+
+            @if($children->count())
+            <div class="sv-children">
+                <div class="sv-grid">
+                    @foreach($children as $child)
+                    @php $cc = $itemColors[$child->slug] ?? '#64748b'; @endphp
+                    <div class="sv-item {{ $child->is_enabled ? '' : 'sv-disabled' }}" id="svi-{{ $child->slug }}">
+                        <div class="sv-item-left">
+                            <div class="sv-dot" style="background:{{ $cc }}cc"><i class="{{ $child->icon ?? 'fas fa-circle' }}"></i></div>
+                            <span class="sv-name">{{ $child->label }}</span>
+                        </div>
+                        <label class="sv-ts" style="--sv-color:{{ $cc }}">
+                            <input type="checkbox" {{ $child->is_enabled ? 'checked' : '' }} onchange="svToggle('{{ $child->slug }}',this,'{{ $cc }}')">
+                            <span class="sv-ts-sl"></span>
+                        </label>
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+            @endif
+        </div>
+        @endforeach
+
+        <script>
+        function svToggleGroup(slug){
+            var g=document.getElementById('svg-'+slug);
+            g.classList.toggle('open');
+        }
+        function svToggle(slug, cb, color){
+            var item = document.getElementById('svi-'+slug);
+            if(item){ item.classList.toggle('sv-disabled', !cb.checked); }
+            var token = document.querySelector('meta[name="csrf-token"]');
+            fetch('/admin/landing-sections/'+slug+'/toggle',{
+                method:'POST',
+                headers:{
+                    'X-CSRF-TOKEN': token ? token.content : '{{ csrf_token() }}',
+                    'Accept':'application/json',
+                    'Content-Type':'application/json'
+                }
+            })
+            .then(r=>r.json())
+            .then(d=>{
+                showToast((d.is_enabled?'✅ ':'🔴 ')+slug+' '+(d.is_enabled?'enabled':'disabled'));
+            })
+            .catch(()=>{
+                cb.checked = !cb.checked;
+                if(item) item.classList.toggle('sv-disabled', !cb.checked);
+                showToast('❌ Failed — try again');
+            });
+        }
+        </script>
+    </div>
+
 </div>{{-- /lpm-content --}}
 </div>{{-- /lpm-root --}}
 </form>
 
 <script>
 var panelMeta={
-    logos:   {name:'Brand Logos',    desc:'Upload the eSahlan logo for the navbar, hero section, and footer.'},
-    hero:    {name:'Hero',          desc:'Control the headline, subtitle, and action buttons at the top of the page.'},
-    stats:   {name:'Stats Bar',     desc:'Edit the 4 key numbers shown beneath the hero section.'},
-    how:     {name:'How It Works',  desc:'Section heading for the 3-step ordering process.'},
-    why:     {name:'Why eSahlan',   desc:'Key differentiators — heading, subtitle, and feature highlights.'},
-    espace:  {name:'eSpace',        desc:'Community section heading for the 9-card social feature grid.'},
-    join:    {name:'Join Network',  desc:'Role cards for Drivers, Vendors, and Property Agents.'},
-    cta:     {name:'Registration CTA', desc:'Main call-to-action with sign-up cards and visibility toggles.'},
-    download:{name:'Download App',  desc:'App store links, heading, and phone mockup image slots.'},
+    logos:    {name:'Brand Logos',         desc:'Upload the eSahlan logo for the navbar, hero section, and footer.'},
+    hero:     {name:'Hero',               desc:'Control the headline, subtitle, and action buttons at the top of the page.'},
+    stats:    {name:'Stats Bar',          desc:'Edit the 4 key numbers shown beneath the hero section.'},
+    how:      {name:'How It Works',       desc:'Section heading for the 3-step ordering process.'},
+    why:      {name:'Why eSahlan',        desc:'Key differentiators — heading, subtitle, and feature highlights.'},
+    sections: {name:'Section Visibility', desc:'Show or hide any section or service card on esahlan.com in real-time.'},
+    espace:   {name:'eSpace',             desc:'Community section heading for the 9-card social feature grid.'},
+    join:     {name:'Join Network',       desc:'Role cards for Drivers, Vendors, and Property Agents.'},
+    cta:      {name:'Registration CTA',   desc:'Main call-to-action with sign-up cards and visibility toggles.'},
+    download: {name:'Download App',       desc:'App store links, heading, and phone mockup image slots.'},
 };
 function handleUpload(key, input) {
     if (!input.files || !input.files[0]) return;
