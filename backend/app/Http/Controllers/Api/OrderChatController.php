@@ -103,11 +103,13 @@ class OrderChatController extends Controller
             voiceUrl:    $row['voice_url'],
         ));
 
-        // FCM to the other party (only for text + voice, not location_request)
-        if (in_array($msgType, ['text', 'voice'])) {
-            $fcmBody = $msgType === 'voice' ? '🎵 Voice message' : $row['message'];
-            $this->notifyOtherParty($order, $senderType, $senderName, $fcmBody);
-        }
+        // FCM to the other party
+        $fcmBody = match ($msgType) {
+            'voice'            => '🎵 ' . $senderName . ' sent a voice message',
+            'location_request' => '📍 ' . $senderName . ' is requesting your location',
+            default            => $row['message'],
+        };
+        $this->notifyOtherParty($order, $senderType, $senderName, $fcmBody);
 
         return response()->json([
             'success' => true,
@@ -178,6 +180,9 @@ class OrderChatController extends Controller
             lat:     $lat,
             lng:     $lng,
         ));
+
+        // FCM notify driver that customer shared location
+        $this->notifyOtherParty($order, 'customer', $this->senderName($request), '📍 Customer shared their location');
 
         return response()->json(['success' => true, 'data' => ['id' => $id, 'lat' => $lat, 'lng' => $lng]]);
     }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:dio/dio.dart';
 import 'package:audio_waveforms/audio_waveforms.dart' hide PlayerState;
 import 'package:audioplayers/audioplayers.dart';
@@ -1099,7 +1100,11 @@ class _CustomerChatSheetState extends State<_CustomerChatSheet> {
     if (!hasPermission) { _showSnack('Microphone permission required'); return; }
     final dir = await getTemporaryDirectory();
     final path = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
-    await _recorder.record(path: path);
+    await _recorder.record(
+      path: path,
+      sampleRate: 44100,
+      bitRate: 128000,
+    );
     setState(() { _recording = true; _recordSeconds = 0; });
     _recordTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() => _recordSeconds++);
@@ -1128,8 +1133,18 @@ class _CustomerChatSheetState extends State<_CustomerChatSheet> {
         'message_type': 'voice',
         'voice': await MultipartFile.fromFile(path, filename: 'voice.m4a'),
       });
-      await ApiClient.instance.post('/delivery/orders/${widget.orderId}/chat', data: form);
-    } catch (_) {}
+      await ApiClient.instance.post(
+        '/delivery/orders/${widget.orderId}/chat',
+        data: form,
+        options: Options(
+          contentType: 'multipart/form-data',
+          sendTimeout: const Duration(seconds: 60),
+        ),
+      );
+    } catch (e) {
+      debugPrint('[DriverChat] voice send failed: $e');
+      if (mounted) _showSnack('Failed to send voice message');
+    }
     if (mounted) setState(() => _sending = false);
   }
 
@@ -1481,41 +1496,292 @@ class _DriverLocationBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final mapUrl = 'https://maps.googleapis.com/maps/api/staticmap'
-        '?center=$lat,$lng&zoom=15&size=280x140'
-        '&markers=color:red|$lat,$lng&key=$_driverMapsKey';
-    final bgColor = isMe ? DC.orange : c.card;
+    final bgColor = isMe ? DC.orange : c.navyLight;
+    final label   = isMe ? 'My location' : "Customer's location";
+    final subLabel = isMe ? 'Tap to view on map' : 'Tap to navigate to customer';
 
     return GestureDetector(
-      onTap: () async {
-        final uri = Uri.parse('https://maps.google.com/?q=$lat,$lng');
-        // ignore: deprecated_member_use
-        if (await canLaunchUrl(uri)) launchUrl(uri, mode: LaunchMode.externalApplication);
+      onTap: () {
+        // Driver side: open full in-app map showing customer + driver positions
+        Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => _CustomerLocationMapScreen(
+            customerLat: lat,
+            customerLng: lng,
+            title: isMe ? 'My Location' : "Customer's Location",
+          ),
+        ));
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
-        decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(16)),
+        width: 240,
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(16),
+          border: isMe ? null : Border.all(color: DC.success.withValues(alpha: 0.3)),
+        ),
         clipBehavior: Clip.hardEdge,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Image.network(mapUrl, width: 220, height: 120, fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                  width: 220, height: 120, color: Colors.grey.shade800,
-                  child: const Icon(Icons.map_outlined, size: 40, color: Colors.grey))),
+          // Mini map preview via GoogleMap (non-interactive)
+          SizedBox(
+            height: 130,
+            child: GoogleMap(
+              initialCameraPosition: CameraPosition(
+                target: LatLng(lat, lng),
+                zoom: 15,
+              ),
+              markers: {
+                Marker(
+                  markerId: const MarkerId('customer'),
+                  position: LatLng(lat, lng),
+                  icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+                ),
+              },
+              myLocationButtonEnabled: false,
+              myLocationEnabled: false,
+              zoomControlsEnabled: false,
+              scrollGesturesEnabled: false,
+              zoomGesturesEnabled: false,
+              tiltGesturesEnabled: false,
+              rotateGesturesEnabled: false,
+              liteModeEnabled: true,  // Lightweight static-like rendering
+            ),
+          ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
+            padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
             child: Row(children: [
-              const Icon(Icons.location_on_rounded, size: 14, color: DC.success),
-              const SizedBox(width: 4),
-              Text(isMe ? 'My location' : "Customer's location",
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
-                      color: isMe ? Colors.white70 : c.text)),
-              const SizedBox(width: 4),
-              Text('• Tap to open', style: TextStyle(fontSize: 11, color: c.textMuted)),
+              Icon(Icons.location_on_rounded, size: 16,
+                  color: isMe ? Colors.white70 : DC.success),
+              const SizedBox(width: 6),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(label, style: TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w700,
+                    color: isMe ? Colors.white : c.text)),
+                Text(subLabel, style: TextStyle(
+                    fontSize: 11, color: isMe ? Colors.white60 : c.textMuted)),
+              ])),
+              Icon(Icons.chevron_right_rounded, size: 18,
+                  color: isMe ? Colors.white60 : c.textMuted),
             ]),
           ),
         ]),
       ),
     );
+  }
+}
+
+// ── Full-screen customer location map (DoorDash-style) ─────────────────────────
+
+class _CustomerLocationMapScreen extends StatefulWidget {
+  final double customerLat, customerLng;
+  final String title;
+  const _CustomerLocationMapScreen({
+    required this.customerLat,
+    required this.customerLng,
+    required this.title,
+  });
+
+  @override
+  State<_CustomerLocationMapScreen> createState() => _CustomerLocationMapScreenState();
+}
+
+class _CustomerLocationMapScreenState extends State<_CustomerLocationMapScreen> {
+  GoogleMapController? _mapCtrl;
+  LatLng? _driverPos;
+  Set<Marker> _markers = {};
+  Set<Polyline> _polylines = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _init();
+  }
+
+  Future<void> _init() async {
+    // Customer marker
+    final customerLatLng = LatLng(widget.customerLat, widget.customerLng);
+    final markers = <Marker>{
+      Marker(
+        markerId: const MarkerId('customer'),
+        position: customerLatLng,
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+        infoWindow: const InfoWindow(title: 'Customer'),
+      ),
+    };
+
+    // Get driver's current location
+    try {
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+      );
+      final driverLatLng = LatLng(pos.latitude, pos.longitude);
+      markers.add(Marker(
+        markerId: const MarkerId('driver'),
+        position: driverLatLng,
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+        infoWindow: const InfoWindow(title: 'You'),
+      ));
+
+      // Draw route line between driver and customer
+      final polylines = <Polyline>{
+        Polyline(
+          polylineId: const PolylineId('route'),
+          points: [driverLatLng, customerLatLng],
+          color: const Color(0xFF1A73E8),
+          width: 4,
+          patterns: [PatternItem.dash(20), PatternItem.gap(10)],
+        ),
+      };
+
+      if (mounted) {
+        setState(() {
+          _driverPos = driverLatLng;
+          _markers = markers;
+          _polylines = polylines;
+        });
+
+        // Fit camera to show both markers
+        final bounds = LatLngBounds(
+          southwest: LatLng(
+            pos.latitude < widget.customerLat ? pos.latitude : widget.customerLat,
+            pos.longitude < widget.customerLng ? pos.longitude : widget.customerLng,
+          ),
+          northeast: LatLng(
+            pos.latitude > widget.customerLat ? pos.latitude : widget.customerLat,
+            pos.longitude > widget.customerLng ? pos.longitude : widget.customerLng,
+          ),
+        );
+        await Future.delayed(const Duration(milliseconds: 500));
+        _mapCtrl?.animateCamera(CameraUpdate.newLatLngBounds(bounds, 80));
+      }
+    } catch (_) {
+      // GPS unavailable — just show customer marker
+      if (mounted) setState(() { _markers = markers; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.dc;
+    return Scaffold(
+      backgroundColor: c.navy,
+      appBar: AppBar(
+        backgroundColor: c.navyLight,
+        title: Text(widget.title,
+            style: TextStyle(color: c.text, fontWeight: FontWeight.w700)),
+        iconTheme: IconThemeData(color: c.text),
+        actions: [
+          // Open in Google Maps for navigation
+          IconButton(
+            icon: const Icon(Icons.navigation_rounded, color: DC.orange),
+            tooltip: 'Navigate',
+            onPressed: () async {
+              final uri = Uri.parse(
+                'https://www.google.com/maps/dir/?api=1'
+                '&destination=${widget.customerLat},${widget.customerLng}'
+                '&travelmode=driving',
+              );
+              if (await canLaunchUrl(uri)) launchUrl(uri, mode: LaunchMode.externalApplication);
+            },
+          ),
+        ],
+      ),
+      body: Stack(children: [
+        GoogleMap(
+          onMapCreated: (ctrl) => _mapCtrl = ctrl,
+          initialCameraPosition: CameraPosition(
+            target: LatLng(widget.customerLat, widget.customerLng),
+            zoom: 14,
+          ),
+          markers: _markers,
+          polylines: _polylines,
+          myLocationEnabled: true,
+          myLocationButtonEnabled: true,
+          zoomControlsEnabled: true,
+          mapType: MapType.normal,
+        ),
+        // Bottom info bar
+        Positioned(
+          left: 0, right: 0, bottom: 0,
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+            decoration: BoxDecoration(
+              color: c.navyLight,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 12)],
+            ),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Container(width: 40, height: 4,
+                  decoration: BoxDecoration(color: c.border, borderRadius: BorderRadius.circular(2))),
+              const SizedBox(height: 14),
+              Row(children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: DC.success.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.location_on_rounded, color: DC.success, size: 22),
+                ),
+                const SizedBox(width: 14),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text("Customer's Location",
+                      style: TextStyle(color: c.text,
+                          fontWeight: FontWeight.w700, fontSize: 15)),
+                  const SizedBox(height: 2),
+                  Text('${widget.customerLat.toStringAsFixed(5)}, ${widget.customerLng.toStringAsFixed(5)}',
+                      style: TextStyle(color: c.textMuted, fontSize: 12)),
+                ])),
+                if (_driverPos != null) ...[
+                  const SizedBox(width: 12),
+                  Column(children: [
+                    Text(_distanceText(), style: TextStyle(
+                        color: DC.orange, fontWeight: FontWeight.w800, fontSize: 16)),
+                    Text('away', style: TextStyle(color: c.textMuted, fontSize: 11)),
+                  ]),
+                ],
+              ]),
+              const SizedBox(height: 14),
+              SizedBox(width: double.infinity,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: DC.orange,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  icon: const Icon(Icons.navigation_rounded, color: Colors.white),
+                  label: const Text('Start Navigation',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
+                  onPressed: () async {
+                    final uri = Uri.parse(
+                      'https://www.google.com/maps/dir/?api=1'
+                      '&destination=${widget.customerLat},${widget.customerLng}'
+                      '&travelmode=driving',
+                    );
+                    if (await canLaunchUrl(uri)) launchUrl(uri, mode: LaunchMode.externalApplication);
+                  },
+                ),
+              ),
+            ]),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  String _distanceText() {
+    if (_driverPos == null) return '';
+    final dist = Geolocator.distanceBetween(
+      _driverPos!.latitude, _driverPos!.longitude,
+      widget.customerLat, widget.customerLng,
+    );
+    if (dist < 1000) return '${dist.toStringAsFixed(0)}m';
+    return '${(dist / 1000).toStringAsFixed(1)}km';
+  }
+
+  @override
+  void dispose() {
+    _mapCtrl?.dispose();
+    super.dispose();
   }
 }
 

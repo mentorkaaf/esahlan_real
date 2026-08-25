@@ -12,7 +12,8 @@ import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:audio_waveforms/audio_waveforms.dart' hide PlayerState;
 import 'package:audioplayers/audioplayers.dart';
-import 'package:dio/dio.dart' show FormData, MultipartFile;
+import 'package:dio/dio.dart' show FormData, MultipartFile, Options;
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../../../core/utils/error_handler.dart';
@@ -761,7 +762,11 @@ class _DriverChatSheetState extends State<_DriverChatSheet> {
     if (!hasPermission) { _showSnack('Microphone permission required'); return; }
     final dir = await getTemporaryDirectory();
     final path = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
-    await _recorder.record(path: path);
+    await _recorder.record(
+      path: path,
+      sampleRate: 44100,
+      bitRate: 128000,
+    );
     setState(() { _recording = true; _recordSeconds = 0; });
     _recordTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() => _recordSeconds++);
@@ -793,8 +798,18 @@ class _DriverChatSheetState extends State<_DriverChatSheet> {
         'message_type': 'voice',
         'voice': await MultipartFile.fromFile(path, filename: 'voice.m4a'),
       });
-      await ApiClient.instance.post('/orders/${widget.orderId}/chat', data: form);
-    } catch (_) {}
+      await ApiClient.instance.post(
+        '/orders/${widget.orderId}/chat',
+        data: form,
+        options: Options(
+          contentType: 'multipart/form-data',
+          sendTimeout: const Duration(seconds: 60),
+        ),
+      );
+    } catch (e) {
+      debugPrint('[CustomerChat] voice send failed: $e');
+      if (mounted) _showSnack('Failed to send voice message');
+    }
     if (mounted) setState(() => _sending = false);
   }
 
@@ -1257,37 +1272,67 @@ class _LocationBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final mapUrl = 'https://maps.googleapis.com/maps/api/staticmap'
-        '?center=$lat,$lng&zoom=15&size=280x140'
-        '&markers=color:red|$lat,$lng&key=$mapsKey';
-    final color = isMe ? const Color(0xFF07003B) : context.colors.cardBg;
+    final color = isMe ? _navy : context.colors.cardBg;
 
     return GestureDetector(
       onTap: () async {
-        final uri = Uri.parse('https://maps.google.com/?q=$lat,$lng');
+        // Open Google Maps for navigation
+        final uri = Uri.parse(
+          'https://www.google.com/maps/dir/?api=1'
+          '&destination=$lat,$lng&travelmode=driving',
+        );
         // ignore: deprecated_member_use
         if (await canLaunchUrl(uri)) launchUrl(uri, mode: LaunchMode.externalApplication);
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
-        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(16)),
+        width: 240,
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(16),
+          border: isMe ? null : Border.all(color: const Color(0xFF22C55E).withOpacity(0.3)),
+        ),
         clipBehavior: Clip.hardEdge,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Image.network(mapUrl, width: 220, height: 120, fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                  width: 220, height: 120, color: Colors.grey.shade200,
-                  child: const Icon(Icons.map_outlined, size: 40, color: Colors.grey))),
+          // Mini embedded map preview
+          SizedBox(
+            height: 130,
+            child: GoogleMap(
+              initialCameraPosition: CameraPosition(
+                target: LatLng(lat, lng),
+                zoom: 15,
+              ),
+              markers: {
+                Marker(
+                  markerId: const MarkerId('loc'),
+                  position: LatLng(lat, lng),
+                  icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+                ),
+              },
+              myLocationButtonEnabled: false,
+              zoomControlsEnabled: false,
+              scrollGesturesEnabled: false,
+              zoomGesturesEnabled: false,
+              tiltGesturesEnabled: false,
+              rotateGesturesEnabled: false,
+              liteModeEnabled: true,
+            ),
+          ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
+            padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
             child: Row(children: [
-              const Icon(Icons.location_on_rounded, size: 14, color: Color(0xFF22C55E)),
-              const SizedBox(width: 4),
-              Text(isMe ? 'My location' : 'Customer location',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
-                      color: isMe ? Colors.white70 : context.colors.navyText)),
-              const SizedBox(width: 4),
-              Text('• Tap to open', style: TextStyle(fontSize: 11,
-                  color: isMe ? Colors.white38 : Colors.grey)),
+              const Icon(Icons.location_on_rounded, size: 16, color: Color(0xFF22C55E)),
+              const SizedBox(width: 6),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(isMe ? 'My location' : 'Driver location',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
+                        color: isMe ? Colors.white : context.colors.navyText)),
+                Text('Tap to open navigation',
+                    style: TextStyle(fontSize: 11,
+                        color: isMe ? Colors.white60 : Colors.grey)),
+              ])),
+              Icon(Icons.chevron_right_rounded, size: 18,
+                  color: isMe ? Colors.white60 : Colors.grey),
             ]),
           ),
         ]),
