@@ -4,7 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:dio/dio.dart';
-import 'package:record/record.dart';
+import 'package:audio_waveforms/audio_waveforms.dart' hide PlayerState;
 import 'package:audioplayers/audioplayers.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
@@ -1003,7 +1003,7 @@ class _CustomerChatSheetState extends State<_CustomerChatSheet> {
   bool _sending = false;
 
   // Voice recording
-  final _recorder = AudioRecorder();
+  final _recorder = RecorderController();
   bool _recording = false;
   int _recordSeconds = 0;
   Timer? _recordTimer;
@@ -1095,11 +1095,11 @@ class _CustomerChatSheetState extends State<_CustomerChatSheet> {
 
   Future<void> _startRecording() async {
     if (_recording) return;
-    final hasPermission = await _recorder.hasPermission();
+    final hasPermission = await _recorder.checkPermission();
     if (!hasPermission) { _showSnack('Microphone permission required'); return; }
     final dir = await getTemporaryDirectory();
     final path = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
-    await _recorder.start(const RecordConfig(encoder: AudioEncoder.aacLc), path: path);
+    await _recorder.record(path: path);
     setState(() { _recording = true; _recordSeconds = 0; });
     _recordTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() => _recordSeconds++);

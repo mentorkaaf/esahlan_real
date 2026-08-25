@@ -10,7 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:record/record.dart';
+import 'package:audio_waveforms/audio_waveforms.dart' hide PlayerState;
 import 'package:audioplayers/audioplayers.dart';
 import 'package:dio/dio.dart' show FormData, MultipartFile;
 import '../../../../core/theme/app_theme.dart';
@@ -673,7 +673,7 @@ class _DriverChatSheetState extends State<_DriverChatSheet> {
   bool _sharingLocation = false;
 
   // Voice recording
-  final _recorder = AudioRecorder();
+  final _recorder = RecorderController();
   bool _recording = false;
   Timer? _recordTimer;
   int _recordSeconds = 0;
@@ -757,11 +757,11 @@ class _DriverChatSheetState extends State<_DriverChatSheet> {
 
   Future<void> _startRecording() async {
     if (_recording) return;
-    final hasPermission = await _recorder.hasPermission();
+    final hasPermission = await _recorder.checkPermission();
     if (!hasPermission) { _showSnack('Microphone permission required'); return; }
     final dir = await getTemporaryDirectory();
     final path = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
-    await _recorder.start(const RecordConfig(encoder: AudioEncoder.aacLc), path: path);
+    await _recorder.record(path: path);
     setState(() { _recording = true; _recordSeconds = 0; });
     _recordTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() => _recordSeconds++);
