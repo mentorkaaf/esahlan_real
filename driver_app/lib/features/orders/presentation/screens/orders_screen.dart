@@ -15,7 +15,6 @@ import '../../../../core/theme/driver_colors.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
-const _driverMapsKey = 'AIzaSyA9J4TSypPZv3cr8Zlabn0BSDICD_Ibp-A';
 
 final _availableProvider = FutureProvider.autoDispose<List<dynamic>>((ref) => ref.read(authRepoProvider).availableOrders());
 final _activeProvider    = FutureProvider.autoDispose<List<dynamic>>((ref) => ref.read(authRepoProvider).activeOrders());
