@@ -50,7 +50,7 @@ class OrderChatController extends Controller
 
         // Validate by message type
         match ($msgType) {
-            'voice'            => $request->validate(['voice' => 'required|file|mimes:m4a,aac,mp3,webm,ogg|max:10240']),
+            'voice'            => $request->validate(['voice' => 'required|file|mimetypes:audio/mp4,audio/x-m4a,audio/aac,audio/mpeg,audio/webm,audio/ogg,video/mp4,audio/3gpp,audio/3gpp2|max:10240']),
             'location_request' => null,  // no extra validation needed
             default            => $request->validate(['message' => 'required|string|max:1000']),
         };
