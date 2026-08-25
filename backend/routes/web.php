@@ -701,7 +701,8 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
 
         // Landing Page — Section Visibility Management
         Route::prefix('landing-sections')->name('landing-sections.')->group(function () {
-            Route::get('/', [\App\Http\Controllers\Admin\AdminLandingPageController::class, 'index'])->name('index');
+            // GET /admin/landing-sections → redirect to /admin/landing (toggles embedded there)
+            Route::get('/', fn() => redirect()->route('admin.landing.index'))->name('index');
             Route::post('/{slug}/toggle', [\App\Http\Controllers\Admin\AdminLandingPageController::class, 'toggle'])->name('toggle');
             Route::post('/reorder', [\App\Http\Controllers\Admin\AdminLandingPageController::class, 'reorder'])->name('reorder');
         });

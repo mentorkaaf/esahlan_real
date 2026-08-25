@@ -1156,11 +1156,8 @@
         <a href="{{ route('admin.legal-pages.index') }}" class="nav-link {{ request()->routeIs('admin.legal-pages.*') ? 'active' : '' }}">
             <div class="nav-icon"><i class="fas fa-file-contract"></i></div><span class="nav-text">Legal Pages</span>
         </a>
-        <a href="{{ route('admin.landing.index') }}" class="nav-link {{ request()->routeIs('admin.landing.index') || request()->routeIs('admin.landing.update') ? 'active' : '' }}">
+        <a href="{{ route('admin.landing.index') }}" class="nav-link {{ request()->routeIs('admin.landing.*') ? 'active' : '' }}">
             <div class="nav-icon"><i class="fas fa-paint-brush"></i></div><span class="nav-text">Landing Page</span>
-        </a>
-        <a href="{{ route('admin.landing-sections.index') }}" class="nav-link {{ request()->routeIs('admin.landing-sections.*') ? 'active' : '' }}">
-            <div class="nav-icon"><i class="fas fa-toggle-on"></i></div><span class="nav-text">Page Sections</span>
         </a>
         @can('platform.audit.view')
         <a href="{{ route('admin.security.soc') }}" class="nav-link {{ request()->routeIs('admin.security.*') ? 'active' : '' }}">
