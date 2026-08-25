@@ -93,7 +93,7 @@ class OrderChatController extends Controller
         }
 
         // Only the customer (order owner) can share their location
-        if ($order->user_id !== $request->user()->id) {
+        if ((int) $order->user_id !== (int) $request->user()->id) {
             return response()->json(['success' => false, 'message' => 'Only the customer can share location'], 403);
         }
 
@@ -183,6 +183,12 @@ class OrderChatController extends Controller
                     );
                 }
             }
-        } catch (\Throwable) {}
+        } catch (\Throwable $e) {
+            \Log::warning('[OrderChat] FCM notify failed', [
+                'order_id'    => $order->id,
+                'sender_type' => $senderType,
+                'error'       => $e->getMessage(),
+            ]);
+        }
     }
 }

@@ -697,6 +697,7 @@ class _DriverChatSheetState extends State<_DriverChatSheet> {
         _scrollToBottom();
       }
     } catch (e) {
+      debugPrint('[ChatHistory] load failed: $e');
       if (mounted) setState(() => _loading = false);
     }
   }

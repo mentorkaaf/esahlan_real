@@ -1027,6 +1027,7 @@ class _CustomerChatSheetState extends State<_CustomerChatSheet> {
         _scrollToBottom();
       }
     } catch (e) {
+      debugPrint('[DriverChat] load failed: $e');
       if (mounted) setState(() => _loading = false);
     }
   }
