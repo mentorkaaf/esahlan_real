@@ -699,6 +699,13 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::patch('/{app_type}', [\App\Http\Controllers\Admin\AdminAppVersionController::class, 'update'])->name('update');
         });
 
+        // Landing Page — Section Visibility Management
+        Route::prefix('landing-sections')->name('landing-sections.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Admin\AdminLandingPageController::class, 'index'])->name('index');
+            Route::post('/{slug}/toggle', [\App\Http\Controllers\Admin\AdminLandingPageController::class, 'toggle'])->name('toggle');
+            Route::post('/reorder', [\App\Http\Controllers\Admin\AdminLandingPageController::class, 'reorder'])->name('reorder');
+        });
+
         // Settings
         Route::prefix('settings')->name('settings.')->group(function () {
             Route::get('/', [AdminSettingController::class, 'index'])->name('index');

@@ -2,21 +2,29 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../api/api_client.dart';
+import 'package:dio/dio.dart';
 
 /// Checks whether the server requires a force update.
 class AppUpdateChecker {
+  static final _dio = Dio(BaseOptions(
+    baseUrl: 'https://esahlan.com/api/v1',
+    connectTimeout: const Duration(seconds: 10),
+    receiveTimeout: const Duration(seconds: 10),
+    headers: {'Accept': 'application/json'},
+  ));
+
   static Future<void> check(BuildContext context, String appType) async {
     try {
       final info = await PackageInfo.fromPlatform();
       final currentVersion = info.version;
 
-      final resp = await ApiClient.instance.get(
+      final resp = await _dio.get(
         '/app/version-check',
         queryParameters: {'app': appType, 'version': currentVersion},
       );
 
-      final data = (resp.data as Map?)?['data'] as Map?;
+      final body = resp.data as Map?;
+      final data = body?['data'] as Map?;
       if (data == null) return;
       if (data['force_update'] != true) return;
       if (!context.mounted) return;

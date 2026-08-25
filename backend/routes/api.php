@@ -227,6 +227,9 @@ Route::prefix('v1')->group(function () {
     // App version check (public — no auth) ?app=customer|driver|vendor&version=1.0.0
     Route::get('app/version-check', [\App\Http\Controllers\Api\AppVersionController::class, 'check']);
 
+    // Landing page section visibility (public — no auth)
+    Route::get('landing/sections', [\App\Http\Controllers\Api\LandingPageController::class, 'sections']);
+
     // Public info
     Route::get('ads',                   [AdController::class, 'index']);         // ?type=popup|banner|card &module=efood
     Route::post('ads/{id}/track',       [AdController::class, 'track']);         // body: {action: impression|click}
