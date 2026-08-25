@@ -50,6 +50,10 @@ $logo_footer = Setting::get('landing_logo_footer', '');
 $hero_image  = Setting::get('landing_hero_image',  '');
 $footer_tagline = Setting::get('landing_footer_tagline', "Somalia's super app — food, delivery, health, eSpace community, and everything in between. One account, all services.");
 @endphp
+@php
+$_sec = \App\Models\LandingSection::orderBy('sort_order')->get()->keyBy('slug');
+$_sv  = fn(string $slug): bool => (bool) ($_sec->get($slug) ? $_sec->get($slug)->is_enabled : true);
+@endphp
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -949,6 +953,7 @@ footer::before {
 </nav>
 
 <!-- HERO -->
+@if($_sv('hero'))
 <section class="hero">
     <div class="hero-content">
 
@@ -1079,6 +1084,7 @@ footer::before {
         </div>
     </div>
 </section>
+@endif
 
 <!-- STATS -->
 <div class="stats">
@@ -1101,6 +1107,7 @@ footer::before {
 </div>
 
 <!-- SERVICES -->
+@if($_sv('services'))
 <section class="services" id="services">
     <div class="sec-header">
         <div class="sec-tag">Our Services</div>
@@ -1108,66 +1115,90 @@ footer::before {
         <p>12 services built for Somalia — from food delivery to flight tickets, all in one app.</p>
     </div>
     <div class="svc-grid">
+        @if($_sv('efood'))
         <div class="svc-card">
             <div class="svc-icon"><i class="fas fa-utensils"></i></div>
             <h3>eFood</h3>
             <p>Order from top restaurants and get hot meals delivered fast.</p>
         </div>
+        @endif
+        @if($_sv('eshop'))
         <div class="svc-card">
             <div class="svc-icon"><i class="fas fa-shopping-bag"></i></div>
             <h3>eShop</h3>
             <p>Shop online from multiple stores at competitive prices.</p>
         </div>
+        @endif
+        @if($_sv('ewholesale'))
         <div class="svc-card">
             <div class="svc-icon"><i class="fas fa-store-alt"></i></div>
             <h3>eWholesale</h3>
             <p>Buy in bulk directly from wholesale suppliers at the best rates.</p>
         </div>
+        @endif
+        @if($_sv('egrocery'))
         <div class="svc-card">
             <div class="svc-icon"><i class="fas fa-carrot"></i></div>
             <h3>eGrocery</h3>
             <p>Fresh groceries delivered to your door quickly and conveniently.</p>
         </div>
+        @endif
+        @if($_sv('eparcel'))
         <div class="svc-card">
             <div class="svc-icon"><i class="fas fa-shipping-fast"></i></div>
             <h3>eParcel</h3>
             <p>Send and receive parcels with real-time shipment tracking.</p>
         </div>
+        @endif
+        @if($_sv('elaundry'))
         <div class="svc-card">
             <div class="svc-icon"><i class="fas fa-tshirt"></i></div>
             <h3>eLaundry</h3>
             <p>Professional laundry and ironing picked up and delivered.</p>
         </div>
+        @endif
+        @if($_sv('emoving'))
         <div class="svc-card">
             <div class="svc-icon"><i class="fas fa-truck-moving"></i></div>
             <h3>eMoving</h3>
             <p>Move furniture and belongings safely with a professional team.</p>
         </div>
+        @endif
+        @if($_sv('ehealth'))
         <div class="svc-card">
             <div class="svc-icon"><i class="fas fa-heartbeat"></i></div>
             <h3>eHealth</h3>
             <p>Book doctor appointments and consult specialists anytime.</p>
         </div>
+        @endif
+        @if($_sv('erent'))
         <div class="svc-card">
             <div class="svc-icon"><i class="fas fa-home"></i></div>
             <h3>eRent</h3>
             <p>Find your ideal rental property with ease and convenience.</p>
         </div>
+        @endif
+        @if($_sv('eticket'))
         <div class="svc-card">
             <div class="svc-icon"><i class="fas fa-plane"></i></div>
             <h3>eTicket</h3>
             <p>Book flight tickets and find the best prices and travel deals.</p>
         </div>
+        @endif
+        @if($_sv('eexchange'))
         <div class="svc-card">
             <div class="svc-icon"><i class="fas fa-exchange-alt"></i></div>
             <h3>eExchange</h3>
             <p>Exchange currency at the best rates, safely and transparently.</p>
         </div>
+        @endif
+        @if($_sv('edata'))
         <div class="svc-card">
             <div class="svc-icon"><i class="fas fa-wifi"></i></div>
             <h3>eData</h3>
             <p>Top up internet and data packages for all mobile networks.</p>
         </div>
+        @endif
     </div>
 </section>
 
@@ -1198,8 +1229,10 @@ footer::before {
         </div>
     </div>
 </section>
+@endif
 
 <!-- WHY ESAHLAN -->
+@if($_sv('why_esahlan'))
 <section class="why" id="why">
     <div class="why-grid">
         <div class="why-left">
@@ -1233,8 +1266,10 @@ footer::before {
         </div>
     </div>
 </section>
+@endif
 
 <!-- ESPACE -->
+@if($_sv('espace'))
 <section class="community" id="espace">
     <div class="sec-header">
         <div class="sec-tag">eSPACE</div>
@@ -1242,53 +1277,72 @@ footer::before {
         <p>{{ $espace_sub }}</p>
     </div>
     <div class="comm-grid">
+        @if($_sv('feed_reels'))
         <div class="comm-card">
             <span class="comm-icon">📰</span>
             <h3>Feed &amp; Reels</h3>
             <p>Personalized content feed with short video reels tailored to your interests</p>
         </div>
+        @endif
+        @if($_sv('live_streaming'))
         <div class="comm-card">
             <span class="comm-icon">🔴</span>
             <h3>Live Streaming</h3>
             <p>Go live anytime and connect with your audience in real time inside eSpace</p>
         </div>
+        @endif
+        @if($_sv('podcasts'))
         <div class="comm-card">
             <span class="comm-icon">🎙️</span>
             <h3>Podcasts</h3>
             <p>Record, publish, and discover audio podcasts from creators across Somalia</p>
         </div>
+        @endif
+        @if($_sv('premium_content'))
         <div class="comm-card">
             <span class="comm-icon">💎</span>
             <h3>Premium Content</h3>
             <p>Creators can lock exclusive content behind a paywall and earn directly from fans</p>
         </div>
+        @endif
+        @if($_sv('business_advertising'))
         <div class="comm-card">
             <span class="comm-icon">📣</span>
             <h3>Business Advertising</h3>
             <p>Promote your store or service to a targeted local audience and grow your reach</p>
         </div>
+        @endif
+        @if($_sv('direct_messages'))
         <div class="comm-card">
             <span class="comm-icon">💬</span>
             <h3>Direct Messages</h3>
             <p>Real-time chat with online status and typing indicators</p>
         </div>
+        @endif
+        @if($_sv('stories'))
         <div class="comm-card">
             <span class="comm-icon">📸</span>
             <h3>Stories</h3>
             <p>Image, video, and text stories that disappear after 24 hours</p>
         </div>
+        @endif
+        @if($_sv('hashtag_discovery'))
         <div class="comm-card">
             <span class="comm-icon">#️⃣</span>
             <h3>Hashtag Discovery</h3>
             <p>Find trending content and follow topics and creators you care about</p>
         </div>
+        @endif
+        @if($_sv('follow_connect'))
         <div class="comm-card">
             <span class="comm-icon">🤝</span>
             <h3>Follow &amp; Connect</h3>
             <p>Build your network — friends, creators, and local businesses</p>
         </div>
+        @endif
     </div>
 </section>
+@endif
 
 <!-- JOIN THE NETWORK -->
 <section class="join-net">
@@ -1320,6 +1374,7 @@ footer::before {
 </section>
 
 <!-- CTA / JOIN -->
+@if($_sv('cta'))
 <section class="cta" id="join">
     <div class="cta-inner">
         <h2>{{ $cta_title }}</h2>
@@ -1358,6 +1413,7 @@ footer::before {
         </div>
     </div>
 </section>
+@endif
 
 <!-- DOWNLOAD APP -->
 <section class="download-sec" id="download">
