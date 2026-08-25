@@ -1,4 +1,5 @@
-﻿import 'dart:io';
+﻿import 'dart:async';
+import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -9,6 +10,9 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:record/record.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:dio/dio.dart' show FormData, MultipartFile;
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../../../core/utils/error_handler.dart';
@@ -659,13 +663,22 @@ class _DriverChatSheet extends StatefulWidget {
 }
 
 class _DriverChatSheetState extends State<_DriverChatSheet> {
+  static const _mapsKey = 'AIzaSyA9J4TSypPZv3cr8Zlabn0BSDICD_Ibp-A';
+
   final _ctrl = TextEditingController();
   final _scrollCtrl = ScrollController();
   final List<_ChatMsg> _msgs = [];
   bool _loading = true;
   bool _sending = false;
   bool _sharingLocation = false;
-  String? _locationSharedAt;
+
+  // Voice recording
+  final _recorder = AudioRecorder();
+  bool _recording = false;
+  Timer? _recordTimer;
+  int _recordSeconds = 0;
+  // Pending preview before send
+  String? _pendingVoicePath;
 
   String get _channel => 'private-order-chat.${widget.orderId}';
 
@@ -686,10 +699,7 @@ class _DriverChatSheetState extends State<_DriverChatSheet> {
           _msgs.clear();
           for (final m in msgs) {
             if (m is Map) {
-              _msgs.add(_ChatMsg(
-                text: (m['message'] ?? '').toString(),
-                isMe: m['sender_type'] == 'customer',
-              ));
+              _msgs.add(_ChatMsg.fromMap(m, myType: 'customer'));
             }
           }
           _loading = false;
@@ -709,11 +719,15 @@ class _DriverChatSheetState extends State<_DriverChatSheet> {
   void _onRealtime(dynamic data) {
     if (!mounted) return;
     final m = data is Map ? data : <String, dynamic>{};
-    final senderType = m['sender_type'] as String? ?? '';
-    final text = m['message'] as String? ?? '';
-    if (text.isEmpty) return;
-    setState(() => _msgs.add(_ChatMsg(text: text, isMe: senderType == 'customer')));
-    _scrollToBottom();
+    final msg = _ChatMsg.fromMap(m, myType: 'customer');
+    if (msg.type == _ChatMsgType.locationRequest) {
+      // Driver requested my location — show inline request
+      setState(() => _msgs.add(msg));
+      _scrollToBottom();
+    } else {
+      setState(() => _msgs.add(msg));
+      _scrollToBottom();
+    }
   }
 
   void _scrollToBottom() {
@@ -729,47 +743,86 @@ class _DriverChatSheetState extends State<_DriverChatSheet> {
     final text = _ctrl.text.trim();
     if (text.isEmpty || _sending) return;
     _ctrl.clear();
-    setState(() { _msgs.add(_ChatMsg(text: text, isMe: true)); _sending = true; });
+    final optimistic = _ChatMsg(text: text, isMe: true, type: _ChatMsgType.text);
+    setState(() { _msgs.add(optimistic); _sending = true; });
     _scrollToBottom();
     try {
-      await ApiClient.instance.post('/orders/${widget.orderId}/chat', data: {'message': text});
+      await ApiClient.instance.post('/orders/${widget.orderId}/chat',
+          data: {'message': text, 'message_type': 'text'});
     } catch (_) {}
     if (mounted) setState(() => _sending = false);
   }
+
+  // ── Voice recording ────────────────────────────────────────────────────────
+
+  Future<void> _startRecording() async {
+    if (_recording) return;
+    final hasPermission = await _recorder.hasPermission();
+    if (!hasPermission) { _showSnack('Microphone permission required'); return; }
+    final dir = await getTemporaryDirectory();
+    final path = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+    await _recorder.start(const RecordConfig(encoder: AudioEncoder.aacLc), path: path);
+    setState(() { _recording = true; _recordSeconds = 0; });
+    _recordTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _recordSeconds++);
+    });
+  }
+
+  Future<void> _stopRecording({bool cancel = false}) async {
+    _recordTimer?.cancel();
+    final path = await _recorder.stop();
+    if (!mounted) return;
+    if (cancel || path == null) {
+      setState(() { _recording = false; _pendingVoicePath = null; });
+      return;
+    }
+    setState(() { _recording = false; _pendingVoicePath = path; });
+  }
+
+  Future<void> _sendVoice() async {
+    final path = _pendingVoicePath;
+    if (path == null || _sending) return;
+    setState(() { _pendingVoicePath = null; _sending = true; });
+    // Optimistic
+    final optimistic = _ChatMsg(text: '🎵 Voice message', isMe: true,
+        type: _ChatMsgType.voice, voiceUrl: path);
+    setState(() => _msgs.add(optimistic));
+    _scrollToBottom();
+    try {
+      final form = FormData.fromMap({
+        'message_type': 'voice',
+        'voice': await MultipartFile.fromFile(path, filename: 'voice.m4a'),
+      });
+      await ApiClient.instance.post('/orders/${widget.orderId}/chat', data: form);
+    } catch (_) {}
+    if (mounted) setState(() => _sending = false);
+  }
+
+  // ── Location ───────────────────────────────────────────────────────────────
 
   Future<void> _shareLocation() async {
     if (_sharingLocation) return;
     setState(() => _sharingLocation = true);
     try {
-      // Check if location service is enabled
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        if (mounted) _showSnack('Please enable GPS in settings');
-        return;
+        if (mounted) _showSnack('Please enable GPS in settings'); return;
       }
-      // Check / request permission
       LocationPermission perm = await Geolocator.checkPermission();
-      if (perm == LocationPermission.denied) {
-        perm = await Geolocator.requestPermission();
-      }
+      if (perm == LocationPermission.denied) perm = await Geolocator.requestPermission();
       if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
-        if (mounted) _showSnack('Location permission required');
-        return;
+        if (mounted) _showSnack('Location permission required'); return;
       }
-      // Get position — 30s timeout, medium accuracy is faster than high for first fix
       final pos = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium),
       ).timeout(const Duration(seconds: 30), onTimeout: () {
-        throw Exception('GPS timeout — try again');
+        throw Exception('GPS timeout');
       });
       await ApiClient.instance.post(
         '/orders/${widget.orderId}/chat/location',
         data: {'lat': pos.latitude, 'lng': pos.longitude},
       );
-      if (mounted) {
-        setState(() => _locationSharedAt = 'Just now');
-        _showSnack('📍 Location shared with driver');
-      }
+      if (mounted) _showSnack('📍 Location shared with driver');
     } catch (e) {
       if (mounted) _showSnack(e.toString().contains('GPS') ? 'GPS timeout — try again outdoors' : 'Could not share location');
     } finally {
@@ -778,11 +831,14 @@ class _DriverChatSheetState extends State<_DriverChatSheet> {
   }
 
   void _showSnack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), duration: const Duration(seconds: 2)));
+    ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg), duration: const Duration(seconds: 2)));
   }
 
   @override
   void dispose() {
+    _recordTimer?.cancel();
+    _recorder.dispose();
     RealtimeClient.instance.removeListener(_channel, 'new_message', _onRealtime);
     _ctrl.dispose();
     _scrollCtrl.dispose();
@@ -803,7 +859,8 @@ class _DriverChatSheetState extends State<_DriverChatSheet> {
         child: Column(children: [
           // Handle
           Container(margin: const EdgeInsets.only(top: 10), width: 36, height: 4,
-            decoration: BoxDecoration(color: context.colors.borderColor, borderRadius: BorderRadius.circular(2))),
+            decoration: BoxDecoration(color: context.colors.borderColor,
+                borderRadius: BorderRadius.circular(2))),
           // Header
           Padding(padding: const EdgeInsets.fromLTRB(16, 12, 16, 0), child: Row(children: [
             Container(width: 36, height: 36,
@@ -812,7 +869,8 @@ class _DriverChatSheetState extends State<_DriverChatSheet> {
                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16)))),
             const SizedBox(width: 10),
             Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(widget.driver.name, style: TextStyle(fontWeight: FontWeight.w800, color: context.colors.navyText)),
+              Text(widget.driver.name, style: TextStyle(
+                  fontWeight: FontWeight.w800, color: context.colors.navyText)),
               const Text('Driver', style: TextStyle(color: AppColors.textGrey, fontSize: 11)),
             ]),
             const Spacer(),
@@ -832,90 +890,405 @@ class _DriverChatSheetState extends State<_DriverChatSheet> {
             ? const Center(child: CircularProgressIndicator())
             : _msgs.isEmpty
             ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Icon(Icons.chat_bubble_outline_rounded, size: 48, color: context.colors.borderColor),
+                Icon(Icons.chat_bubble_outline_rounded, size: 48,
+                    color: context.colors.borderColor),
                 const SizedBox(height: 8),
-                Text('Send a message to your driver', style: TextStyle(color: context.colors.borderColor)),
+                Text('Send a message to your driver',
+                    style: TextStyle(color: context.colors.borderColor)),
               ]))
             : ListView.builder(
                 controller: _scrollCtrl,
                 padding: const EdgeInsets.all(16),
                 itemCount: _msgs.length,
-                itemBuilder: (_, i) {
-                  final m = _msgs[i];
-                  return Align(
-                    alignment: m.isMe ? Alignment.centerRight : Alignment.centerLeft,
-                    child: Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: m.isMe ? const Color(0xFF07003B) : context.colors.cardBg,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Text(m.text, style: TextStyle(
-                        color: m.isMe ? Colors.white : context.colors.navyText, fontSize: 14)),
-                    ),
-                  );
-                },
+                itemBuilder: (_, i) => _buildMessage(_msgs[i], context),
               )),
-          // Location share bar
-          if (_locationSharedAt != null)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              color: const Color(0xFF22C55E).withOpacity(0.1),
-              child: Row(children: [
-                const Icon(Icons.location_on_rounded, color: Color(0xFF22C55E), size: 14),
-                const SizedBox(width: 6),
-                Text('Location shared • $_locationSharedAt',
-                    style: const TextStyle(color: Color(0xFF22C55E), fontSize: 12, fontWeight: FontWeight.w600)),
-                const Spacer(),
-                GestureDetector(
-                  onTap: _shareLocation,
-                  child: const Text('Update', style: TextStyle(color: Color(0xFF22C55E), fontSize: 12, fontWeight: FontWeight.w700)),
-                ),
-              ]),
+          // Voice pending preview
+          if (_pendingVoicePath != null)
+            _VoicePendingBar(
+              path: _pendingVoicePath!,
+              onSend: _sendVoice,
+              onCancel: () => setState(() => _pendingVoicePath = null),
             ),
-          // Input
+          // Input row
           SafeArea(
             top: false,
-            child: Padding(padding: const EdgeInsets.fromLTRB(12, 8, 12, 8), child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Row(children: [
-                // Share location button
-                GestureDetector(
-                  onTap: _shareLocation,
-                  child: Container(
-                    width: 44, height: 44,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF22C55E).withOpacity(0.12),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0xFF22C55E).withOpacity(0.3)),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+              child: _recording
+                ? _RecordingBar(
+                    seconds: _recordSeconds,
+                    onStop: () => _stopRecording(),
+                    onCancel: () => _stopRecording(cancel: true),
+                  )
+                : Row(children: [
+                    // Location
+                    GestureDetector(
+                      onTap: _shareLocation,
+                      child: Container(
+                        width: 44, height: 44,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF22C55E).withOpacity(0.12),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: const Color(0xFF22C55E).withOpacity(0.3)),
+                        ),
+                        child: _sharingLocation
+                          ? const Padding(padding: EdgeInsets.all(12),
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF22C55E)))
+                          : const Icon(Icons.location_on_rounded, color: Color(0xFF22C55E), size: 20),
+                      ),
                     ),
-                    child: _sharingLocation
-                      ? const Padding(
-                          padding: EdgeInsets.all(12),
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF22C55E)))
-                      : const Icon(Icons.location_on_rounded, color: Color(0xFF22C55E), size: 20),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(child: TextField(
-                  controller: _ctrl,
-                  decoration: InputDecoration(
-                    hintText: 'Message driver...',
-                    filled: true,
-                    fillColor: context.colors.cardBg,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  ),
-                )),
-                const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: _send,
-                  child: Container(width: 44, height: 44,
-                    decoration: const BoxDecoration(color: Color(0xFF07003B), shape: BoxShape.circle),
-                    child: const Icon(Icons.send_rounded, color: Colors.white, size: 20)),
-                ),
-              ]),
-            ])),
+                    const SizedBox(width: 8),
+                    Expanded(child: TextField(
+                      controller: _ctrl,
+                      decoration: InputDecoration(
+                        hintText: 'Message driver...',
+                        filled: true,
+                        fillColor: context.colors.cardBg,
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide.none),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 10),
+                      ),
+                    )),
+                    const SizedBox(width: 8),
+                    // Mic (hold to record) or Send
+                    ValueListenableBuilder(
+                      valueListenable: _ctrl,
+                      builder: (_, v, __) => v.text.isEmpty
+                        ? GestureDetector(
+                            onLongPressStart: (_) => _startRecording(),
+                            onLongPressEnd: (_) => _stopRecording(),
+                            child: Container(width: 44, height: 44,
+                              decoration: const BoxDecoration(
+                                  color: _amber, shape: BoxShape.circle),
+                              child: const Icon(Icons.mic_rounded,
+                                  color: Colors.white, size: 22)),
+                          )
+                        : GestureDetector(
+                            onTap: _send,
+                            child: Container(width: 44, height: 44,
+                              decoration: const BoxDecoration(
+                                  color: Color(0xFF07003B), shape: BoxShape.circle),
+                              child: const Icon(Icons.send_rounded,
+                                  color: Colors.white, size: 20)),
+                          ),
+                    ),
+                  ]),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  Widget _buildMessage(_ChatMsg m, BuildContext context) {
+    switch (m.type) {
+      case _ChatMsgType.voice:
+        return Align(
+          alignment: m.isMe ? Alignment.centerRight : Alignment.centerLeft,
+          child: _VoiceBubble(
+            url: m.voiceUrl!,
+            isMe: m.isMe,
+            isLocal: !m.voiceUrl!.startsWith('http'),
+          ),
+        );
+      case _ChatMsgType.location:
+        return Align(
+          alignment: m.isMe ? Alignment.centerRight : Alignment.centerLeft,
+          child: _LocationBubble(lat: m.lat!, lng: m.lng!, isMe: m.isMe, mapsKey: _mapsKey),
+        );
+      case _ChatMsgType.locationRequest:
+        return _LocationRequestBubble(
+          isMe: m.isMe,
+          onShare: m.isMe ? null : _shareLocation,
+        );
+      case _ChatMsgType.text:
+        return Align(
+          alignment: m.isMe ? Alignment.centerRight : Alignment.centerLeft,
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.72),
+            decoration: BoxDecoration(
+              color: m.isMe ? const Color(0xFF07003B) : context.colors.cardBg,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Text(m.text, style: TextStyle(
+                color: m.isMe ? Colors.white : context.colors.navyText,
+                fontSize: 14)),
+          ),
+        );
+    }
+  }
+}
+
+// ── Message model ─────────────────────────────────────────────────────────────
+
+enum _ChatMsgType { text, voice, location, locationRequest }
+
+class _ChatMsg {
+  final String text;
+  final bool isMe;
+  final _ChatMsgType type;
+  final String? voiceUrl;
+  final double? lat;
+  final double? lng;
+
+  const _ChatMsg({
+    required this.text,
+    required this.isMe,
+    this.type = _ChatMsgType.text,
+    this.voiceUrl,
+    this.lat,
+    this.lng,
+  });
+
+  factory _ChatMsg.fromMap(Map m, {required String myType}) {
+    final senderType = (m['sender_type'] ?? '') as String;
+    final rawType = (m['message_type'] ?? 'text') as String;
+    _ChatMsgType type;
+    switch (rawType) {
+      case 'voice':           type = _ChatMsgType.voice; break;
+      case 'location':        type = _ChatMsgType.location; break;
+      case 'location_request':type = _ChatMsgType.locationRequest; break;
+      default:                type = _ChatMsgType.text;
+    }
+    return _ChatMsg(
+      text:     (m['message'] ?? '').toString(),
+      isMe:     senderType == myType,
+      type:     type,
+      voiceUrl: m['voice_url'] as String?,
+      lat:      m['lat'] != null ? double.tryParse('${m['lat']}') : null,
+      lng:      m['lng'] != null ? double.tryParse('${m['lng']}') : null,
+    );
+  }
+}
+
+// ── Voice bubble (playback) ────────────────────────────────────────────────────
+
+class _VoiceBubble extends StatefulWidget {
+  final String url;
+  final bool isMe;
+  final bool isLocal; // local file path vs remote URL
+  const _VoiceBubble({required this.url, required this.isMe, required this.isLocal});
+  @override
+  State<_VoiceBubble> createState() => _VoiceBubbleState();
+}
+
+class _VoiceBubbleState extends State<_VoiceBubble> {
+  final _player = AudioPlayer();
+  bool _playing = false;
+  Duration _position = Duration.zero;
+  Duration _duration = Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _player.onPlayerStateChanged.listen((s) {
+      if (mounted) setState(() => _playing = s == PlayerState.playing);
+    });
+    _player.onPositionChanged.listen((p) {
+      if (mounted) setState(() => _position = p);
+    });
+    _player.onDurationChanged.listen((d) {
+      if (mounted) setState(() => _duration = d);
+    });
+    _player.onPlayerComplete.listen((_) {
+      if (mounted) setState(() { _playing = false; _position = Duration.zero; });
+    });
+  }
+
+  String _fmt(Duration d) {
+    final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+
+  Future<void> _toggle() async {
+    if (_playing) {
+      await _player.pause();
+    } else {
+      if (widget.isLocal) {
+        await _player.play(DeviceFileSource(widget.url));
+      } else {
+        await _player.play(UrlSource(widget.url));
+      }
+    }
+  }
+
+  @override
+  void dispose() { _player.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = widget.isMe ? const Color(0xFF07003B) : context.colors.cardBg;
+    final textColor = widget.isMe ? Colors.white : context.colors.navyText;
+    final accent = widget.isMe ? Colors.white70 : const Color(0xFFFF8A00);
+    final total = _duration.inMilliseconds > 0 ? _duration.inMilliseconds.toDouble() : 1.0;
+    final pos = _position.inMilliseconds.toDouble().clamp(0.0, total);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(16)),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        GestureDetector(
+          onTap: _toggle,
+          child: Icon(_playing ? Icons.pause_circle_filled : Icons.play_circle_filled,
+              color: accent, size: 36),
+        ),
+        const SizedBox(width: 8),
+        SizedBox(
+          width: 120,
+          child: SliderTheme(
+            data: SliderThemeData(
+              trackHeight: 2,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
+              overlayShape: SliderComponentShape.noOverlay,
+              activeTrackColor: accent,
+              inactiveTrackColor: accent.withOpacity(0.25),
+              thumbColor: accent,
+            ),
+            child: Slider(
+              value: pos,
+              min: 0,
+              max: total,
+              onChanged: (v) => _player.seek(Duration(milliseconds: v.toInt())),
+            ),
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(_fmt(_playing ? _position : _duration),
+            style: TextStyle(color: textColor, fontSize: 11)),
+      ]),
+    );
+  }
+}
+
+// ── Voice pending preview bar ──────────────────────────────────────────────────
+
+class _VoicePendingBar extends StatelessWidget {
+  final String path;
+  final VoidCallback onSend;
+  final VoidCallback onCancel;
+  const _VoicePendingBar({required this.path, required this.onSend, required this.onCancel});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      color: const Color(0xFFFF8A00).withOpacity(0.08),
+      child: Row(children: [
+        const Icon(Icons.mic_rounded, color: _amber, size: 20),
+        const SizedBox(width: 8),
+        Expanded(child: _VoiceBubble(url: path, isMe: true, isLocal: true)),
+        const SizedBox(width: 8),
+        GestureDetector(onTap: onCancel,
+            child: const Icon(Icons.close, color: Colors.red, size: 22)),
+        const SizedBox(width: 12),
+        GestureDetector(
+          onTap: onSend,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+            decoration: BoxDecoration(
+                color: const Color(0xFF07003B), borderRadius: BorderRadius.circular(20)),
+            child: const Text('Send', style: TextStyle(color: Colors.white,
+                fontWeight: FontWeight.w700, fontSize: 13)),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+// ── Recording bar ─────────────────────────────────────────────────────────────
+
+class _RecordingBar extends StatelessWidget {
+  final int seconds;
+  final VoidCallback onStop;
+  final VoidCallback onCancel;
+  const _RecordingBar({required this.seconds, required this.onStop, required this.onCancel});
+
+  @override
+  Widget build(BuildContext context) {
+    final m = (seconds ~/ 60).toString().padLeft(2, '0');
+    final s = (seconds % 60).toString().padLeft(2, '0');
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.red.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(30),
+      ),
+      child: Row(children: [
+        GestureDetector(onTap: onCancel,
+            child: const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 22)),
+        const SizedBox(width: 8),
+        const Icon(Icons.fiber_manual_record, color: Colors.red, size: 14),
+        const SizedBox(width: 6),
+        Text('$m:$s', style: const TextStyle(
+            color: Colors.red, fontWeight: FontWeight.w700, fontSize: 15)),
+        const Spacer(),
+        const Text('Release to send', style: TextStyle(color: Colors.grey, fontSize: 12)),
+        const SizedBox(width: 8),
+        GestureDetector(
+          onTap: onStop,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+            decoration: BoxDecoration(
+                color: Colors.red, borderRadius: BorderRadius.circular(20)),
+            child: const Text('Stop & Preview',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12)),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+// ── Location bubble ───────────────────────────────────────────────────────────
+
+class _LocationBubble extends StatelessWidget {
+  final double lat, lng;
+  final bool isMe;
+  final String mapsKey;
+  const _LocationBubble({required this.lat, required this.lng,
+      required this.isMe, required this.mapsKey});
+
+  @override
+  Widget build(BuildContext context) {
+    final mapUrl = 'https://maps.googleapis.com/maps/api/staticmap'
+        '?center=$lat,$lng&zoom=15&size=280x140'
+        '&markers=color:red|$lat,$lng&key=$mapsKey';
+    final color = isMe ? const Color(0xFF07003B) : context.colors.cardBg;
+
+    return GestureDetector(
+      onTap: () async {
+        final uri = Uri.parse('https://maps.google.com/?q=$lat,$lng');
+        // ignore: deprecated_member_use
+        if (await canLaunchUrl(uri)) launchUrl(uri, mode: LaunchMode.externalApplication);
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(16)),
+        clipBehavior: Clip.hardEdge,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Image.network(mapUrl, width: 220, height: 120, fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                  width: 220, height: 120, color: Colors.grey.shade200,
+                  child: const Icon(Icons.map_outlined, size: 40, color: Colors.grey))),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
+            child: Row(children: [
+              const Icon(Icons.location_on_rounded, size: 14, color: Color(0xFF22C55E)),
+              const SizedBox(width: 4),
+              Text(isMe ? 'My location' : 'Customer location',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
+                      color: isMe ? Colors.white70 : context.colors.navyText)),
+              const SizedBox(width: 4),
+              Text('• Tap to open', style: TextStyle(fontSize: 11,
+                  color: isMe ? Colors.white38 : Colors.grey)),
+            ]),
           ),
         ]),
       ),
@@ -923,10 +1296,52 @@ class _DriverChatSheetState extends State<_DriverChatSheet> {
   }
 }
 
-class _ChatMsg {
-  final String text;
+// ── Location request bubble ────────────────────────────────────────────────────
+
+class _LocationRequestBubble extends StatelessWidget {
   final bool isMe;
-  const _ChatMsg({required this.text, required this.isMe});
+  final VoidCallback? onShare; // null = I sent the request
+  const _LocationRequestBubble({required this.isMe, this.onShare});
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFF22C55E).withOpacity(0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFF22C55E).withOpacity(0.35)),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.location_searching_rounded, color: Color(0xFF22C55E), size: 18),
+          const SizedBox(width: 8),
+          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(isMe ? '📍 Location requested' : '📍 Driver needs your location',
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13,
+                    color: Color(0xFF22C55E))),
+            if (!isMe && onShare != null)
+              GestureDetector(
+                onTap: onShare,
+                child: Container(
+                  margin: const EdgeInsets.only(top: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF22C55E),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text('Share Location',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700,
+                          fontSize: 12)),
+                ),
+              ),
+          ]),
+        ]),
+      ),
+    );
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

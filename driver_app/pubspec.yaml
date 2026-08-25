@@ -33,6 +33,11 @@ dependencies:
   timeago: ^3.7.0
   permission_handler: ^11.4.0
   connectivity_plus: ^6.1.3
+  # Audio — voice messages
+  record: ^5.2.0
+  audioplayers: ^6.1.0
+  audio_waveforms: ^1.2.0
+  path_provider: ^2.1.0
 
 dev_dependencies:
   flutter_test:

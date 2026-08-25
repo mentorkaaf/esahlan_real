@@ -4,12 +4,17 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:dio/dio.dart';
+import 'package:record/record.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'dart:async';
 import '../../../../core/services/realtime_service.dart';
 import '../../../../core/theme/driver_colors.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+
+const _driverMapsKey = 'AIzaSyA9J4TSypPZv3cr8Zlabn0BSDICD_Ibp-A';
 
 final _availableProvider = FutureProvider.autoDispose<List<dynamic>>((ref) => ref.read(authRepoProvider).availableOrders());
 final _activeProvider    = FutureProvider.autoDispose<List<dynamic>>((ref) => ref.read(authRepoProvider).activeOrders());
@@ -993,9 +998,16 @@ class _CustomerChatSheet extends StatefulWidget {
 class _CustomerChatSheetState extends State<_CustomerChatSheet> {
   final _ctrl = TextEditingController();
   final _scrollCtrl = ScrollController();
-  final List<({String text, bool isMe})> _msgs = [];
+  final List<_DriverChatMsg> _msgs = [];
   bool _loading = true;
   bool _sending = false;
+
+  // Voice recording
+  final _recorder = AudioRecorder();
+  bool _recording = false;
+  int _recordSeconds = 0;
+  Timer? _recordTimer;
+  String? _pendingVoicePath;
 
   String get _channel => 'private-order-chat.${widget.orderId}';
 
@@ -1015,12 +1027,7 @@ class _CustomerChatSheetState extends State<_CustomerChatSheet> {
         setState(() {
           _msgs.clear();
           for (final m in msgs) {
-            if (m is Map) {
-              _msgs.add((
-                text: (m['message'] ?? '').toString(),
-                isMe: m['sender_type'] == 'driver',
-              ));
-            }
+            if (m is Map) _msgs.add(_DriverChatMsg.fromMap(m));
           }
           _loading = false;
         });
@@ -1039,10 +1046,7 @@ class _CustomerChatSheetState extends State<_CustomerChatSheet> {
   void _onRealtime(dynamic data) {
     if (!mounted) return;
     final m = data is Map ? data : <String, dynamic>{};
-    final senderType = m['sender_type'] as String? ?? '';
-    final text = m['message'] as String? ?? '';
-    if (text.isEmpty) return;
-    setState(() => _msgs.add((text: text, isMe: senderType == 'driver')));
+    setState(() => _msgs.add(_DriverChatMsg.fromMap(m)));
     _scrollToBottom();
   }
 
@@ -1055,21 +1059,87 @@ class _CustomerChatSheetState extends State<_CustomerChatSheet> {
     });
   }
 
-  Future<void> _send() async {
+  Future<void> _sendText() async {
     final text = _ctrl.text.trim();
     if (text.isEmpty || _sending) return;
     _ctrl.clear();
-    setState(() { _msgs.add((text: text, isMe: true)); _sending = true; });
+    setState(() {
+      _msgs.add(_DriverChatMsg(text: text, isMe: true, type: _DriverMsgType.text));
+      _sending = true;
+    });
     _scrollToBottom();
     try {
       await ApiClient.instance.post('/delivery/orders/${widget.orderId}/chat',
-          data: {'message': text});
+          data: {'message': text, 'message_type': 'text'});
     } catch (_) {}
     if (mounted) setState(() => _sending = false);
   }
 
+  Future<void> _requestLocation() async {
+    if (_sending) return;
+    setState(() => _sending = true);
+    try {
+      await ApiClient.instance.post('/delivery/orders/${widget.orderId}/chat',
+          data: {'message_type': 'location_request'});
+      if (mounted) {
+        setState(() => _msgs.add(_DriverChatMsg(
+            text: '📍 Location requested', isMe: true,
+            type: _DriverMsgType.locationRequest)));
+        _scrollToBottom();
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _sending = false);
+  }
+
+  // ── Voice recording ────────────────────────────────────────────────────────
+
+  Future<void> _startRecording() async {
+    if (_recording) return;
+    final hasPermission = await _recorder.hasPermission();
+    if (!hasPermission) { _showSnack('Microphone permission required'); return; }
+    final dir = await getTemporaryDirectory();
+    final path = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+    await _recorder.start(const RecordConfig(encoder: AudioEncoder.aacLc), path: path);
+    setState(() { _recording = true; _recordSeconds = 0; });
+    _recordTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _recordSeconds++);
+    });
+  }
+
+  Future<void> _stopRecording({bool cancel = false}) async {
+    _recordTimer?.cancel();
+    final path = await _recorder.stop();
+    if (!mounted) return;
+    if (cancel || path == null) {
+      setState(() { _recording = false; _pendingVoicePath = null; }); return;
+    }
+    setState(() { _recording = false; _pendingVoicePath = path; });
+  }
+
+  Future<void> _sendVoice() async {
+    final path = _pendingVoicePath;
+    if (path == null || _sending) return;
+    setState(() { _pendingVoicePath = null; _sending = true; });
+    setState(() => _msgs.add(_DriverChatMsg(text: '🎵 Voice message',
+        isMe: true, type: _DriverMsgType.voice, voiceUrl: path)));
+    _scrollToBottom();
+    try {
+      final form = FormData.fromMap({
+        'message_type': 'voice',
+        'voice': await MultipartFile.fromFile(path, filename: 'voice.m4a'),
+      });
+      await ApiClient.instance.post('/delivery/orders/${widget.orderId}/chat', data: form);
+    } catch (_) {}
+    if (mounted) setState(() => _sending = false);
+  }
+
+  void _showSnack(String msg) => ScaffoldMessenger.of(context)
+      .showSnackBar(SnackBar(content: Text(msg), duration: const Duration(seconds: 2)));
+
   @override
   void dispose() {
+    _recordTimer?.cancel();
+    _recorder.dispose();
     RealtimeService.instance.removeListener(_channel, 'new_message', _onRealtime);
     _ctrl.dispose();
     _scrollCtrl.dispose();
@@ -1096,7 +1166,8 @@ class _CustomerChatSheetState extends State<_CustomerChatSheet> {
             decoration: BoxDecoration(color: c.border, borderRadius: BorderRadius.circular(2))),
           Padding(padding: const EdgeInsets.fromLTRB(16, 14, 8, 0), child: Row(children: [
             Container(width: 38, height: 38,
-              decoration: BoxDecoration(color: DC.success.withValues(alpha: 0.15), shape: BoxShape.circle),
+              decoration: BoxDecoration(
+                  color: DC.success.withValues(alpha: 0.15), shape: BoxShape.circle),
               child: Center(child: Text(name.isNotEmpty ? name[0].toUpperCase() : 'C',
                 style: const TextStyle(color: DC.success, fontWeight: FontWeight.w900, fontSize: 16)))),
             const SizedBox(width: 10),
@@ -1105,6 +1176,12 @@ class _CustomerChatSheetState extends State<_CustomerChatSheet> {
               Text('Customer', style: TextStyle(color: c.textMuted, fontSize: 11)),
             ]),
             const Spacer(),
+            // Request location button
+            IconButton(
+              icon: const Icon(Icons.location_searching_rounded, color: DC.success),
+              tooltip: 'Request location',
+              onPressed: _sending ? null : _requestLocation,
+            ),
             if (phone != null)
               IconButton(icon: const Icon(Icons.phone_rounded, color: DC.success),
                 onPressed: () => launchUrl(Uri.parse('tel:$phone'))),
@@ -1114,56 +1191,410 @@ class _CustomerChatSheetState extends State<_CustomerChatSheet> {
             ? const Center(child: CircularProgressIndicator())
             : _msgs.isEmpty
             ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Icon(Icons.chat_bubble_outline_rounded, size: 48, color: c.textMuted.withValues(alpha: 0.3)),
+                Icon(Icons.chat_bubble_outline_rounded, size: 48,
+                    color: c.textMuted.withValues(alpha: 0.3)),
                 const SizedBox(height: 8),
-                Text('Send a message to your customer', style: TextStyle(color: c.textMuted)),
+                Text('Send a message to your customer',
+                    style: TextStyle(color: c.textMuted)),
               ]))
             : ListView.builder(
                 controller: _scrollCtrl,
                 padding: const EdgeInsets.all(16),
                 itemCount: _msgs.length,
-                itemBuilder: (_, i) {
-                  final m = _msgs[i];
-                  return Align(
-                    alignment: m.isMe ? Alignment.centerRight : Alignment.centerLeft,
-                    child: Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: m.isMe ? DC.orange : c.card,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Text(m.text, style: TextStyle(color: m.isMe ? Colors.white : c.text, fontSize: 14)),
-                    ),
-                  );
-                },
+                itemBuilder: (_, i) => _buildMessage(_msgs[i], c),
               )),
+          // Voice pending preview
+          if (_pendingVoicePath != null)
+            _DriverVoicePendingBar(
+              path: _pendingVoicePath!,
+              onSend: _sendVoice,
+              onCancel: () => setState(() => _pendingVoicePath = null),
+              c: context.dc,
+            ),
           SafeArea(
             top: false,
-            child: Padding(padding: const EdgeInsets.fromLTRB(12, 8, 12, 8), child: Row(children: [
-              Expanded(child: TextField(
-                controller: _ctrl,
-                style: TextStyle(color: c.text),
-                decoration: InputDecoration(
-                  hintText: 'Message customer...',
-                  hintStyle: TextStyle(color: c.textMuted),
-                  filled: true,
-                  fillColor: c.card,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                ),
-              )),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: _send,
-                child: Container(width: 44, height: 44,
-                  decoration: const BoxDecoration(color: DC.orange, shape: BoxShape.circle),
-                  child: const Icon(Icons.send_rounded, color: Colors.white, size: 20)),
-              ),
-            ])),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+              child: _recording
+                ? _DriverRecordingBar(
+                    seconds: _recordSeconds,
+                    onStop: () => _stopRecording(),
+                    onCancel: () => _stopRecording(cancel: true),
+                    c: context.dc,
+                  )
+                : Row(children: [
+                    Expanded(child: TextField(
+                      controller: _ctrl,
+                      style: TextStyle(color: c.text),
+                      decoration: InputDecoration(
+                        hintText: 'Message customer...',
+                        hintStyle: TextStyle(color: c.textMuted),
+                        filled: true,
+                        fillColor: c.card,
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide.none),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 10),
+                      ),
+                    )),
+                    const SizedBox(width: 8),
+                    // Mic or Send
+                    ValueListenableBuilder(
+                      valueListenable: _ctrl,
+                      builder: (_, v, __) => v.text.isEmpty
+                        ? GestureDetector(
+                            onLongPressStart: (_) => _startRecording(),
+                            onLongPressEnd: (_) => _stopRecording(),
+                            child: Container(width: 44, height: 44,
+                              decoration: const BoxDecoration(
+                                  color: DC.orange, shape: BoxShape.circle),
+                              child: const Icon(Icons.mic_rounded,
+                                  color: Colors.white, size: 22)),
+                          )
+                        : GestureDetector(
+                            onTap: _sendText,
+                            child: Container(width: 44, height: 44,
+                              decoration: const BoxDecoration(
+                                  color: DC.orange, shape: BoxShape.circle),
+                              child: const Icon(Icons.send_rounded,
+                                  color: Colors.white, size: 20)),
+                          ),
+                    ),
+                  ]),
+            ),
           ),
         ]),
       ),
+    );
+  }
+
+  Widget _buildMessage(_DriverChatMsg m, AppColors c) {
+    switch (m.type) {
+      case _DriverMsgType.voice:
+        return Align(
+          alignment: m.isMe ? Alignment.centerRight : Alignment.centerLeft,
+          child: _DriverVoiceBubble(
+            url: m.voiceUrl!,
+            isMe: m.isMe,
+            isLocal: !m.voiceUrl!.startsWith('http'),
+            c: c,
+          ),
+        );
+      case _DriverMsgType.location:
+        return Align(
+          alignment: m.isMe ? Alignment.centerRight : Alignment.centerLeft,
+          child: _DriverLocationBubble(
+            lat: m.lat!, lng: m.lng!, isMe: m.isMe, c: c),
+        );
+      case _DriverMsgType.locationRequest:
+        return Align(
+          alignment: m.isMe ? Alignment.centerRight : Alignment.centerLeft,
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: DC.success.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: DC.success.withValues(alpha: 0.35)),
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              const Icon(Icons.location_searching_rounded, color: DC.success, size: 16),
+              const SizedBox(width: 6),
+              Text(m.isMe ? '📍 Location requested' : '📍 Customer shared location',
+                  style: const TextStyle(color: DC.success, fontSize: 13,
+                      fontWeight: FontWeight.w600)),
+            ]),
+          ),
+        );
+      default:
+        return Align(
+          alignment: m.isMe ? Alignment.centerRight : Alignment.centerLeft,
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            constraints: const BoxConstraints(maxWidth: 260),
+            decoration: BoxDecoration(
+              color: m.isMe ? DC.orange : c.card,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Text(m.text,
+                style: TextStyle(color: m.isMe ? Colors.white : c.text, fontSize: 14)),
+          ),
+        );
+    }
+  }
+}
+
+// ── Driver chat message model ─────────────────────────────────────────────────
+
+enum _DriverMsgType { text, voice, location, locationRequest }
+
+class _DriverChatMsg {
+  final String text;
+  final bool isMe;
+  final _DriverMsgType type;
+  final String? voiceUrl;
+  final double? lat;
+  final double? lng;
+
+  const _DriverChatMsg({
+    required this.text,
+    required this.isMe,
+    this.type = _DriverMsgType.text,
+    this.voiceUrl,
+    this.lat,
+    this.lng,
+  });
+
+  factory _DriverChatMsg.fromMap(Map m) {
+    final senderType = (m['sender_type'] ?? '') as String;
+    final rawType = (m['message_type'] ?? 'text') as String;
+    _DriverMsgType type;
+    switch (rawType) {
+      case 'voice':            type = _DriverMsgType.voice; break;
+      case 'location':         type = _DriverMsgType.location; break;
+      case 'location_request': type = _DriverMsgType.locationRequest; break;
+      default:                 type = _DriverMsgType.text;
+    }
+    return _DriverChatMsg(
+      text:     (m['message'] ?? '').toString(),
+      isMe:     senderType == 'driver',
+      type:     type,
+      voiceUrl: m['voice_url'] as String?,
+      lat:      m['lat'] != null ? double.tryParse('${m['lat']}') : null,
+      lng:      m['lng'] != null ? double.tryParse('${m['lng']}') : null,
+    );
+  }
+}
+
+// ── Driver: Voice bubble ──────────────────────────────────────────────────────
+
+class _DriverVoiceBubble extends StatefulWidget {
+  final String url;
+  final bool isMe;
+  final bool isLocal;
+  final AppColors c;
+  const _DriverVoiceBubble({required this.url, required this.isMe,
+      required this.isLocal, required this.c});
+  @override
+  State<_DriverVoiceBubble> createState() => _DriverVoiceBubbleState();
+}
+
+class _DriverVoiceBubbleState extends State<_DriverVoiceBubble> {
+  final _player = AudioPlayer();
+  bool _playing = false;
+  Duration _position = Duration.zero;
+  Duration _duration = Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _player.onPlayerStateChanged.listen((s) {
+      if (mounted) setState(() => _playing = s == PlayerState.playing);
+    });
+    _player.onPositionChanged.listen((p) {
+      if (mounted) setState(() => _position = p);
+    });
+    _player.onDurationChanged.listen((d) {
+      if (mounted) setState(() => _duration = d);
+    });
+    _player.onPlayerComplete.listen((_) {
+      if (mounted) setState(() { _playing = false; _position = Duration.zero; });
+    });
+  }
+
+  String _fmt(Duration d) {
+    final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+
+  Future<void> _toggle() async {
+    if (_playing) {
+      await _player.pause();
+    } else {
+      widget.isLocal
+          ? await _player.play(DeviceFileSource(widget.url))
+          : await _player.play(UrlSource(widget.url));
+    }
+  }
+
+  @override
+  void dispose() { _player.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = widget.c;
+    final bgColor = widget.isMe ? DC.orange : c.card;
+    final textColor = widget.isMe ? Colors.white : c.text;
+    final accent = widget.isMe ? Colors.white70 : DC.orange;
+    final total = _duration.inMilliseconds > 0 ? _duration.inMilliseconds.toDouble() : 1.0;
+    final pos = _position.inMilliseconds.toDouble().clamp(0.0, total);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(16)),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        GestureDetector(
+          onTap: _toggle,
+          child: Icon(_playing ? Icons.pause_circle_filled : Icons.play_circle_filled,
+              color: accent, size: 36),
+        ),
+        const SizedBox(width: 8),
+        SizedBox(
+          width: 110,
+          child: SliderTheme(
+            data: SliderThemeData(
+              trackHeight: 2,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
+              overlayShape: SliderComponentShape.noOverlay,
+              activeTrackColor: accent,
+              inactiveTrackColor: accent.withValues(alpha: 0.25),
+              thumbColor: accent,
+            ),
+            child: Slider(
+              value: pos,
+              min: 0,
+              max: total,
+              onChanged: (v) => _player.seek(Duration(milliseconds: v.toInt())),
+            ),
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(_fmt(_playing ? _position : _duration),
+            style: TextStyle(color: textColor, fontSize: 11)),
+      ]),
+    );
+  }
+}
+
+// ── Driver: Location bubble ───────────────────────────────────────────────────
+
+class _DriverLocationBubble extends StatelessWidget {
+  final double lat, lng;
+  final bool isMe;
+  final AppColors c;
+  const _DriverLocationBubble({required this.lat, required this.lng,
+      required this.isMe, required this.c});
+
+  @override
+  Widget build(BuildContext context) {
+    final mapUrl = 'https://maps.googleapis.com/maps/api/staticmap'
+        '?center=$lat,$lng&zoom=15&size=280x140'
+        '&markers=color:red|$lat,$lng&key=$_driverMapsKey';
+    final bgColor = isMe ? DC.orange : c.card;
+
+    return GestureDetector(
+      onTap: () async {
+        final uri = Uri.parse('https://maps.google.com/?q=$lat,$lng');
+        // ignore: deprecated_member_use
+        if (await canLaunchUrl(uri)) launchUrl(uri, mode: LaunchMode.externalApplication);
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(16)),
+        clipBehavior: Clip.hardEdge,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Image.network(mapUrl, width: 220, height: 120, fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                  width: 220, height: 120, color: Colors.grey.shade800,
+                  child: const Icon(Icons.map_outlined, size: 40, color: Colors.grey))),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
+            child: Row(children: [
+              const Icon(Icons.location_on_rounded, size: 14, color: DC.success),
+              const SizedBox(width: 4),
+              Text(isMe ? 'My location' : "Customer's location",
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
+                      color: isMe ? Colors.white70 : c.text)),
+              const SizedBox(width: 4),
+              Text('• Tap to open', style: TextStyle(fontSize: 11, color: c.textMuted)),
+            ]),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+// ── Driver: Voice pending bar ─────────────────────────────────────────────────
+
+class _DriverVoicePendingBar extends StatelessWidget {
+  final String path;
+  final VoidCallback onSend;
+  final VoidCallback onCancel;
+  final AppColors c;
+  const _DriverVoicePendingBar({required this.path, required this.onSend,
+      required this.onCancel, required this.c});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      color: DC.orange.withValues(alpha: 0.08),
+      child: Row(children: [
+        const Icon(Icons.mic_rounded, color: DC.orange, size: 20),
+        const SizedBox(width: 8),
+        Expanded(child: _DriverVoiceBubble(url: path, isMe: true, isLocal: true, c: c)),
+        const SizedBox(width: 8),
+        GestureDetector(onTap: onCancel,
+            child: const Icon(Icons.close, color: Colors.red, size: 22)),
+        const SizedBox(width: 12),
+        GestureDetector(
+          onTap: onSend,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+            decoration: BoxDecoration(color: DC.orange, borderRadius: BorderRadius.circular(20)),
+            child: const Text('Send', style: TextStyle(color: Colors.white,
+                fontWeight: FontWeight.w700, fontSize: 13)),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+// ── Driver: Recording bar ─────────────────────────────────────────────────────
+
+class _DriverRecordingBar extends StatelessWidget {
+  final int seconds;
+  final VoidCallback onStop;
+  final VoidCallback onCancel;
+  final AppColors c;
+  const _DriverRecordingBar({required this.seconds, required this.onStop,
+      required this.onCancel, required this.c});
+
+  @override
+  Widget build(BuildContext context) {
+    final m = (seconds ~/ 60).toString().padLeft(2, '0');
+    final s = (seconds % 60).toString().padLeft(2, '0');
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.red.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(30),
+      ),
+      child: Row(children: [
+        GestureDetector(onTap: onCancel,
+            child: const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 22)),
+        const SizedBox(width: 8),
+        const Icon(Icons.fiber_manual_record, color: Colors.red, size: 14),
+        const SizedBox(width: 6),
+        Text('$m:$s', style: const TextStyle(
+            color: Colors.red, fontWeight: FontWeight.w700, fontSize: 15)),
+        const Spacer(),
+        GestureDetector(
+          onTap: onStop,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+            decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(20)),
+            child: const Text('Stop & Preview',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12)),
+          ),
+        ),
+      ]),
     );
   }
 }
