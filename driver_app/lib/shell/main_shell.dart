@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../core/theme/driver_colors.dart';
+import '../core/services/app_update_checker.dart';
 
-class MainShell extends StatelessWidget {
+class MainShell extends StatefulWidget {
   final Widget child;
   const MainShell({super.key, required this.child});
 
+  @override
+  State<MainShell> createState() => _MainShellState();
+}
+
+class _MainShellState extends State<MainShell> {
   static const _tabs = ['/dashboard', '/orders', '/earnings', '/wallet', '/profile'];
 
   int _index(BuildContext context) {
@@ -15,10 +21,18 @@ class MainShell extends StatelessWidget {
   }
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) AppUpdateChecker.check(context, 'driver');
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final c = context.dc;
     return Scaffold(
-      body: child,
+      body: widget.child,
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: c.navyLight,

@@ -8,6 +8,7 @@ import '../../../../core/services/realtime_client.dart';
 import '../../../../core/services/cold_start.dart';
 import '../../../../core/storage/local_storage.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/services/app_update_checker.dart';
 import '../../../community/presentation/providers/community_provider.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -81,6 +82,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     final router = GoRouter.of(context); // router lives independently of widget
 
     context.go(destination);
+
+    // Force update check — runs after navigation settles
+    if (destination == '/home' || destination == '/so/home' || destination == '/int/home') {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        await Future.delayed(const Duration(milliseconds: 800));
+        if (mounted) return; // widget disposed; use router context
+        // Note: context is gone here — check is deferred to MainShell
+      });
+    }
 
     // Cold-start deep link: push the screen on top of home once it settles.
     if (destination == '/home' && dl != null && dl.isNotEmpty) {

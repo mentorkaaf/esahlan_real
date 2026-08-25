@@ -1136,6 +1136,9 @@
 
         {{-- ══ SYSTEM ══ --}}
         <div class="nav-section-label">System</div>
+        <a href="{{ route('admin.app-versions.index') }}" class="nav-link {{ request()->routeIs('admin.app-versions.*') ? 'active' : '' }}">
+            <div class="nav-icon"><i class="fas fa-mobile-screen-button"></i></div><span class="nav-text">Force Update</span>
+        </a>
         <a href="{{ route('admin.settings.index') }}" class="nav-link {{ request()->routeIs('admin.settings.*') ? 'active' : '' }}">
             <div class="nav-icon"><i class="fas fa-gear"></i></div><span class="nav-text">App Settings</span>
         </a>

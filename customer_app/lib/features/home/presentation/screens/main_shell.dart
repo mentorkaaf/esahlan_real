@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/l10n/app_strings.dart';
 import '../../../../core/providers/community_feature_provider.dart';
 import '../../../../core/services/realtime_client.dart';
+import '../../../../core/services/app_update_checker.dart';
 import '../../../../core/widgets/smart_location_banner.dart';
 import '../providers/home_provider.dart';
 
@@ -62,6 +63,10 @@ class _MainShellState extends ConsumerState<MainShell> {
   void initState() {
     super.initState();
     RealtimeClient.instance.listen('modules', 'modules.updated', _onModulesUpdated);
+    // Force update check — runs once after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) AppUpdateChecker.check(context, 'customer');
+    });
   }
 
   @override

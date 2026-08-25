@@ -8,6 +8,7 @@ import '../wallet/wallet_screen.dart';
 import '../wholesale/wholesale_screen.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/vendor_repository.dart';
+import '../../core/services/app_update_checker.dart';
 import '../../core/theme/vc.dart';
 
 final _pendingCountProvider = FutureProvider.autoDispose<int>((ref) async {
@@ -48,6 +49,9 @@ class _MainShellState extends ConsumerState<MainShell> {
     super.initState();
     _index = widget.initialIndex;
     _loadModule();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) AppUpdateChecker.check(context, 'vendor');
+    });
   }
 
   Future<void> _loadModule() async {

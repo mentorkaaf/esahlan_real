@@ -224,6 +224,9 @@ Route::prefix('v1')->group(function () {
         Route::post('vendor/register',           [\App\Http\Controllers\Vendor\VendorApiRegisterController::class, 'register']);
     });
 
+    // App version check (public — no auth) ?app=customer|driver|vendor&version=1.0.0
+    Route::get('app/version-check', [\App\Http\Controllers\Api\AppVersionController::class, 'check']);
+
     // Public info
     Route::get('ads',                   [AdController::class, 'index']);         // ?type=popup|banner|card &module=efood
     Route::post('ads/{id}/track',       [AdController::class, 'track']);         // body: {action: impression|click}

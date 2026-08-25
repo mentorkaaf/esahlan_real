@@ -33,6 +33,9 @@ dependencies:
   timeago: ^3.7.0
   permission_handler: ^11.4.0
   connectivity_plus: ^6.1.3
+  # App version & update check
+  package_info_plus: ^8.0.0
+
   # Audio — voice messages
   audioplayers: ^6.1.0
   audio_waveforms: ^1.2.0

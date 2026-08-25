@@ -693,6 +693,12 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::get('/users/search', 'searchUsers')->name('users.search');
         });
 
+        // App Version Control (force update)
+        Route::prefix('app-versions')->name('app-versions.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Admin\AdminAppVersionController::class, 'index'])->name('index');
+            Route::patch('/{app_type}', [\App\Http\Controllers\Admin\AdminAppVersionController::class, 'update'])->name('update');
+        });
+
         // Settings
         Route::prefix('settings')->name('settings.')->group(function () {
             Route::get('/', [AdminSettingController::class, 'index'])->name('index');
