@@ -252,6 +252,31 @@ class AdminOrderController extends Controller
                         // Ring the driver — order confirmed or ready for pickup
                         $pickupArr   = is_string($order->getRawOriginal('pickup_address'))   ? json_decode($order->getRawOriginal('pickup_address'), true)   ?? [] : (array) ($order->pickup_address   ?? []);
                         $deliveryArr = is_string($order->getRawOriginal('delivery_address')) ? json_decode($order->getRawOriginal('delivery_address'), true) ?? [] : (array) ($order->delivery_address ?? []);
+                        // Fallback: populate lat/lng from vendor or district if pickup_address lacks coordinates
+                        if (empty($pickupArr['lat']) || (float)$pickupArr['lat'] == 0) {
+                            if ($order->vendor && $order->vendor->latitude) {
+                                $pickupArr['lat']      = $order->vendor->latitude;
+                                $pickupArr['lng']      = $order->vendor->longitude ?? 0;
+                                $pickupArr['district'] = $pickupArr['district'] ?? ($order->vendor->name ?? '');
+                            } elseif ($order->district_id) {
+                                $dist = \Illuminate\Support\Facades\DB::table('districts')->find($order->district_id);
+                                if ($dist && $dist->latitude) {
+                                    $pickupArr['lat'] = $dist->latitude;
+                                    $pickupArr['lng'] = $dist->longitude ?? 0;
+                                    $pickupArr['district'] = $pickupArr['district'] ?? ($dist->name ?? '');
+                                }
+                            }
+                        }
+                        if (empty($deliveryArr['lat']) || (float)$deliveryArr['lat'] == 0) {
+                            if ($order->user && $order->user->district_id) {
+                                $dist = \Illuminate\Support\Facades\DB::table('districts')->find($order->user->district_id);
+                                if ($dist && $dist->latitude) {
+                                    $deliveryArr['lat'] = $dist->latitude;
+                                    $deliveryArr['lng'] = $dist->longitude ?? 0;
+                                    $deliveryArr['district'] = $deliveryArr['district'] ?? ($dist->name ?? '');
+                                }
+                            }
+                        }
                         FcmService::sendNewOrderRing($driverToken, [
                             'id'                  => $order->id,
                             'order_number'        => $order->order_number,

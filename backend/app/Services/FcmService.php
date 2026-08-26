@@ -308,10 +308,16 @@ class FcmService
             'delivery_lng'      => (string) ($delivery['lng'] ?? 0),
         ];
 
-        // DATA-ONLY FCM — no 'notification' block.
-        // Android passes this directly to Flutter _bgHandler even when app is killed.
-        // _bgHandler then shows the full-screen alarm notification itself.
-        return self::sendDataOnly($fcmToken, $data);
+        // Notification-type FCM with loud sound — works on ALL phones including HONOR.
+        // Flutter onMessageOpenedApp handles tap to open incoming order screen.
+        return self::sendToToken(
+            $fcmToken,
+            '🚨 New Order! Tap to accept',
+            'Order #' . $data['order_number'] . ' • $' . (string) $fee . ' delivery fee',
+            $data,
+            null,
+            'esahlan_order_ring_v2',
+        );
     }
 
     /**
