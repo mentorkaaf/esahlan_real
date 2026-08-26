@@ -934,6 +934,10 @@ Route::prefix('v1')->group(function () {
             // Order chat (driver ↔ customer) — same controller, role:deliveryman guard
             Route::get('orders/{order}/chat',               [OrderChatController::class, 'messages']);
             Route::post('orders/{order}/chat',              [OrderChatController::class, 'send']);
+            Route::get('stats',      [DeliveryController::class, 'stats']);
+            Route::post('sos',       [DeliveryController::class, 'sos']);
+            Route::get('heatmap',    [DeliveryController::class, 'heatmap']);
+            Route::get('challenges', [DeliveryController::class, 'challenges']);
         });
 
         // ─── VENDOR ───────────────────────────────────────────────

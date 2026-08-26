@@ -388,11 +388,14 @@ class DeliveryController extends Controller
             }
         } catch (\Throwable) {}
 
+        $dm->increment('accepted_orders_count');
         return response()->json(['success' => true, 'message' => 'Order accepted']);
     }
 
     public function rejectOrder(Request $request, Order $order)
     {
+        $dm = $this->dm($request);
+        if ($dm) $dm->increment('rejected_orders_count');
         return response()->json(['success' => true, 'message' => 'Order skipped']);
     }
 
@@ -404,7 +407,7 @@ class DeliveryController extends Controller
         }
 
         $v = Validator::make($request->all(), [
-            'status'       => 'required|in:out_for_delivery,delivered',
+            'status'       => 'required|in:picked_up,out_for_delivery,delivered',
             'note'         => 'nullable|string',
             'delivery_photo'=> 'nullable|image|max:5120',
         ]);
@@ -413,8 +416,12 @@ class DeliveryController extends Controller
         DB::transaction(function () use ($order, $request, $dm) {
             $data = ['status' => $request->status];
 
-            if ($request->status === 'out_for_delivery') {
+            if ($request->status === 'picked_up') {
                 $data['picked_up_at'] = now();
+            }
+
+            if ($request->status === 'out_for_delivery') {
+                $data['on_the_way_at'] = now();
             }
 
             if ($request->status === 'delivered') {
@@ -481,6 +488,8 @@ class DeliveryController extends Controller
 
                 $dm->update(['status' => 'available', 'is_available' => true]);
                 $dm->increment('total_deliveries');
+                $dm->increment('completed_orders_count');
+                try { \App\Services\ChallengeService::onDeliveryComplete($dm); } catch (\Throwable) {}
             }
 
             $order->update($data);
@@ -1033,6 +1042,134 @@ class DeliveryController extends Controller
             : null;
 
         return $result;
+    }
+
+
+    // STATS
+    public function stats(Request $request) {
+        $dm = $this->dm($request);
+        if (!$dm) return response()->json(['success'=>false],404);
+        $total = $dm->accepted_orders_count + $dm->rejected_orders_count;
+        $ar = $total > 0 ? round($dm->accepted_orders_count / $total * 100, 1) : 100.0;
+        $cr = $dm->accepted_orders_count > 0 ? round($dm->completed_orders_count / $dm->accepted_orders_count * 100, 1) : 100.0;
+        $tier = $this->computeTier($dm, $ar, $cr);
+        return response()->json(['success'=>true,'data'=>[
+            'acceptance_rate'=>$ar,'completion_rate'=>$cr,
+            'accepted_count'=>$dm->accepted_orders_count,'rejected_count'=>$dm->rejected_orders_count,
+            'completed_count'=>$dm->completed_orders_count,'total_deliveries'=>$dm->total_deliveries,
+            'rating'=>round($dm->rating??5.0,1),'tier'=>$tier,'tier_next'=>$this->nextTier($tier)]]);
+    }
+
+    private function computeTier(Deliveryman $dm, float $ar, float $cr): string {
+        $td=(int)($dm->total_deliveries??0); $rt=(float)($dm->rating??5.0);
+        if($td>=500&&$rt>=4.8&&$ar>=90) return 'diamond';
+        if($td>=200&&$rt>=4.5&&$ar>=85) return 'gold';
+        if($td>=50&&$rt>=3.5&&$ar>=70)  return 'silver';
+        return 'bronze';
+    }
+
+    private function nextTier(string $tier): ?array {
+        return ['bronze'=>['name'=>'Silver','deliveries'=>50,'rating'=>3.5,'acceptance'=>70],
+                'silver'=>['name'=>'Gold','deliveries'=>200,'rating'=>4.5,'acceptance'=>85],
+                'gold'  =>['name'=>'Diamond','deliveries'=>500,'rating'=>4.8,'acceptance'=>90],
+                'diamond'=>null][$tier]??null;
+    }
+
+    // SOS
+    public function sos(Request $request) {
+        $dm = $this->dm($request);
+        if (!$dm) return response()->json(['success'=>false],404);
+        $dm->loadMissing('user:id,name,phone');
+        $alertId = DB::table('driver_sos_alerts')->insertGetId([
+            'deliveryman_id'=>$dm->id,'order_id'=>$request->order_id,
+            'latitude'=>$request->latitude,'longitude'=>$request->longitude,
+            'message'=>$request->message??'SOS — driver needs help',
+            'status'=>'pending','created_at'=>now(),'updated_at'=>now()]);
+        $admins = DB::table('users')->join('roles','users.role_id','=','roles.id')
+            ->where('roles.slug','admin')->whereNotNull('users.fcm_token')->pluck('users.fcm_token');
+        $driverName = $dm->user?->name ?? 'Driver';
+        foreach ($admins as $token) {
+            try { \App\Services\FcmService::sendToToken($token,'SOS Alert',
+                "SOS from {$driverName}: ".($request->message??'Needs help'),
+                ['type'=>'driver_sos','alert_id'=>(string)$alertId,
+                 'driver_name'=>$driverName,'lat'=>(string)($request->latitude??''),'lng'=>(string)($request->longitude??'')]);
+            } catch(\Throwable){}
+        }
+        return response()->json(['success'=>true,'message'=>'SOS sent','alert_id'=>$alertId]);
+    }
+
+    // HEATMAP
+    public function heatmap(Request $request) {
+        $dm = $this->dm($request);
+        if (!$dm) return response()->json(['success'=>false],404);
+        $points = DB::table('orders')->join('vendors','orders.vendor_id','=','vendors.id')
+            ->where('orders.created_at','>=',now()->subHours(6))
+            ->whereIn('orders.status',['confirmed','preparing','ready_for_pickup','out_for_delivery','delivered'])
+            ->whereNotNull('vendors.latitude')->whereNotNull('vendors.longitude')
+            ->select('vendors.latitude as lat','vendors.longitude as lng',DB::raw('COUNT(*) as weight'))
+            ->groupBy('vendors.latitude','vendors.longitude')->get();
+        return response()->json(['success'=>true,'data'=>$points]);
+    }
+
+    // CHALLENGES
+    public function challenges(Request $request) {
+        $dm = $this->dm($request);
+        if (!$dm) return response()->json(['success'=>false],404);
+        $now = now();
+        $challenges = DB::table('driver_challenges')->where('is_active',true)
+            ->where(fn($q)=>$q->whereNull('starts_at')->orWhere('starts_at','<=',$now))
+            ->where(fn($q)=>$q->whereNull('ends_at')->orWhere('ends_at','>=',$now))->get();
+        $result=[];
+        foreach($challenges as $ch){
+            $prog=DB::table('driver_challenge_progress')
+                ->where('deliveryman_id',$dm->id)->where('challenge_id',$ch->id)->first();
+            $result[]=['id'=>$ch->id,'title'=>$ch->title,'description'=>$ch->description,
+                'type'=>$ch->type,'target_count'=>$ch->target_count,'reward_amount'=>(float)$ch->reward_amount,
+                'ends_at'=>$ch->ends_at,'current_count'=>$prog->current_count??0,
+                'completed'=>$prog?->completed_at!==null,'reward_paid'=>$prog?->reward_paid_at!==null,
+                'pct'=>$ch->target_count>0?min(100,round(($prog->current_count??0)/$ch->target_count*100)):0];
+        }
+        return response()->json(['success'=>true,'data'=>$result]);
+    }
+
+    // AUTO-DISPATCH (static)
+    public static function autoDispatch(Order $order): bool {
+        $isTruck=in_array($order->module_slug,['emoving']);
+        $pLat=(float)($order->vendor?->latitude??0);
+        $pLng=(float)($order->vendor?->longitude??0);
+        $radius=(float)\App\Helpers\AppSettings::get('driver_notification_radius_km',5);
+        $drivers=Deliveryman::where('is_online',true)->where('is_available',true)
+            ->where('is_approved',true)->where('status','available')
+            ->when($isTruck,fn($q)=>$q->where('driver_type','truck'))
+            ->when(!$isTruck,fn($q)=>$q->where(fn($q)=>$q->where('driver_type','!=','truck')->orWhereNull('driver_type')))
+            ->whereNotNull('latitude')->where('last_location_at','>=',now()->subMinutes(15))->get();
+        if($drivers->isEmpty()) return false;
+        $tierOrder=['diamond'=>4,'gold'=>3,'silver'=>2,'bronze'=>1];
+        $candidates=$drivers->map(function($dm) use($pLat,$pLng,$tierOrder){
+            $lat=(float)$dm->latitude;$lng=(float)$dm->longitude;
+            $dist=($lat&&$lng&&$pLat)?6371*acos(min(1,cos(deg2rad($pLat))*cos(deg2rad($lat))*cos(deg2rad($lng)-deg2rad($pLng))+sin(deg2rad($pLat))*sin(deg2rad($lat)))):999;
+            $total=$dm->accepted_orders_count+$dm->rejected_orders_count;
+            $ar=$total>0?$dm->accepted_orders_count/$total*100:100;
+            $td=(int)($dm->total_deliveries??0);$rt=(float)($dm->rating??5.0);
+            $tier='bronze';
+            if($td>=500&&$rt>=4.8&&$ar>=90)$tier='diamond';
+            elseif($td>=200&&$rt>=4.5&&$ar>=85)$tier='gold';
+            elseif($td>=50&&$rt>=3.5&&$ar>=70)$tier='silver';
+            return ['dm'=>$dm,'dist'=>$dist,'tier_score'=>$tierOrder[$tier]??1];
+        })->filter(fn($c)=>$c['dist']<=($pLat?$radius*3:999))
+          ->sortByDesc('tier_score')->sortBy('dist');
+        if($candidates->isEmpty()) return false;
+        $best=$candidates->first();$dm=$best['dm'];
+        $token=$dm->fcm_token;if(!$token) return false;
+        $addr=$order->delivery_address;if(is_string($addr))$addr=json_decode($addr,true);
+        \App\Services\FcmService::sendNewOrderRing($token,[
+            'id'=>$order->id,'order_number'=>$order->order_number,
+            'module_slug'=>$order->module_slug??'order','delivery_fee'=>(float)($order->delivery_fee??0),
+            'distance'=>round($best['dist'],1),'estimated_minutes'=>(int)($best['dist']*3),
+            'driver_to_pickup_km'=>round($best['dist'],1),
+            'pickup_address'=>['lat'=>$pLat,'lng'=>$pLng,'district'=>$order->vendor?->district?->name??''],
+            'delivery_address'=>is_array($addr)?$addr:[]]);
+        return true;
     }
 
     private function haversine(float $lat1, float $lng1, float $lat2, float $lng2): float
