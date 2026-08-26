@@ -122,16 +122,43 @@ class DispatchController extends Controller
             $dm->update(['status' => 'busy', 'is_available' => false]);
         });
 
-        // Notify driver (correct driver template)
+        // Notify driver — full ring alarm with order details
         try {
             $driverToken = $dm->fcm_token ?? $dm->user?->fcm_token;
             if ($driverToken) {
-                \App\Services\FcmService::sendDriverOrderUpdate(
-                    $driverToken,
-                    $order->order_number, 'out_for_delivery', $order->id, $order->module_slug
-                );
+                // Load related order data for the alarm payload
+                $order->load(['pickupAddress', 'deliveryAddress']);
+
+                // Build flat pickup/delivery arrays (works for all module types)
+                $pickupInfo   = $order->pickup_address   ?? $order->pickupAddress   ?? null;
+                $deliveryInfo = $order->delivery_address ?? $order->deliveryAddress ?? null;
+
+                $pickupArr   = is_array($pickupInfo)   ? $pickupInfo   : (is_object($pickupInfo)   ? $pickupInfo->toArray()   : []);
+                $deliveryArr = is_array($deliveryInfo) ? $deliveryInfo : (is_object($deliveryInfo) ? $deliveryInfo->toArray() : []);
+
+                // Try to pull district/address from stored JSON columns if present
+                if (empty($pickupArr) && $order->getRawOriginal('pickup_address')) {
+                    $pickupArr   = json_decode($order->getRawOriginal('pickup_address'), true) ?? [];
+                }
+                if (empty($deliveryArr) && $order->getRawOriginal('delivery_address')) {
+                    $deliveryArr = json_decode($order->getRawOriginal('delivery_address'), true) ?? [];
+                }
+
+                \App\Services\FcmService::sendNewOrderRing($driverToken, [
+                    'id'           => $order->id,
+                    'order_number' => $order->order_number,
+                    'module_slug'  => $order->module_slug,
+                    'delivery_fee' => $order->delivery_fee ?? 0,
+                    'distance'     => $order->distance ?? 0,
+                    'estimated_minutes' => $order->estimated_minutes ?? 0,
+                    'driver_to_pickup_km' => 0,  // set to 0 — driver sees it on map
+                    'pickup_address'   => $pickupArr,
+                    'delivery_address' => $deliveryArr,
+                ]);
             }
-        } catch (\Throwable) {}
+        } catch (\Throwable $e) {
+            \Log::warning('[Dispatch] sendNewOrderRing failed: ' . $e->getMessage());
+        }
 
         // Notify customer — driver assigned
         try {

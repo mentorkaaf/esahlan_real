@@ -275,6 +275,51 @@ class FcmService
         ]);
     }
 
+
+    /**
+     * Send a full-screen ringing alarm when admin assigns an order to a driver.
+     * The Flutter app's _bgHandler uses type=new_order to show a full-screen intent.
+     */
+    public static function sendNewOrderRing(
+        string $fcmToken,
+        array  $order,
+    ): bool {
+        $pickup   = $order['pickup_address']   ?? [];
+        $delivery = $order['delivery_address'] ?? [];
+        $fee      = $order['delivery_fee']     ?? 0;
+        $slug     = $order['module_slug']      ?? 'order';
+
+        $data = [
+            'type'              => 'new_order',
+            'order_id'          => (string) $order['id'],
+            'order_number'      => (string) ($order['order_number'] ?? ''),
+            'module_slug'       => (string) $slug,
+            'delivery_fee'      => (string) $fee,
+            'distance_km'       => (string) ($order['distance'] ?? 0),
+            'estimated_minutes' => (string) ($order['estimated_minutes'] ?? 0),
+            'driver_to_pickup_km' => (string) ($order['driver_to_pickup_km'] ?? 0),
+            'pickup_district'   => (string) ($pickup['district'] ?? ''),
+            'pickup_address'    => (string) ($pickup['address'] ?? ''),
+            'pickup_lat'        => (string) ($pickup['lat'] ?? 0),
+            'pickup_lng'        => (string) ($pickup['lng'] ?? 0),
+            'delivery_district' => (string) ($delivery['district'] ?? ''),
+            'delivery_address'  => (string) ($delivery['address'] ?? ''),
+            'delivery_lat'      => (string) ($delivery['lat'] ?? 0),
+            'delivery_lng'      => (string) ($delivery['lng'] ?? 0),
+        ];
+
+        // High-priority data-only message — triggers _bgHandler in Flutter
+        // Use the custom alarm channel so Android rings loud even on silent mode
+        return self::sendToToken(
+            $fcmToken,
+            '🚀 New Order — Accept now!',
+            'Order #' . $data['order_number'] . ' • Earn SOS ' . (string) $fee,
+            $data,
+            null,
+            'esahlan_order_ring',
+        );
+    }
+
     public static function sendDriverOrderUpdate(
         string  $fcmToken,
         string  $orderNumber,
