@@ -125,10 +125,13 @@ function renderDrivers(drivers) {
         var isBusy = d.status === 'busy';
         if (isBusy) busy++; else online++;
 
+        var minsAgo = d.last_seen_at ? Math.floor((Date.now() - new Date(d.last_seen_at)) / 60000) : 99;
+        var isStale = minsAgo > 5;   // >5 min: app likely killed, WorkManager fallback
+        var fillColor = isBusy ? '#f97316' : isStale ? '#9ca3af' : '#22c55e';
         var icon = {
             path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
-            fillColor: isBusy ? '#f97316' : '#22c55e',
-            fillOpacity: 1,
+            fillColor: fillColor,
+            fillOpacity: isStale ? 0.5 : 1,
             strokeColor: '#fff',
             strokeWeight: 2,
             scale: 1.6,
@@ -198,40 +201,55 @@ function panTo(lat, lng, driverId) {
 }
 
 // ── Reverb real-time updates ───────────────────────────────────────────────
-@if(config('broadcasting.default') === 'reverb')
 (function() {
-    var script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/laravel-echo@1.15.3/dist/echo.iife.js';
-    script.onload = function() {
-        var PusherClient = window.Pusher || window.pusher;
-        // Use native WebSocket via reverb
-        var echo = new LaravelEcho.default({
-            broadcaster: 'reverb',
-            key: '{{ config('broadcasting.connections.reverb.key') }}',
-            wsHost: '{{ config('broadcasting.connections.reverb.host') }}',
-            wsPort: {{ config('broadcasting.connections.reverb.port', 443) }},
-            wssPort: {{ config('broadcasting.connections.reverb.port', 443) }},
-            forceTLS: '{{ config('broadcasting.connections.reverb.scheme', 'https') }}' === 'https',
-            enabledTransports: ['ws', 'wss'],
+    // Load Laravel Echo + Pusher-compatible client (Reverb uses Pusher protocol)
+    function loadScript(src, cb) {
+        var s = document.createElement('script');
+        s.src = src; s.onload = cb; document.head.appendChild(s);
+    }
+
+    loadScript('https://cdn.jsdelivr.net/npm/pusher-js@8.4.0/dist/web/pusher.min.js', function() {
+        loadScript('https://cdn.jsdelivr.net/npm/laravel-echo@1.16.1/dist/echo.iife.js', function() {
+            try {
+                var echo = new LaravelEcho.default({
+                    broadcaster: 'reverb',
+                    key: '{{ config('broadcasting.connections.reverb.key') }}',
+                    wsHost: '{{ config('broadcasting.connections.reverb.host') }}',
+                    wsPort: {{ config('broadcasting.connections.reverb.port', 6001) }},
+                    wssPort: {{ config('broadcasting.connections.reverb.port', 6001) }},
+                    forceTLS: false,
+                    enabledTransports: ['ws', 'wss'],
+                    disableStats: true,
+                });
+
+                // Channel: admin.dispatch | Event: .driver_location (broadcastAs name)
+                echo.channel('admin.dispatch').listen('.driver_location', function(e) {
+                    console.log('[LiveMap] WS update', e);
+
+                    // Build / merge driver record
+                    var existing = driversData[e.deliveryman_id] || {};
+                    var updated  = Object.assign({}, existing, {
+                        id:           e.deliveryman_id,
+                        name:         e.name || existing.name || 'Driver',
+                        latitude:     parseFloat(e.lat),
+                        longitude:    parseFloat(e.lng),
+                        status:       e.status || existing.status || 'available',
+                        last_seen:    'just now',
+                        last_seen_at: e.updated_at || new Date().toISOString(),
+                    });
+                    driversData[e.deliveryman_id] = updated;
+                    renderDrivers(Object.values(driversData));
+                });
+
+                echo.connector.pusher.connection.bind('state_change', function(states) {
+                    console.log('[LiveMap] WS state:', states.current);
+                });
+            } catch(err) {
+                console.warn('[LiveMap] Echo init error:', err);
+            }
         });
-        echo.channel('admin.drivers').listen('.location.updated', function(e) {
-            // Merge real-time update with existing data
-            var existing = driversData[e.driver_id] || {};
-            var updated = Object.assign({}, existing, {
-                id: e.driver_id,
-                name: e.driver_name || existing.name || 'Driver',
-                latitude: e.latitude,
-                longitude: e.longitude,
-                status: e.status,
-                last_seen: 'just now',
-            });
-            driversData[e.driver_id] = updated;
-            renderDrivers(Object.values(driversData));
-        });
-    };
-    document.head.appendChild(script);
+    });
 })();
-@endif
 </script>
 <script async defer
     src="https://maps.googleapis.com/maps/api/js?key={{ \App\Models\Setting::get('google_maps_api_key', config('services.maps_api_key', env('GOOGLE_MAPS_API_KEY'))) }}&callback=initMap">

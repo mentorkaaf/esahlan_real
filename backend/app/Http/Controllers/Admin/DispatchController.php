@@ -162,10 +162,9 @@ class DispatchController extends Controller
     {
         $drivers = Deliveryman::with('user:id,name,phone')
             ->where('is_approved', true)
-            ->whereIn('status', ['available', 'busy'])
             ->whereNotNull('latitude')
             ->whereNotNull('longitude')
-            ->where('last_location_at', '>=', now()->subMinutes(5))
+            ->where('last_location_at', '>=', now()->subMinutes(30))
             ->get()
             ->map(function ($d) {
                 $activeOrder = null;
