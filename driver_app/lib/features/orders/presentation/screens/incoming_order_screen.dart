@@ -1,16 +1,16 @@
-import 'dart:async';
+﻿import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../core/theme/driver_colors.dart';
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Provider: the pending incoming order (set by FirebaseService on FCM arrival)
-// ──────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Provider
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class _IncomingOrderState {
   final Map<String, dynamic>? order;
   const _IncomingOrderState({this.order});
@@ -20,23 +20,18 @@ class _IncomingOrderState {
 
 class IncomingOrderNotifier extends StateNotifier<_IncomingOrderState> {
   IncomingOrderNotifier() : super(const _IncomingOrderState());
-
-  void setOrder(Map<String, dynamic> order) {
-    state = _IncomingOrderState(order: order);
-  }
-
-  void clear() {
-    state = const _IncomingOrderState();
-  }
+  void setOrder(Map<String, dynamic> order) =>
+      state = _IncomingOrderState(order: order);
+  void clear() => state = const _IncomingOrderState();
 }
 
 final incomingOrderProvider =
     StateNotifierProvider<IncomingOrderNotifier, _IncomingOrderState>(
         (ref) => IncomingOrderNotifier());
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Incoming Order Screen — DoorDash Dasher style
-// ──────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Incoming Order Screen â€” Full-screen DoorDash-style alarm
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class IncomingOrderScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic> order;
   const IncomingOrderScreen({super.key, required this.order});
@@ -48,12 +43,17 @@ class IncomingOrderScreen extends ConsumerStatefulWidget {
 
 class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen>
     with TickerProviderStateMixin {
-  static const _kCountdown = 45; // seconds to accept
+  static const _kCountdown = 45;
 
+  // Animations
   late AnimationController _pulseCtrl;
-  late Animation<double> _pulseAnim;
+  late AnimationController _rippleCtrl;
   late AnimationController _slideCtrl;
+  late AnimationController _rotateCtrl;
+  late Animation<double> _pulseAnim;
+  late Animation<double> _rippleAnim;
   late Animation<Offset> _slideAnim;
+  late Animation<double> _rotateAnim;
 
   Timer? _countdownTimer;
   int _secondsLeft = _kCountdown;
@@ -61,26 +61,67 @@ class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen>
   bool _declining = false;
 
   final _alarm = AudioPlayer();
-  GoogleMapController? _mapCtrl;
+
+  static const _moduleIcons = {
+    'efood':    Icons.restaurant_rounded,
+    'egrocery': Icons.local_grocery_store_rounded,
+    'eshop':    Icons.shopping_bag_rounded,
+    'eparcel':  Icons.local_shipping_rounded,
+    'emoving':  Icons.move_to_inbox_rounded,
+    'elaundry': Icons.local_laundry_service_rounded,
+    'erent':    Icons.home_rounded,
+  };
+  static const _moduleLabels = {
+    'efood':    'eFood Delivery',
+    'egrocery': 'eGrocery Delivery',
+    'eshop':    'eShop Delivery',
+    'eparcel':  'eParcel Delivery',
+    'emoving':  'eMoving Service',
+    'elaundry': 'eLaundry Pickup',
+    'erent':    'eRent Service',
+  };
+  static const _moduleColors = {
+    'efood':    Color(0xFFEF4444),
+    'egrocery': Color(0xFF22C55E),
+    'eshop':    Color(0xFF8B5CF6),
+    'eparcel':  Color(0xFFFF8A00),
+    'emoving':  Color(0xFF3B82F6),
+    'elaundry': Color(0xFF06B6D4),
+    'erent':    Color(0xFFF59E0B),
+  };
 
   @override
   void initState() {
     super.initState();
+    // Full immersive â€” hide status bar + nav bar
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
-    _pulseCtrl =
-        AnimationController(vsync: this, duration: const Duration(seconds: 1))
-          ..repeat(reverse: true);
-    _pulseAnim = Tween<double>(begin: 0.95, end: 1.05).animate(
-        CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
+    // Pulse animation â€” icon breathing
+    _pulseCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 900))
+      ..repeat(reverse: true);
+    _pulseAnim = Tween<double>(begin: 0.92, end: 1.08)
+        .animate(CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
 
+    // Ripple animation â€” expanding rings
+    _rippleCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1500))
+      ..repeat();
+    _rippleAnim = Tween<double>(begin: 0, end: 1)
+        .animate(CurvedAnimation(parent: _rippleCtrl, curve: Curves.easeOut));
+
+    // Slide up animation
     _slideCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 600));
-    _slideAnim = Tween<Offset>(
-            begin: const Offset(0, 1), end: Offset.zero)
-        .animate(
-            CurvedAnimation(parent: _slideCtrl, curve: Curves.easeOutCubic));
+        vsync: this, duration: const Duration(milliseconds: 500));
+    _slideAnim = Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
+        .animate(CurvedAnimation(parent: _slideCtrl, curve: Curves.easeOutCubic));
     _slideCtrl.forward();
+
+    // Rotate animation for the ring
+    _rotateCtrl = AnimationController(
+        vsync: this, duration: const Duration(seconds: 3))
+      ..repeat();
+    _rotateAnim = Tween<double>(begin: 0, end: 1).animate(_rotateCtrl);
 
     _startAlarm();
     _startCountdown();
@@ -91,54 +132,51 @@ class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen>
       await _alarm.setReleaseMode(ReleaseMode.loop);
       await _alarm.setVolume(1.0);
       await _alarm.play(AssetSource('sounds/order_ring.wav'));
-    } catch (_) {
-      // Alarm sound optional — notification sound handles background
-    }
+    } catch (_) {}
   }
 
   void _startCountdown() {
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       setState(() => _secondsLeft--);
-      if (_secondsLeft <= 0) {
-        _decline(autoDecline: true);
-      }
+      if (_secondsLeft <= 0) _decline(autoDecline: true);
     });
   }
 
   Future<void> _accept() async {
     if (_accepting || _declining) return;
+    HapticFeedback.heavyImpact();
     setState(() => _accepting = true);
-    _stopAlarm();
+    _stopAll();
     try {
       final id = (widget.order['id'] as num).toInt();
       await ref.read(authRepoProvider).acceptOrder(id);
       if (mounted) {
         ref.read(incomingOrderProvider.notifier).clear();
         context.go('/orders');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('✓ Order accepted — go pick it up!'),
-            backgroundColor: DC.success,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('âœ“ Order accepted â€” go pick it up!'),
+          backgroundColor: DC.success,
+          behavior: SnackBarBehavior.floating,
+        ));
       }
     } catch (e) {
       if (mounted) {
         setState(() => _accepting = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$e'), backgroundColor: DC.error,
-              behavior: SnackBarBehavior.floating),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('$e'),
+          backgroundColor: DC.error,
+          behavior: SnackBarBehavior.floating,
+        ));
       }
     }
   }
 
   Future<void> _decline({bool autoDecline = false}) async {
     if (_accepting || _declining) return;
+    if (!autoDecline) HapticFeedback.mediumImpact();
     setState(() => _declining = true);
-    _stopAlarm();
+    _stopAll();
     try {
       final id = (widget.order['id'] as num).toInt();
       await ref.read(authRepoProvider).rejectOrder(id);
@@ -149,7 +187,7 @@ class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen>
     }
   }
 
-  void _stopAlarm() {
+  void _stopAll() {
     _countdownTimer?.cancel();
     _alarm.stop();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -157,553 +195,683 @@ class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen>
 
   @override
   void dispose() {
-    _stopAlarm();
+    _stopAll();
     _alarm.dispose();
     _pulseCtrl.dispose();
+    _rippleCtrl.dispose();
     _slideCtrl.dispose();
+    _rotateCtrl.dispose();
     super.dispose();
   }
 
-  // ── helpers ─────────────────────────────────────────────────────────────────
-  static const _moduleIcons = {
-    'efood': Icons.restaurant_rounded,
-    'egrocery': Icons.local_grocery_store_rounded,
-    'eshop': Icons.shopping_bag_rounded,
-    'eparcel': Icons.local_shipping_rounded,
-    'emoving': Icons.move_to_inbox_rounded,
-    'elaundry': Icons.local_laundry_service_rounded,
-  };
-  static const _moduleLabels = {
-    'efood': 'eFood Delivery',
-    'egrocery': 'eGrocery Delivery',
-    'eshop': 'eShop Delivery',
-    'eparcel': 'eParcel Delivery',
-    'emoving': 'eMoving Service',
-    'elaundry': 'eLaundry Pickup',
-  };
-
   @override
   Widget build(BuildContext context) {
-    final o = widget.order;
-    final pickup = (o['pickup'] as Map<String, dynamic>?) ?? {};
+    final o        = widget.order;
+    final pickup   = (o['pickup']   as Map<String, dynamic>?) ?? {};
     final delivery = (o['delivery'] as Map<String, dynamic>?) ?? {};
-    final module = (o['module_slug'] ?? 'order').toString();
-    final fee =
-        double.tryParse('${o['delivery_fee'] ?? 0}') ?? 0;
-    final distance = double.tryParse('${o['distance_km'] ?? 0}') ?? 0;
-    final estMin = (o['estimated_minutes'] as num?)?.toInt() ?? 0;
-    final driverToPickup =
-        double.tryParse('${o['driver_to_pickup_km'] ?? 0}') ?? 0;
+    final module   = (o['module_slug'] ?? 'order').toString();
+    final fee      = double.tryParse('${o['delivery_fee']  ?? 0}') ?? 0;
+    final distance = double.tryParse('${o['distance_km']   ?? 0}') ?? 0;
+    final estMin   = (o['estimated_minutes'] as num?)?.toInt() ?? 0;
+    final toPickup = double.tryParse('${o['driver_to_pickup_km'] ?? 0}') ?? 0;
 
-    final pickupLat = double.tryParse('${pickup['lat'] ?? 0}') ?? 0;
-    final pickupLng = double.tryParse('${pickup['lng'] ?? 0}') ?? 0;
-    final delivLat = double.tryParse('${delivery['lat'] ?? 0}') ?? 0;
-    final delivLng = double.tryParse('${delivery['lng'] ?? 0}') ?? 0;
-    final hasCoords = pickupLat != 0 && delivLat != 0;
+    final moduleColor = _moduleColors[module] ?? DC.orange;
+    final progress    = _secondsLeft / _kCountdown;
+    final timerColor  = _secondsLeft > 20
+        ? const Color(0xFF22C55E)
+        : _secondsLeft > 10 ? DC.orange : DC.error;
 
-    final progress = _secondsLeft / _kCountdown;
-    final progressColor = _secondsLeft > 20
-        ? DC.success
-        : _secondsLeft > 10
-            ? DC.orange
-            : DC.error;
+    final size = MediaQuery.of(context).size;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0F1A),
+      backgroundColor: const Color(0xFF060B14),
       body: Stack(children: [
-        // ── BACKGROUND MAP ──────────────────────────────────────────────────
-        if (hasCoords)
-          Positioned.fill(
-            child: GoogleMap(
-              initialCameraPosition: CameraPosition(
-                target: LatLng(
-                    (pickupLat + delivLat) / 2, (pickupLng + delivLng) / 2),
-                zoom: 12.5,
-              ),
-              onMapCreated: (ctrl) => _mapCtrl = ctrl,
-              myLocationEnabled: true,
-              myLocationButtonEnabled: false,
-              zoomControlsEnabled: false,
-              rotateGesturesEnabled: false,
-              tiltGesturesEnabled: false,
-              markers: {
-                Marker(
-                  markerId: const MarkerId('pickup'),
-                  position: LatLng(pickupLat, pickupLng),
-                  icon: BitmapDescriptor.defaultMarkerWithHue(
-                      BitmapDescriptor.hueOrange),
-                  infoWindow: InfoWindow(
-                      title: '📦 Pickup',
-                      snippet: pickup['district'] ?? ''),
-                ),
-                Marker(
-                  markerId: const MarkerId('delivery'),
-                  position: LatLng(delivLat, delivLng),
-                  icon: BitmapDescriptor.defaultMarkerWithHue(
-                      BitmapDescriptor.hueGreen),
-                  infoWindow: InfoWindow(
-                      title: '🏠 Delivery',
-                      snippet: delivery['district'] ?? ''),
-                ),
-              },
-              polylines: {
-                Polyline(
-                  polylineId: const PolylineId('route'),
-                  points: [
-                    LatLng(pickupLat, pickupLng),
-                    LatLng(delivLat, delivLng),
-                  ],
-                  color: DC.orange,
-                  width: 4,
-                  patterns: [
-                    PatternItem.dash(20),
-                    PatternItem.gap(12),
-                  ],
-                ),
-              },
-            ),
-          ),
-
-        // ── DARK GRADIENT OVERLAY ───────────────────────────────────────────
-        Positioned.fill(
-          child: Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xCC0A0F1A),
-                  Color(0x880A0F1A),
-                  Color(0x330A0F1A),
-                  Color(0x880A0F1A),
-                  Color(0xFF0A0F1A),
-                ],
-                stops: [0, 0.15, 0.4, 0.65, 1],
-              ),
-            ),
-          ),
+        // â”€â”€ ANIMATED BACKGROUND â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        _AnimatedBackground(
+          pulseAnim: _pulseAnim,
+          rippleAnim: _rippleAnim,
+          rotateAnim: _rotateAnim,
+          moduleColor: moduleColor,
+          size: size,
         ),
 
-        // ── TOP: PULSING ALERT BADGE ────────────────────────────────────────
+        // â”€â”€ MAIN CONTENT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         SafeArea(
           child: Column(children: [
-            const SizedBox(height: 20),
-            ScaleTransition(
-              scale: _pulseAnim,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFFF6B00), Color(0xFFFF9A00)],
-                  ),
-                  borderRadius: BorderRadius.circular(40),
-                  boxShadow: [
-                    BoxShadow(
-                        color: DC.orange.withValues(alpha: 0.6),
-                        blurRadius: 20,
-                        spreadRadius: 2),
-                  ],
+            // â”€â”€ TOP SECTION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            Expanded(
+              flex: 5,
+              child: _TopSection(
+                pulseAnim: _pulseAnim,
+                moduleColor: moduleColor,
+                moduleIcon: _moduleIcons[module] ?? Icons.delivery_dining_rounded,
+                moduleLabel: _moduleLabels[module] ?? 'Delivery',
+                orderNumber: o['order_number']?.toString() ?? '',
+              ),
+            ),
+
+            // â”€â”€ SLIDE-UP CARD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            Expanded(
+              flex: 7,
+              child: SlideTransition(
+                position: _slideAnim,
+                child: _OrderCard(
+                  fee: fee,
+                  distance: distance,
+                  estMin: estMin,
+                  toPickup: toPickup,
+                  pickup: pickup,
+                  delivery: delivery,
+                  secondsLeft: _secondsLeft,
+                  countdown: _kCountdown,
+                  progress: progress,
+                  timerColor: timerColor,
+                  moduleColor: moduleColor,
+                  accepting: _accepting,
+                  declining: _declining,
+                  onAccept: _accept,
+                  onDecline: _decline,
                 ),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  const Icon(Icons.notifications_active_rounded,
-                      color: Colors.white, size: 20),
-                  const SizedBox(width: 8),
-                  Text(
-                    'NEW ORDER REQUEST',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 14,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                ]),
               ),
             ),
           ]),
-        ),
-
-        // ── BOTTOM PANEL ────────────────────────────────────────────────────
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: 0,
-          child: SlideTransition(
-            position: _slideAnim,
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Color(0xFF111827),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-                boxShadow: [
-                  BoxShadow(
-                      color: Colors.black54, blurRadius: 30, spreadRadius: 5),
-                ],
-              ),
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                // Handle
-                Container(
-                  margin: const EdgeInsets.only(top: 12, bottom: 8),
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.white24,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-
-                // ── HEADER ROW: module chip + order number ─────────────────
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
-                  child: Row(children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: DC.orangeDim,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        Icon(_moduleIcons[module] ?? Icons.delivery_dining_rounded,
-                            color: DC.orange, size: 13),
-                        const SizedBox(width: 5),
-                        Text(_moduleLabels[module] ?? 'Delivery',
-                            style: const TextStyle(color: DC.orange, fontSize: 11, fontWeight: FontWeight.w700)),
-                      ]),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Order #${o['order_number'] ?? ''}',
-                        style: const TextStyle(color: Colors.white54, fontSize: 12),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ]),
-                ),
-
-                // ── COUNTDOWN + EARNINGS ────────────────────────────────────
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Row(children: [
-                    // Countdown circle
-                    SizedBox(
-                      width: 64,
-                      height: 64,
-                      child: Stack(alignment: Alignment.center, children: [
-                        CircularProgressIndicator(
-                          value: progress,
-                          strokeWidth: 5,
-                          backgroundColor: Colors.white12,
-                          valueColor: AlwaysStoppedAnimation(progressColor),
-                        ),
-                        Text(
-                          '$_secondsLeft',
-                          style: TextStyle(
-                            color: progressColor,
-                            fontWeight: FontWeight.w900,
-                            fontSize: 20,
-                          ),
-                        ),
-                      ]),
-                    ),
-                    const SizedBox(width: 12),
-                    const Text('sec left',
-                        style: TextStyle(color: Colors.white38, fontSize: 11)),
-                    const Spacer(),
-                    Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                      const Text('You earn',
-                          style: TextStyle(color: Colors.white38, fontSize: 11)),
-                      Text(
-                        '\$ ${fee.toStringAsFixed(0)}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 32,
-                          height: 1,
-                        ),
-                      ),
-                    ]),
-                  ]),
-                ),
-
-                const SizedBox(height: 16),
-                Container(height: 1, color: Colors.white10,
-                    margin: const EdgeInsets.symmetric(horizontal: 20)),
-                const SizedBox(height: 16),
-
-                // ── ROUTE INFO ─────────────────────────────────────────────
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Row(children: [
-                    // Pickup
-                    Expanded(
-                      child: _RoutePoint(
-                        icon: Icons.circle_rounded,
-                        iconColor: DC.orange,
-                        label: 'PICKUP',
-                        district: pickup['district'] ?? 'N/A',
-                        address: pickup['address'] ?? '',
-                        subLabel: driverToPickup > 0
-                            ? '${driverToPickup.toStringAsFixed(1)} km from you'
-                            : null,
-                      ),
-                    ),
-                    Column(children: [
-                      Container(width: 1, height: 40, color: Colors.white12),
-                      const Icon(Icons.arrow_forward_rounded,
-                          color: Colors.white24, size: 16),
-                    ]),
-                    Expanded(
-                      child: _RoutePoint(
-                        icon: Icons.location_on_rounded,
-                        iconColor: const Color(0xFF22C55E),
-                        label: 'DELIVERY',
-                        district: delivery['district'] ?? 'N/A',
-                        address: delivery['address'] ?? '',
-                        subLabel: distance > 0
-                            ? '${distance.toStringAsFixed(1)} km total'
-                            : null,
-                        alignRight: true,
-                      ),
-                    ),
-                  ]),
-                ),
-
-                const SizedBox(height: 16),
-
-                // ── STATS ROW ──────────────────────────────────────────────
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Row(children: [
-                    _StatChip(
-                      icon: Icons.straighten_rounded,
-                      label: '${distance.toStringAsFixed(1)} km',
-                      hint: 'Distance',
-                    ),
-                    const SizedBox(width: 8),
-                    _StatChip(
-                      icon: Icons.timer_rounded,
-                      label: estMin > 0 ? '~$estMin min' : '—',
-                      hint: 'Est. time',
-                    ),
-                    const SizedBox(width: 8),
-                    _StatChip(
-                      icon: Icons.directions_bike_rounded,
-                      label: driverToPickup > 0
-                          ? '${driverToPickup.toStringAsFixed(1)} km'
-                          : '—',
-                      hint: 'To pickup',
-                    ),
-                  ]),
-                ),
-
-                const SizedBox(height: 24),
-
-                // ── ACCEPT / DECLINE ───────────────────────────────────────
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Row(children: [
-                    // DECLINE
-                    Expanded(
-                      flex: 2,
-                      child: GestureDetector(
-                        onTap: _declining ? null : _decline,
-                        child: Container(
-                          height: 60,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.white12),
-                          ),
-                          child: _declining
-                              ? const Center(
-                                  child: SizedBox.square(
-                                    dimension: 22,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white54),
-                                  ))
-                              : const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.close_rounded,
-                                        color: Colors.white54, size: 20),
-                                    SizedBox(width: 6),
-                                    Text('Decline',
-                                        style: TextStyle(
-                                            color: Colors.white54,
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 16)),
-                                  ],
-                                ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    // ACCEPT
-                    Expanded(
-                      flex: 3,
-                      child: GestureDetector(
-                        onTap: _accepting ? null : _accept,
-                        child: Container(
-                          height: 60,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF16A34A), Color(0xFF22C55E)],
-                            ),
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                  color: const Color(0xFF22C55E)
-                                      .withValues(alpha: 0.4),
-                                  blurRadius: 16,
-                                  offset: const Offset(0, 6)),
-                            ],
-                          ),
-                          child: _accepting
-                              ? const Center(
-                                  child: SizedBox.square(
-                                    dimension: 24,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white),
-                                  ))
-                              : const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.check_circle_rounded,
-                                        color: Colors.white, size: 22),
-                                    SizedBox(width: 8),
-                                    Text('Accept Order',
-                                        style: TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.w900,
-                                            fontSize: 17)),
-                                  ],
-                                ),
-                        ),
-                      ),
-                    ),
-                  ]),
-                ),
-
-                // Safe area bottom
-                SizedBox(
-                    height: MediaQuery.of(context).padding.bottom + 16),
-              ]),
-            ),
-          ),
         ),
       ]),
     );
   }
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Sub-widgets
-// ──────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Animated Background â€” ripple rings + gradient glow
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+class _AnimatedBackground extends StatelessWidget {
+  final Animation<double> pulseAnim;
+  final Animation<double> rippleAnim;
+  final Animation<double> rotateAnim;
+  final Color moduleColor;
+  final Size size;
 
-class _RoutePoint extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final String label;
-  final String district;
-  final String address;
-  final String? subLabel;
-  final bool alignRight;
-
-  const _RoutePoint({
-    required this.icon,
-    required this.iconColor,
-    required this.label,
-    required this.district,
-    required this.address,
-    this.subLabel,
-    this.alignRight = false,
+  const _AnimatedBackground({
+    required this.pulseAnim,
+    required this.rippleAnim,
+    required this.rotateAnim,
+    required this.moduleColor,
+    required this.size,
   });
 
   @override
   Widget build(BuildContext context) {
-    final align =
-        alignRight ? CrossAxisAlignment.end : CrossAxisAlignment.start;
-    return Column(crossAxisAlignment: align, children: [
-      Row(
-        mainAxisSize: MainAxisSize.min,
-        children: alignRight
-            ? [
-                Text(label,
-                    style: const TextStyle(
-                        color: Colors.white38,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.0)),
-                const SizedBox(width: 5),
-                Icon(icon, color: iconColor, size: 10),
-              ]
-            : [
-                Icon(icon, color: iconColor, size: 10),
-                const SizedBox(width: 5),
-                Text(label,
-                    style: const TextStyle(
-                        color: Colors.white38,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.0)),
-              ],
-      ),
-      const SizedBox(height: 4),
-      Text(
-        district,
-        textAlign: alignRight ? TextAlign.right : TextAlign.left,
-        style: const TextStyle(
-            color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14),
-      ),
-      if (address.isNotEmpty)
-        Text(
-          address,
-          textAlign: alignRight ? TextAlign.right : TextAlign.left,
-          style: const TextStyle(color: Colors.white38, fontSize: 11),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+    return AnimatedBuilder(
+      animation: Listenable.merge([pulseAnim, rippleAnim]),
+      builder: (_, __) {
+        return CustomPaint(
+          size: size,
+          painter: _BgPainter(
+            ripple: rippleAnim.value,
+            pulse: pulseAnim.value,
+            color: moduleColor,
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _BgPainter extends CustomPainter {
+  final double ripple;
+  final double pulse;
+  final Color color;
+  _BgPainter({required this.ripple, required this.pulse, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = size.width / 2;
+    final cy = size.height * 0.35;
+
+    // Dark base gradient
+    final bgPaint = Paint();
+    final bgRect = Rect.fromLTWH(0, 0, size.width, size.height);
+    bgPaint.shader = const LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [Color(0xFF060B14), Color(0xFF0D1628), Color(0xFF060B14)],
+    ).createShader(bgRect);
+    canvas.drawRect(bgRect, bgPaint);
+
+    // Glow behind icon
+    final glowPaint = Paint()
+      ..color = color.withValues(alpha: 0.12 * pulse)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 80);
+    canvas.drawCircle(Offset(cx, cy), 140 * pulse, glowPaint);
+
+    // Ripple rings
+    for (int i = 0; i < 3; i++) {
+      final t = (ripple + i / 3) % 1.0;
+      final radius = 80.0 + t * 160;
+      final opacity = (1 - t) * 0.3;
+      if (opacity <= 0) continue;
+      final paint = Paint()
+        ..color = color.withValues(alpha: opacity)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5;
+      canvas.drawCircle(Offset(cx, cy), radius, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_BgPainter old) =>
+      old.ripple != ripple || old.pulse != pulse;
+}
+
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Top Section â€” icon + label
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+class _TopSection extends StatelessWidget {
+  final Animation<double> pulseAnim;
+  final Color moduleColor;
+  final IconData moduleIcon;
+  final String moduleLabel;
+  final String orderNumber;
+
+  const _TopSection({
+    required this.pulseAnim,
+    required this.moduleColor,
+    required this.moduleIcon,
+    required this.moduleLabel,
+    required this.orderNumber,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // Alert badge
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+          ),
+          child: const Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.notifications_active_rounded,
+                color: Colors.white70, size: 14),
+            SizedBox(width: 6),
+            Text('NEW ORDER REQUEST',
+                style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.5)),
+          ]),
         ),
-      if (subLabel != null)
-        Text(
-          subLabel!,
-          style: TextStyle(color: iconColor, fontSize: 11, fontWeight: FontWeight.w600),
+
+        const SizedBox(height: 28),
+
+        // Module icon â€” pulsing
+        ScaleTransition(
+          scale: pulseAnim,
+          child: Container(
+            width: 100,
+            height: 100,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(colors: [
+                moduleColor.withValues(alpha: 0.25),
+                moduleColor.withValues(alpha: 0.05),
+              ]),
+              border: Border.all(color: moduleColor.withValues(alpha: 0.5), width: 2),
+            ),
+            child: Icon(moduleIcon, color: moduleColor, size: 46),
+          ),
         ),
+
+        const SizedBox(height: 16),
+
+        // Module label
+        Text(moduleLabel,
+            style: TextStyle(
+                color: moduleColor,
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.5)),
+        const SizedBox(height: 4),
+        if (orderNumber.isNotEmpty)
+          Text('Order #$orderNumber',
+              style: const TextStyle(
+                  color: Colors.white38, fontSize: 13)),
+      ],
+    );
+  }
+}
+
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Order Card â€” slide-up panel with all details
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+class _OrderCard extends StatelessWidget {
+  final double fee;
+  final double distance;
+  final int estMin;
+  final double toPickup;
+  final Map<String, dynamic> pickup;
+  final Map<String, dynamic> delivery;
+  final int secondsLeft;
+  final int countdown;
+  final double progress;
+  final Color timerColor;
+  final Color moduleColor;
+  final bool accepting;
+  final bool declining;
+  final VoidCallback onAccept;
+  final void Function({bool autoDecline}) onDecline;
+
+  const _OrderCard({
+    required this.fee,
+    required this.distance,
+    required this.estMin,
+    required this.toPickup,
+    required this.pickup,
+    required this.delivery,
+    required this.secondsLeft,
+    required this.countdown,
+    required this.progress,
+    required this.timerColor,
+    required this.moduleColor,
+    required this.accepting,
+    required this.declining,
+    required this.onAccept,
+    required this.onDecline,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        color: Color(0xFF111827),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+        boxShadow: [
+          BoxShadow(color: Colors.black54, blurRadius: 40, spreadRadius: 4),
+        ],
+      ),
+      child: Column(children: [
+        // Drag handle
+        Container(
+          margin: const EdgeInsets.only(top: 10, bottom: 4),
+          width: 36,
+          height: 4,
+          decoration: BoxDecoration(
+            color: Colors.white12,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+
+        Expanded(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(20, 8, 20, bottomPad + 8),
+            child: Column(children: [
+              // â”€â”€ EARNINGS + TIMER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+              Row(children: [
+                // Timer ring
+                SizedBox(
+                  width: 72,
+                  height: 72,
+                  child: Stack(alignment: Alignment.center, children: [
+                    SizedBox.expand(
+                      child: CircularProgressIndicator(
+                        value: progress,
+                        strokeWidth: 6,
+                        backgroundColor: Colors.white10,
+                        valueColor: AlwaysStoppedAnimation(timerColor),
+                        strokeCap: StrokeCap.round,
+                      ),
+                    ),
+                    Column(mainAxisSize: MainAxisSize.min, children: [
+                      Text('$secondsLeft',
+                          style: TextStyle(
+                              color: timerColor,
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900,
+                              height: 1)),
+                      Text('sec',
+                          style: const TextStyle(
+                              color: Colors.white38,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600)),
+                    ]),
+                  ]),
+                ),
+                const SizedBox(width: 16),
+                // Earnings
+                Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                    const Text('You earn',
+                        style:
+                            TextStyle(color: Colors.white38, fontSize: 12)),
+                    const SizedBox(height: 2),
+                    Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                      Text(
+                        '\$${fee.toStringAsFixed(fee == fee.floorToDouble() ? 0 : 2)}',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 36,
+                            fontWeight: FontWeight.w900,
+                            height: 1),
+                      ),
+                      const SizedBox(width: 4),
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 4),
+                        child: Text('delivery fee',
+                            style: TextStyle(
+                                color: Colors.white38, fontSize: 11)),
+                      ),
+                    ]),
+                  ]),
+                ),
+              ]),
+
+              const SizedBox(height: 16),
+              _divider(),
+              const SizedBox(height: 16),
+
+              // â”€â”€ ROUTE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+              _RouteSection(pickup: pickup, delivery: delivery),
+
+              const SizedBox(height: 16),
+              _divider(),
+              const SizedBox(height: 14),
+
+              // â”€â”€ STATS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+              Row(children: [
+                _Stat(
+                    icon: Icons.straighten_rounded,
+                    value: distance > 0
+                        ? '${distance.toStringAsFixed(1)} km'
+                        : 'â€”',
+                    label: 'Distance',
+                    color: moduleColor),
+                _gap(),
+                _Stat(
+                    icon: Icons.timer_rounded,
+                    value: estMin > 0 ? '~$estMin min' : 'â€”',
+                    label: 'Est. time',
+                    color: moduleColor),
+                _gap(),
+                _Stat(
+                    icon: Icons.directions_bike_rounded,
+                    value: toPickup > 0
+                        ? '${toPickup.toStringAsFixed(1)} km'
+                        : 'â€”',
+                    label: 'To pickup',
+                    color: moduleColor),
+              ]),
+
+              const SizedBox(height: 20),
+
+              // â”€â”€ BUTTONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+              Row(children: [
+                // DECLINE
+                Expanded(
+                  flex: 2,
+                  child: _Button(
+                    onTap: declining ? null : () => onDecline(),
+                    loading: declining,
+                    label: 'Decline',
+                    icon: Icons.close_rounded,
+                    color: Colors.white,
+                    backgroundColor: Colors.white.withValues(alpha: 0.07),
+                    borderColor: Colors.white.withValues(alpha: 0.12),
+                    textColor: Colors.white60,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // ACCEPT
+                Expanded(
+                  flex: 3,
+                  child: _Button(
+                    onTap: accepting ? null : onAccept,
+                    loading: accepting,
+                    label: 'Accept Order',
+                    icon: Icons.check_circle_rounded,
+                    color: Colors.white,
+                    backgroundColor: const Color(0xFF16A34A),
+                    shadowColor: const Color(0xFF22C55E),
+                    textColor: Colors.white,
+                    bold: true,
+                  ),
+                ),
+              ]),
+            ]),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _divider() => Container(
+      height: 1, color: Colors.white.withValues(alpha: 0.06));
+  Widget _gap() => const SizedBox(width: 8);
+}
+
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Route Section
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+class _RouteSection extends StatelessWidget {
+  final Map<String, dynamic> pickup;
+  final Map<String, dynamic> delivery;
+  const _RouteSection({required this.pickup, required this.delivery});
+
+  @override
+  Widget build(BuildContext context) {
+    final pickupDistrict = pickup['district']?.toString() ?? '';
+    final pickupAddress  = pickup['address']?.toString()  ?? '';
+    final delivDistrict  = delivery['district']?.toString() ?? '';
+    final delivAddress   = delivery['address']?.toString()  ?? '';
+
+    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      // Left column: icons + line
+      Column(children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: DC.orange.withValues(alpha: 0.15),
+            shape: BoxShape.circle,
+            border: Border.all(color: DC.orange.withValues(alpha: 0.4)),
+          ),
+          child: const Icon(Icons.circle_rounded, color: DC.orange, size: 12),
+        ),
+        Container(
+            width: 2, height: 32,
+            color: Colors.white.withValues(alpha: 0.1)),
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: const Color(0xFF22C55E).withValues(alpha: 0.15),
+            shape: BoxShape.circle,
+            border: Border.all(
+                color: const Color(0xFF22C55E).withValues(alpha: 0.4)),
+          ),
+          child: const Icon(Icons.location_on_rounded,
+              color: Color(0xFF22C55E), size: 14),
+        ),
+      ]),
+      const SizedBox(width: 12),
+
+      // Right column: text
+      Expanded(
+        child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+          // Pickup
+          const Text('PICKUP',
+              style: TextStyle(
+                  color: Colors.white38,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.2)),
+          const SizedBox(height: 2),
+          Text(
+            pickupDistrict.isNotEmpty ? pickupDistrict : 'Pickup location',
+            style: const TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w700),
+          ),
+          if (pickupAddress.isNotEmpty)
+            Text(pickupAddress,
+                style: const TextStyle(
+                    color: Colors.white38, fontSize: 11),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis),
+
+          const SizedBox(height: 20),
+
+          // Delivery
+          const Text('DELIVERY',
+              style: TextStyle(
+                  color: Colors.white38,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.2)),
+          const SizedBox(height: 2),
+          Text(
+            delivDistrict.isNotEmpty ? delivDistrict : 'Delivery location',
+            style: const TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w700),
+          ),
+          if (delivAddress.isNotEmpty)
+            Text(delivAddress,
+                style: const TextStyle(
+                    color: Colors.white38, fontSize: 11),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis),
+        ]),
+      ),
     ]);
   }
 }
 
-class _StatChip extends StatelessWidget {
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Stat chip
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+class _Stat extends StatelessWidget {
   final IconData icon;
+  final String value;
   final String label;
-  final String hint;
-  const _StatChip(
-      {required this.icon, required this.label, required this.hint});
+  final Color color;
+  const _Stat(
+      {required this.icon,
+      required this.value,
+      required this.label,
+      required this.color});
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+        padding:
+            const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.06),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white10),
+          color: Colors.white.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
         ),
         child: Column(children: [
-          Icon(icon, color: DC.orange, size: 18),
-          const SizedBox(height: 4),
-          Text(label,
+          Icon(icon, color: color, size: 18),
+          const SizedBox(height: 5),
+          Text(value,
               style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w800,
                   fontSize: 13)),
-          Text(hint,
-              style: const TextStyle(color: Colors.white38, fontSize: 10)),
+          Text(label,
+              style: const TextStyle(
+                  color: Colors.white38, fontSize: 9)),
         ]),
       ),
     );
   }
 }
+
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Button
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+class _Button extends StatelessWidget {
+  final VoidCallback? onTap;
+  final bool loading;
+  final String label;
+  final IconData icon;
+  final Color color;
+  final Color backgroundColor;
+  final Color? borderColor;
+  final Color? shadowColor;
+  final Color textColor;
+  final bool bold;
+
+  const _Button({
+    required this.onTap,
+    required this.loading,
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.backgroundColor,
+    this.borderColor,
+    this.shadowColor,
+    required this.textColor,
+    this.bold = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        height: 62,
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          borderRadius: BorderRadius.circular(18),
+          border: borderColor != null
+              ? Border.all(color: borderColor!)
+              : null,
+          boxShadow: shadowColor != null
+              ? [
+                  BoxShadow(
+                      color: shadowColor!.withValues(alpha: 0.35),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8))
+                ]
+              : null,
+        ),
+        child: loading
+            ? Center(
+                child: SizedBox.square(
+                  dimension: 24,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2.5, color: textColor),
+                ))
+            : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Icon(icon, color: textColor, size: 22),
+                const SizedBox(width: 8),
+                Text(label,
+                    style: TextStyle(
+                        color: textColor,
+                        fontWeight: bold
+                            ? FontWeight.w900
+                            : FontWeight.w600,
+                        fontSize: bold ? 17 : 15)),
+              ]),
+      ),
+    );
+  }
+}
+
