@@ -308,16 +308,64 @@ class FcmService
             'delivery_lng'      => (string) ($delivery['lng'] ?? 0),
         ];
 
-        // High-priority data-only message — triggers _bgHandler in Flutter
-        // Use the custom alarm channel so Android rings loud even on silent mode
-        return self::sendToToken(
-            $fcmToken,
-            '🚀 New Order — Accept now!',
-            'Order #' . $data['order_number'] . ' • Earn SOS ' . (string) $fee,
-            $data,
-            null,
-            'esahlan_order_ring',
-        );
+        // DATA-ONLY FCM — no 'notification' block.
+        // Android passes this directly to Flutter _bgHandler even when app is killed.
+        // _bgHandler then shows the full-screen alarm notification itself.
+        return self::sendDataOnly($fcmToken, $data);
+    }
+
+    /**
+     * Data-only FCM — no notification block.
+     * Flutter _bgHandler is called regardless of app state (bg/killed/foreground).
+     */
+    public static function sendDataOnly(string $fcmToken, array $data): bool
+    {
+        if (empty($fcmToken)) return false;
+        $sa = self::loadServiceAccount();
+        if (!$sa) return false;
+        $accessToken = self::getAccessToken($sa);
+        if (!$accessToken) return false;
+
+        $payload = [
+            'message' => [
+                'token' => $fcmToken,
+                'data'  => array_map('strval', $data),
+                'android' => [
+                    'priority'       => 'high',
+                    'direct_boot_ok' => true,
+                ],
+                'apns' => [
+                    'headers' => ['apns-priority' => '10', 'apns-push-type' => 'background'],
+                    'payload' => ['aps' => ['content-available' => 1]],
+                ],
+            ],
+        ];
+
+        $projectId = $sa['project_id'];
+        $url = "https://fcm.googleapis.com/v1/projects/{$projectId}/messages:send";
+        $ch  = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_HTTPHEADER     => [
+                'Authorization: Bearer ' . $accessToken,
+                'Content-Type: application/json',
+            ],
+            CURLOPT_POSTFIELDS     => json_encode($payload),
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 15,
+            CURLOPT_SSL_VERIFYPEER => false,
+        ]);
+        $resp = curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($code !== 200) {
+            Log::warning('[FCM] sendDataOnly failed', ['code' => $code, 'resp' => $resp, 'token' => '...'.substr($fcmToken,-20)]);
+            return false;
+        }
+        $parsed = json_decode($resp, true);
+        Log::info('[FCM] sendDataOnly OK', ['msg_id' => $parsed['name'] ?? 'unknown', 'token' => '...'.substr($fcmToken,-20)]);
+        return true;
     }
 
     public static function sendDriverOrderUpdate(
