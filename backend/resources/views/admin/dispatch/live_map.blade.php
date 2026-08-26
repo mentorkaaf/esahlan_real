@@ -157,6 +157,7 @@ function renderDrivers(drivers) {
                     '<div style="font-size:12px;color:#666;"><b>Vehicle:</b> ' + (d.vehicle_type || '—') + '</div>' +
                     (d.order ? '<div style="font-size:12px;margin-top:6px;padding:6px;background:#fef9c3;border-radius:6px;"><b>Order:</b> #' + d.order.order_number + ' (' + d.order.status + ')</div>' : '') +
                     '<div style="font-size:10px;color:#9ca3af;margin-top:6px;">Last seen: ' + d.last_seen + '</div>' +
+                '<button onclick="requestLocation(' + d.id + ', this)" style="margin-top:8px;width:100%;padding:6px;border:none;border-radius:6px;background:#1e40af;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">📍 Request Location</button>' +
                 '</div>';
                 infoWindow.setContent(content);
                 infoWindow.open(map, marker);
@@ -191,6 +192,21 @@ function renderDrivers(drivers) {
             '</div>' +
         '</div>';
     }).join('');
+}
+
+function requestLocation(driverId, btn) {
+    btn.disabled = true;
+    btn.textContent = '⏳';
+    fetch('/admin/dispatch/drivers/' + driverId + '/request-location', {
+        method: 'POST',
+        headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '', 'Accept': 'application/json' }
+    })
+    .then(r => r.json())
+    .then(d => {
+        btn.textContent = d.success ? '✓ Sent' : '✗ Failed';
+        setTimeout(() => { btn.disabled = false; btn.textContent = '📍 Request Location'; }, 3000);
+    })
+    .catch(() => { btn.textContent = '✗ Error'; setTimeout(() => { btn.disabled = false; btn.textContent = '📍 Request Location'; }, 3000); });
 }
 
 function panTo(lat, lng, driverId) {

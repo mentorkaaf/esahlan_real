@@ -199,4 +199,33 @@ class DispatchController extends Controller
 
         return response()->json(['data' => $drivers, 'updated_at' => now()->toISOString()]);
     }
+
+    /**
+     * Push a silent FCM ping to a driver requesting them to send location now.
+     * Works even when app is in background (FCM high-priority wakes the app).
+     */
+    public function requestLocation(Request $request, int $deliverymanId)
+    {
+        $dm = Deliveryman::with('user:id,name')->find($deliverymanId);
+        if (!$dm) return response()->json(['success' => false, 'message' => 'Driver not found'], 404);
+
+        $fcmToken = DB::table('fcm_tokens')
+            ->where('user_id', $dm->user_id)
+            ->orderByDesc('updated_at')
+            ->value('token');
+
+        if (!$fcmToken) {
+            return response()->json(['success' => false, 'message' => 'No FCM token for this driver'], 404);
+        }
+
+        // Send high-priority silent push — wakes the driver app to post location
+        $ok = \App\Services\FcmService::sendLocationRequest($fcmToken);
+
+        return response()->json([
+            'success'     => $ok,
+            'driver_name' => $dm->user?->name,
+            'message'     => $ok ? 'Location request sent' : 'FCM send failed',
+        ]);
+    }
+
 }
