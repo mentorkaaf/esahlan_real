@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../core/theme/driver_colors.dart';
 import '../core/services/app_update_checker.dart';
@@ -88,28 +89,95 @@ class _MainShellState extends State<MainShell> {
     final c = context.dc;
     return Scaffold(
       body: widget.child,
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: c.navyLight,
-          border: Border(top: BorderSide(color: c.border, width: 0.5)),
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _index(context),
-          onTap: (i) => context.go(_tabs[i]),
-          backgroundColor: c.navyLight,
-          selectedItemColor: DC.orange,
-          unselectedItemColor: c.textMuted,
-          type: BottomNavigationBarType.fixed,
-          selectedFontSize: 11,
-          unselectedFontSize: 11,
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'Home'),
-            BottomNavigationBarItem(icon: Icon(Icons.delivery_dining_rounded), label: 'Orders'),
-            BottomNavigationBarItem(icon: Icon(Icons.bar_chart_rounded), label: 'Earnings'),
-            BottomNavigationBarItem(icon: Icon(Icons.account_balance_wallet_rounded), label: 'Wallet'),
-            BottomNavigationBarItem(icon: Icon(Icons.person_rounded), label: 'Profile'),
-          ],
-        ),
+      bottomNavigationBar: _PremiumNavBar(
+        currentIndex: _index(context),
+        onTap: (i) => context.go(_tabs[i]),
+      ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Premium Bottom Navigation Bar
+// ──────────────────────────────────────────────────────────────────────────────
+class _PremiumNavBar extends StatelessWidget {
+  final int currentIndex;
+  final ValueChanged<int> onTap;
+  const _PremiumNavBar({required this.currentIndex, required this.onTap});
+
+  static const _items = [
+    (Icons.home_rounded, Icons.home_outlined, 'Home'),
+    (Icons.delivery_dining_rounded, Icons.delivery_dining_outlined, 'Orders'),
+    (Icons.bar_chart_rounded, Icons.bar_chart_outlined, 'Earnings'),
+    (Icons.account_balance_wallet_rounded, Icons.account_balance_wallet_outlined, 'Wallet'),
+    (Icons.person_rounded, Icons.person_outline_rounded, 'Profile'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.of(context).padding.bottom;
+    return Container(
+      height: 60 + bottom,
+      padding: EdgeInsets.only(bottom: bottom),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0D1420),
+        border: Border(
+            top: BorderSide(
+                color: Colors.white.withValues(alpha: 0.06), width: 0.5)),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.3),
+              blurRadius: 20,
+              offset: const Offset(0, -4)),
+        ],
+      ),
+      child: Row(
+        children: List.generate(_items.length, (i) {
+          final (activeIcon, inactiveIcon, label) = _items[i];
+          final isActive = i == currentIndex;
+          return Expanded(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                HapticFeedback.selectionClick();
+                onTap(i);
+              },
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isActive
+                          ? DC.orange.withValues(alpha: 0.15)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      isActive ? activeIcon : inactiveIcon,
+                      color: isActive ? DC.orange : Colors.white30,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  AnimatedDefaultTextStyle(
+                    duration: const Duration(milliseconds: 200),
+                    style: TextStyle(
+                      color: isActive ? DC.orange : Colors.white30,
+                      fontSize: 10,
+                      fontWeight: isActive
+                          ? FontWeight.w700
+                          : FontWeight.w500,
+                    ),
+                    child: Text(label),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }),
       ),
     );
   }

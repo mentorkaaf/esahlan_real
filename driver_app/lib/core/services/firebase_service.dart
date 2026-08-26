@@ -40,7 +40,7 @@ Future<void> _bgHandler(RemoteMessage message) async {
             AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(
           const AndroidNotificationChannel(
-            'esahlan_order_ring',
+            'esahlan_order_ring_v2',
             'New Order Alert',
             description: 'Rings when a new delivery order is assigned to you.',
             importance: Importance.max,
@@ -61,7 +61,7 @@ Future<void> _bgHandler(RemoteMessage message) async {
       'Order #$orderNum • \$$fee delivery fee',
       NotificationDetails(
         android: AndroidNotificationDetails(
-          'esahlan_order_ring',
+          'esahlan_order_ring_v2',
           'New Order Alert',
           importance: Importance.max,
           priority: Priority.max,
@@ -124,10 +124,10 @@ class FirebaseService {
       ),
     );
 
-    // 2. Order alarm — max importance + full-screen intent + custom sound
+    // 2. Order alarm — max importance + custom sound (v2 = new channel to force fresh Android cache)
     await androidPlugin?.createNotificationChannel(
       const AndroidNotificationChannel(
-        'esahlan_order_ring',
+        'esahlan_order_ring_v2',
         'New Order Alert',
         description:
             'Rings when a new delivery order is assigned to you.',
@@ -203,7 +203,7 @@ class FirebaseService {
         'Order #$orderNum • Earn SOS $fee',
         NotificationDetails(
           android: AndroidNotificationDetails(
-            'esahlan_order_ring',
+            'esahlan_order_ring_v2',
             'New Order Alert',
             importance: Importance.max,
             priority: Priority.max,

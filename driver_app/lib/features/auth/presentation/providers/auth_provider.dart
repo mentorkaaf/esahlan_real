@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/auth_repository.dart';
 import '../../../../core/storage/local_storage.dart';
@@ -9,6 +10,20 @@ final authStateProvider = FutureProvider<({bool loggedIn, bool approved})>((ref)
   if (token == null) return (loggedIn: false, approved: false);
   final approved = await LocalStorage.getBool('is_approved');
   return (loggedIn: true, approved: approved);
+});
+
+/// Driver's display name — read from cached login data
+final driverNameProvider = FutureProvider<String>((ref) async {
+  try {
+    final raw = await LocalStorage.getString('driver_data');
+    if (raw != null) {
+      final data = jsonDecode(raw) as Map<String, dynamic>;
+      final user = data['user'] as Map<String, dynamic>?;
+      final name = user?['name'] ?? data['name'] ?? '';
+      if (name.toString().isNotEmpty) return name.toString();
+    }
+  } catch (_) {}
+  return 'Driver';
 });
 
 class LoginNotifier extends AsyncNotifier<void> {

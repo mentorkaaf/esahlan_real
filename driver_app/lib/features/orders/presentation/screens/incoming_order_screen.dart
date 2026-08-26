@@ -352,84 +352,74 @@ class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen>
                   ),
                 ),
 
-                // ── COUNTDOWN RING ─────────────────────────────────────────
+                // ── HEADER ROW: module chip + order number ─────────────────
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+                  child: Row(children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: DC.orangeDim,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        Icon(_moduleIcons[module] ?? Icons.delivery_dining_rounded,
+                            color: DC.orange, size: 13),
+                        const SizedBox(width: 5),
+                        Text(_moduleLabels[module] ?? 'Delivery',
+                            style: const TextStyle(color: DC.orange, fontSize: 11, fontWeight: FontWeight.w700)),
+                      ]),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Order #${o['order_number'] ?? ''}',
+                        style: const TextStyle(color: Colors.white54, fontSize: 12),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ]),
+                ),
+
+                // ── COUNTDOWN + EARNINGS ────────────────────────────────────
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(children: [
                     // Countdown circle
                     SizedBox(
-                      width: 56,
-                      height: 56,
+                      width: 64,
+                      height: 64,
                       child: Stack(alignment: Alignment.center, children: [
                         CircularProgressIndicator(
                           value: progress,
-                          strokeWidth: 4,
+                          strokeWidth: 5,
                           backgroundColor: Colors.white12,
-                          valueColor:
-                              AlwaysStoppedAnimation(progressColor),
+                          valueColor: AlwaysStoppedAnimation(progressColor),
                         ),
                         Text(
                           '$_secondsLeft',
                           style: TextStyle(
                             color: progressColor,
                             fontWeight: FontWeight.w900,
-                            fontSize: 18,
+                            fontSize: 20,
                           ),
                         ),
                       ]),
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                        Row(children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: DC.orangeDim,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                              Icon(
-                                  _moduleIcons[module] ??
-                                      Icons.delivery_dining_rounded,
-                                  color: DC.orange,
-                                  size: 14),
-                              const SizedBox(width: 5),
-                              Text(
-                                _moduleLabels[module] ?? 'Delivery',
-                                style: const TextStyle(
-                                    color: DC.orange,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700),
-                              ),
-                            ]),
-                          ),
-                        ]),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Order #${o['order_number'] ?? ''}',
-                          style: const TextStyle(
-                              color: Colors.white54, fontSize: 12),
-                        ),
-                      ]),
-                    ),
-                    // EARNINGS
+                    const SizedBox(width: 12),
+                    const Text('sec left',
+                        style: TextStyle(color: Colors.white38, fontSize: 11)),
+                    const Spacer(),
                     Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                      const Text('You earn',
+                          style: TextStyle(color: Colors.white38, fontSize: 11)),
                       Text(
-                        'You earn',
-                        style: const TextStyle(color: Colors.white38, fontSize: 11),
-                      ),
-                      Text(
-                        'SOS ${fee.toStringAsFixed(0)}',
+                        '\$ ${fee.toStringAsFixed(0)}',
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w900,
-                          fontSize: 26,
+                          fontSize: 32,
+                          height: 1,
                         ),
                       ),
                     ]),
