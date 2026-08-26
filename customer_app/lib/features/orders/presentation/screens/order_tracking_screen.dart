@@ -8,6 +8,7 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../../../core/utils/error_handler.dart';
+import '../../../../core/services/realtime_client.dart';
 import '../providers/order_provider.dart';
 import '../../../../core/l10n/app_strings.dart';
 
@@ -23,23 +24,52 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
   GoogleMapController? _mapController;
   Timer? _refreshTimer;
   Set<Marker> _markers = {};
+  LatLng? _realtimeDriverPos;
 
   static const LatLng _defaultCenter = LatLng(
     AppConstants.defaultLat,
     AppConstants.defaultLng,
   );
 
+  void _onDriverLocation(dynamic payload) {
+    if (!mounted) return;
+    final data = payload is Map ? payload : <String, dynamic>{};
+    final lat = double.tryParse('${data['lat'] ?? ''}');
+    final lng = double.tryParse('${data['lng'] ?? ''}');
+    if (lat == null || lng == null) return;
+    final pos = LatLng(lat, lng);
+    setState(() {
+      _realtimeDriverPos = pos;
+      // Update driver marker immediately without full provider reload
+      _markers = {
+        ..._markers.where((m) => m.markerId.value != 'driver'),
+        Marker(
+          markerId: const MarkerId('driver'),
+          position: pos,
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+          infoWindow: const InfoWindow(title: 'Driver'),
+        ),
+      };
+    });
+    _mapController?.animateCamera(CameraUpdate.newLatLng(pos));
+  }
+
   @override
   void initState() {
     super.initState();
-    // Auto-refresh order every 30 seconds
-    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+    // Real-time driver location via WebSocket
+    final channel = 'private-order-chat.${widget.orderId}';
+    RealtimeClient.instance.listen(channel, 'driver_location', _onDriverLocation);
+    // Fallback: also refresh full order every 60s (was 30s, now less aggressive)
+    _refreshTimer = Timer.periodic(const Duration(seconds: 60), (_) {
       ref.invalidate(orderDetailProvider(widget.orderId));
     });
   }
 
   @override
   void dispose() {
+    final channel = 'private-order-chat.${widget.orderId}';
+    RealtimeClient.instance.removeListener(channel, 'driver_location', _onDriverLocation);
     _refreshTimer?.cancel();
     _mapController?.dispose();
     super.dispose();
@@ -77,15 +107,17 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
       );
     }
 
-    // Deliveryman marker (if dispatched)
-    final driverLat = _toDouble(order.driverLatitude);
-    final driverLng = _toDouble(order.driverLongitude);
-    if (driverLat != null && driverLng != null) {
+    // Deliveryman marker — prefer real-time position if available
+    final driverPos = _realtimeDriverPos ??
+        (_toDouble(order.driverLatitude) != null && _toDouble(order.driverLongitude) != null
+            ? LatLng(_toDouble(order.driverLatitude)!, _toDouble(order.driverLongitude)!)
+            : null);
+    if (driverPos != null) {
       markers.add(Marker(
         markerId: const MarkerId('driver'),
-        position: LatLng(driverLat, driverLng),
-        infoWindow: const InfoWindow(title: 'Delivery Driver'),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+        position: driverPos,
+        infoWindow: const InfoWindow(title: 'Driver (Live)'),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
       ));
     }
 
