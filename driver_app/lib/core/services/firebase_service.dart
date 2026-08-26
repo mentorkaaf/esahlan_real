@@ -30,13 +30,11 @@ Future<void> _bgHandler(RemoteMessage message) async {
   }
 
   if (type == 'new_order') {
-    // Show a max-importance full-screen-intent notification from background isolate
     final local = FlutterLocalNotificationsPlugin();
     await local.initialize(
       const InitializationSettings(
           android: AndroidInitializationSettings('@mipmap/ic_launcher')),
     );
-    // Ensure the alarm channel exists in this isolate
     await local
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>()
@@ -58,9 +56,9 @@ Future<void> _bgHandler(RemoteMessage message) async {
     final fee = message.data['delivery_fee'] ?? '';
 
     await local.show(
-      99901, // fixed id so it's replaced if another order comes in
-      '🚀 New Order — Tap to respond!',
-      'Order #$orderNum • Earn SOS $fee',
+      99901,
+      '🚨 New Order! Tap to accept',
+      'Order #$orderNum • \$$fee delivery fee',
       NotificationDetails(
         android: AndroidNotificationDetails(
           'esahlan_order_ring',
@@ -68,16 +66,16 @@ Future<void> _bgHandler(RemoteMessage message) async {
           importance: Importance.max,
           priority: Priority.max,
           color: const Color(0xFFFF8A00),
-          fullScreenIntent: true,
-          category: AndroidNotificationCategory.call,
+          // fullScreenIntent removed — blocked on HONOR/Huawei without special permission
+          // Instead: loud sound + vibration + tap to open
+          category: AndroidNotificationCategory.alarm,
           visibility: NotificationVisibility.public,
           playSound: true,
           sound: const RawResourceAndroidNotificationSound('order_ring'),
           enableVibration: true,
-          vibrationPattern: Int64List.fromList([0, 500, 300, 500, 300, 500]),
-          ongoing: true,
-          autoCancel: false,
-          timeoutAfter: 50000, // auto-dismiss after 50s
+          vibrationPattern: Int64List.fromList([0, 400, 200, 400, 200, 400, 200, 400]),
+          ongoing: false,
+          autoCancel: true,
           ticker: 'New delivery order',
         ),
       ),
