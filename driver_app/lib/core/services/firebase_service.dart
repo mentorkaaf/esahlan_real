@@ -7,16 +7,79 @@ import '../api/api_client.dart';
 import '../storage/local_storage.dart';
 import 'location_service.dart';
 
+// ──────────────────────────────────────────────────────────────────────────────
+// Global background handler — runs in its own isolate even when app is killed
+// ──────────────────────────────────────────────────────────────────────────────
 @pragma('vm:entry-point')
 Future<void> _bgHandler(RemoteMessage message) async {
-  debugPrint('[FCM:BG] type=${message.data['type']}');
-  // Handle location request even when app is in background / killed
-  if (message.data['type'] == 'request_location') {
-    debugPrint('[FCM:BG] Admin requested location — posting now');
-    await postLocationForFcm(); // exported helper in location_service.dart
+  final type = message.data['type'] ?? '';
+  debugPrint('[FCM:BG] type=$type');
+
+  if (type == 'request_location') {
+    await postLocationForFcm();
+    return;
+  }
+
+  if (type == 'new_order') {
+    // Show a max-importance full-screen-intent notification from background isolate
+    final local = FlutterLocalNotificationsPlugin();
+    await local.initialize(
+      const InitializationSettings(
+          android: AndroidInitializationSettings('@mipmap/ic_launcher')),
+    );
+    // Ensure the alarm channel exists in this isolate
+    await local
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(
+          const AndroidNotificationChannel(
+            'esahlan_order_ring',
+            'New Order Alert',
+            description: 'Rings when a new delivery order is assigned to you.',
+            importance: Importance.max,
+            playSound: true,
+            sound: RawResourceAndroidNotificationSound('order_ring'),
+            enableVibration: true,
+            enableLights: true,
+            ledColor: Color(0xFFFF8A00),
+          ),
+        );
+
+    final orderNum = message.data['order_number'] ?? '';
+    final fee = message.data['delivery_fee'] ?? '';
+
+    await local.show(
+      99901, // fixed id so it's replaced if another order comes in
+      '🚀 New Order — Tap to respond!',
+      'Order #$orderNum • Earn SOS $fee',
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          'esahlan_order_ring',
+          'New Order Alert',
+          importance: Importance.max,
+          priority: Priority.max,
+          color: const Color(0xFFFF8A00),
+          fullScreenIntent: true,
+          category: AndroidNotificationCategory.call,
+          visibility: NotificationVisibility.public,
+          playSound: true,
+          sound: const RawResourceAndroidNotificationSound('order_ring'),
+          enableVibration: true,
+          vibrationPattern: Int64List.fromList([0, 500, 300, 500, 300, 500]),
+          ongoing: true,
+          autoCancel: false,
+          timeoutAfter: 50000, // auto-dismiss after 50s
+          ticker: 'New delivery order',
+        ),
+      ),
+      payload: jsonEncode(message.data),
+    );
   }
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+// FirebaseService — singleton, initialised after runApp
+// ──────────────────────────────────────────────────────────────────────────────
 class FirebaseService {
   static final FirebaseService _i = FirebaseService._();
   factory FirebaseService() => _i;
@@ -25,27 +88,61 @@ class FirebaseService {
   final _fcm = FirebaseMessaging.instance;
   final _local = FlutterLocalNotificationsPlugin();
   bool _init = false;
-  void Function(String path)? onDeepLink;
 
+  /// Called when a new-order notification is tapped (foreground or background)
+  void Function(Map<String, dynamic> orderData)? onNewOrder;
+
+  // ── One-time setup BEFORE runApp ─────────────────────────────────────────
   static Future<void> setupBeforeRunApp() async {
     FirebaseMessaging.onBackgroundMessage(_bgHandler);
-    await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(alert: true, badge: true, sound: true);
+    await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
+        alert: true, badge: true, sound: false);
   }
 
+  // ── Main init (call from shell after runApp) ──────────────────────────────
   Future<void> initialize() async {
     if (_init) return;
 
-    const channel = AndroidNotificationChannel('esahlan_driver_v1', 'eSahlan Driver', importance: Importance.high);
-    await _local.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()?.createNotificationChannel(channel);
+    // ── Notification channels ───────────────────────────────────────────────
+    final androidPlugin =
+        _local.resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+
+    // 1. General driver notifications
+    await androidPlugin?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        'esahlan_driver_v1',
+        'eSahlan Driver',
+        importance: Importance.high,
+      ),
+    );
+
+    // 2. Order alarm — max importance + full-screen intent + custom sound
+    await androidPlugin?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        'esahlan_order_ring',
+        'New Order Alert',
+        description:
+            'Rings when a new delivery order is assigned to you.',
+        importance: Importance.max,
+        playSound: true,
+        sound: RawResourceAndroidNotificationSound('order_ring'),
+        enableVibration: true,
+        enableLights: true,
+        ledColor: Color(0xFFFF8A00),
+      ),
+    );
 
     await _local.initialize(
-      const InitializationSettings(android: AndroidInitializationSettings('@mipmap/ic_launcher')),
+      const InitializationSettings(
+          android: AndroidInitializationSettings('@mipmap/ic_launcher')),
       onDidReceiveNotificationResponse: (r) {
         if (r.payload != null) {
           try {
-            final data = jsonDecode(r.payload!);
-            final dl = data['deep_link'] as String?;
-            if (dl != null) onDeepLink?.call(dl);
+            final data = jsonDecode(r.payload!) as Map<String, dynamic>;
+            if (data['type'] == 'new_order') {
+              onNewOrder?.call(data);
+            }
           } catch (_) {}
         }
       },
@@ -53,27 +150,87 @@ class FirebaseService {
 
     FirebaseMessaging.onMessage.listen(_handleForeground);
 
+    // Handle notification tap when app was in background (not killed)
+    FirebaseMessaging.onMessageOpenedApp.listen((msg) {
+      if (msg.data['type'] == 'new_order') {
+        onNewOrder?.call(msg.data);
+      }
+    });
+
+    // Handle notification tap when app was killed and restarted by the tap
+    final initial = await _fcm.getInitialMessage();
+    if (initial != null && initial.data['type'] == 'new_order') {
+      // Delay to let the app finish booting
+      Future.delayed(const Duration(milliseconds: 800), () {
+        onNewOrder?.call(initial.data);
+      });
+    }
+
     await _registerToken();
     _fcm.onTokenRefresh.listen(_uploadToken);
     _init = true;
   }
 
+  // ── Foreground handler ────────────────────────────────────────────────────
   Future<void> _handleForeground(RemoteMessage msg) async {
-    // Silent location request — no notification, just post GPS
-    if (msg.data['type'] == 'request_location') {
-      debugPrint('[FCM:FG] Admin requested location — posting now');
+    final type = msg.data['type'] ?? '';
+
+    if (type == 'request_location') {
       await postLocationForFcm();
       return;
     }
-    final title = msg.notification?.title ?? msg.data['title'] ?? 'eSahlan Driver';
-    final body = msg.notification?.body ?? msg.data['body'] ?? '';
 
+    if (type == 'new_order') {
+      // Cancel any existing order notification
+      await _local.cancel(99901);
+
+      // Trigger the in-app incoming order screen (if onNewOrder is set)
+      onNewOrder?.call(msg.data);
+
+      // Also show a local notification (handles if app is backgrounded mid-flow)
+      final orderNum = msg.data['order_number'] ?? '';
+      final fee = msg.data['delivery_fee'] ?? '';
+      await _local.show(
+        99901,
+        '🚀 New Order — Accept now!',
+        'Order #$orderNum • Earn SOS $fee',
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            'esahlan_order_ring',
+            'New Order Alert',
+            importance: Importance.max,
+            priority: Priority.max,
+            color: const Color(0xFFFF8A00),
+            fullScreenIntent: true,
+            category: AndroidNotificationCategory.call,
+            visibility: NotificationVisibility.public,
+            playSound: true,
+            sound: const RawResourceAndroidNotificationSound('order_ring'),
+            enableVibration: true,
+            vibrationPattern:
+                Int64List.fromList([0, 500, 300, 500, 300, 500]),
+            ongoing: true,
+            autoCancel: false,
+            timeoutAfter: 50000,
+          ),
+        ),
+        payload: jsonEncode(msg.data),
+      );
+      return;
+    }
+
+    // Generic notification
+    final title =
+        msg.notification?.title ?? msg.data['title'] ?? 'eSahlan Driver';
+    final body = msg.notification?.body ?? msg.data['body'] ?? '';
     await _local.show(
       msg.hashCode,
       title,
       body,
-      NotificationDetails(android: AndroidNotificationDetails(
-        'esahlan_driver_v1', 'eSahlan Driver',
+      NotificationDetails(
+          android: AndroidNotificationDetails(
+        'esahlan_driver_v1',
+        'eSahlan Driver',
         importance: Importance.high,
         priority: Priority.high,
         color: const Color(0xFFFF8A00),
@@ -83,6 +240,12 @@ class FirebaseService {
     );
   }
 
+  // ── Cancel the ongoing order notification (call after accept/decline) ─────
+  Future<void> cancelOrderNotification() async {
+    await _local.cancel(99901);
+  }
+
+  // ── Token management ──────────────────────────────────────────────────────
   Future<void> _registerToken() async {
     try {
       final token = await _fcm.getToken();
@@ -96,13 +259,16 @@ class FirebaseService {
     try {
       final authToken = await LocalStorage.getToken();
       if (authToken == null) return;
-      await ApiClient.instance.post('/delivery/fcm-token', data: {'token': token});
+      await ApiClient.instance
+          .post('/delivery/fcm-token', data: {'token': token});
     } catch (_) {}
   }
 
   Future<void> refreshTokenIfNeeded() async => _registerToken();
 
   Future<void> deleteToken() async {
-    try { await _fcm.deleteToken(); } catch (_) {}
+    try {
+      await _fcm.deleteToken();
+    } catch (_) {}
   }
 }

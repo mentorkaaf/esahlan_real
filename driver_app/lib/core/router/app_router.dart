@@ -7,6 +7,7 @@ import '../../features/auth/presentation/screens/register_screen.dart';
 import '../../features/auth/presentation/screens/pending_screen.dart';
 import '../../features/dashboard/presentation/screens/dashboard_screen.dart';
 import '../../features/orders/presentation/screens/orders_screen.dart';
+import '../../features/orders/presentation/screens/incoming_order_screen.dart';
 import '../../features/earnings/presentation/screens/earnings_screen.dart';
 import '../../features/wallet/presentation/screens/wallet_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
@@ -40,6 +41,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
       GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
       GoRoute(path: '/pending', builder: (_, __) => const PendingScreen()),
+      // Full-screen incoming order — no shell, shown over everything
+      GoRoute(
+        path: '/incoming-order',
+        builder: (context, state) {
+          final order = state.extra as Map<String, dynamic>? ?? {};
+          return IncomingOrderScreen(order: order);
+        },
+      ),
       ShellRoute(
         builder: (_, __, child) => MainShell(child: child),
         routes: [

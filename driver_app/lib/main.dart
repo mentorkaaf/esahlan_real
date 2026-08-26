@@ -81,9 +81,11 @@ class _DriverAppState extends ConsumerState<DriverApp> with WidgetsBindingObserv
       try { ref.read(routerProvider).go(path); } catch (_) {}
     }
 
-    FirebaseService().onDeepLink = navigate;
-
+    // onDeepLink removed — new_order handled by onNewOrder in MainShell
+    // Generic deep-link for other notification types
     FirebaseMessaging.onMessageOpenedApp.listen((msg) {
+      final type = msg.data['type'] ?? '';
+      if (type == 'new_order') return; // handled by MainShell.onNewOrder
       final dl = msg.data['deep_link'] as String?;
       if (dl != null) navigate(dl);
     });
