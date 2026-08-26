@@ -53,6 +53,23 @@
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
+
+	<!-- ── Location permissions ── -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>eSahlan Driver needs your location to show your position on the delivery map in real time.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>eSahlan Driver needs your location at all times so dispatchers can track you even when the app is in the background.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>eSahlan Driver needs your location at all times so dispatchers can track you even when the app is in the background.</string>
+
+	<!-- ── Background execution ── -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+		<string>fetch</string>
+		<string>remote-notification</string>
+	</array>
+
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

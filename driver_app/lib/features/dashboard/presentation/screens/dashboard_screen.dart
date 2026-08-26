@@ -59,13 +59,25 @@ class DashboardScreen extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
               child: Column(children: [
                 // ── Online/Offline Toggle ──────────────────────────
-                _OnlineCard(isOnline: d['is_online'] == true, onToggle: () async {
-                  await ref.read(authRepoProvider).toggleStatus();
-                  ref.invalidate(_dashProvider);
-                  if (!DriverLocationService.isRunning) {
-                    DriverLocationService.startTracking();
-                  }
-                }),
+                _OnlineCard(
+                  isOnline: d['is_online'] == true,
+                  isTracking: DriverLocationService.isRunning,
+                  onToggle: () async {
+                    final goingOnline = d['is_online'] != true;
+                    await ref.read(authRepoProvider).toggleStatus();
+                    if (goingOnline) {
+                      await DriverLocationService.startTracking();
+                    } else {
+                      // Stay tracking even when offline so admin map stays live;
+                      // only stop if driver explicitly wants to (hold button).
+                      // For now just ensure it's running.
+                      if (!DriverLocationService.isRunning) {
+                        await DriverLocationService.startTracking();
+                      }
+                    }
+                    ref.invalidate(_dashProvider);
+                  },
+                ),
                 const SizedBox(height: 20),
 
                 // ── Today's Overview ──────────────────────────────
@@ -151,8 +163,9 @@ class DashboardScreen extends ConsumerWidget {
 
 class _OnlineCard extends StatelessWidget {
   final bool isOnline;
+  final bool isTracking;
   final VoidCallback onToggle;
-  const _OnlineCard({required this.isOnline, required this.onToggle});
+  const _OnlineCard({required this.isOnline, required this.isTracking, required this.onToggle});
 
   @override
   Widget build(BuildContext context) {
@@ -176,50 +189,119 @@ class _OnlineCard extends StatelessWidget {
           ),
           boxShadow: isOnline ? [BoxShadow(color: DC.success.withValues(alpha: 0.15), blurRadius: 20)] : [],
         ),
-        child: Row(children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            width: 52, height: 52,
-            decoration: BoxDecoration(
-              color: isOnline ? DC.success.withValues(alpha: 0.2) : c.textMuted.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
+        child: Column(children: [
+          Row(children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              width: 52, height: 52,
+              decoration: BoxDecoration(
+                color: isOnline ? DC.success.withValues(alpha: 0.2) : c.textMuted.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                isOnline ? Icons.power_settings_new_rounded : Icons.power_off_rounded,
+                color: isOnline ? DC.success : c.textMuted, size: 26,
+              ),
             ),
-            child: Icon(
-              isOnline ? Icons.power_settings_new_rounded : Icons.power_off_rounded,
-              color: isOnline ? DC.success : c.textMuted, size: 26,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(
-              isOnline ? 'You are Online' : 'You are Offline',
-              style: TextStyle(color: isOnline ? DC.success : c.textMuted, fontSize: 17, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              isOnline ? 'Receiving delivery requests' : 'Tap to go online and start earning',
-              style: TextStyle(color: (isOnline ? DC.success : c.textMuted).withValues(alpha: 0.7), fontSize: 12),
-            ),
-          ])),
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 250),
-            width: 56, height: 32,
-            decoration: BoxDecoration(
-              color: isOnline ? DC.success : c.textMuted.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            padding: const EdgeInsets.all(3),
-            child: AnimatedAlign(
+            const SizedBox(width: 14),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(
+                isOnline ? 'You are Online' : 'You are Offline',
+                style: TextStyle(color: isOnline ? DC.success : c.textMuted, fontSize: 17, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                isOnline ? 'Receiving delivery requests' : 'Tap to go online and start earning',
+                style: TextStyle(color: (isOnline ? DC.success : c.textMuted).withValues(alpha: 0.7), fontSize: 12),
+              ),
+            ])),
+            AnimatedContainer(
               duration: const Duration(milliseconds: 250),
-              curve: Curves.easeInOut,
-              alignment: isOnline ? Alignment.centerRight : Alignment.centerLeft,
-              child: Container(width: 26, height: 26,
-                decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle,
-                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 4)])),
+              width: 56, height: 32,
+              decoration: BoxDecoration(
+                color: isOnline ? DC.success : c.textMuted.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              padding: const EdgeInsets.all(3),
+              child: AnimatedAlign(
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeInOut,
+                alignment: isOnline ? Alignment.centerRight : Alignment.centerLeft,
+                child: Container(width: 26, height: 26,
+                  decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle,
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 4)])),
+              ),
             ),
+          ]),
+          // ── GPS tracking status strip ──
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(children: [
+              _PulsingDot(active: isTracking),
+              const SizedBox(width: 8),
+              Icon(Icons.gps_fixed_rounded, size: 13,
+                color: isTracking ? DC.success : c.textMuted),
+              const SizedBox(width: 5),
+              Text(
+                isTracking
+                    ? 'GPS tracking active — sending every 5 s'
+                    : 'GPS tracking inactive',
+                style: TextStyle(
+                  color: isTracking ? DC.success : c.textMuted,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ]),
           ),
         ]),
       ),
+    );
+  }
+}
+
+/// A small pulsing dot used in the GPS status strip
+class _PulsingDot extends StatefulWidget {
+  final bool active;
+  const _PulsingDot({required this.active});
+  @override
+  State<_PulsingDot> createState() => _PulsingDotState();
+}
+
+class _PulsingDotState extends State<_PulsingDot> with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 900))
+      ..repeat(reverse: true);
+    _scale = Tween<double>(begin: 0.6, end: 1.0).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.active) {
+      return Container(width: 8, height: 8,
+        decoration: BoxDecoration(color: Colors.grey.shade600, shape: BoxShape.circle));
+    }
+    return ScaleTransition(
+      scale: _scale,
+      child: Container(width: 8, height: 8,
+        decoration: const BoxDecoration(color: DC.success, shape: BoxShape.circle)),
     );
   }
 }

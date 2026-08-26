@@ -3,7 +3,6 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'core/router/app_router.dart';
 import 'core/services/firebase_service.dart';
@@ -69,17 +68,12 @@ class _DriverAppState extends ConsumerState<DriverApp> with WidgetsBindingObserv
   }
 
   Future<void> _requestPermissions() async {
-    // Location
-    LocationPermission locPerm = await Geolocator.checkPermission();
-    if (locPerm == LocationPermission.denied) {
-      locPerm = await Geolocator.requestPermission();
-    }
-    if (locPerm == LocationPermission.deniedForever) {
-      await Geolocator.openAppSettings();
-    }
-
-    // Notifications
+    // Notifications first (shows a dialog the user can accept easily)
     await Permission.notification.request();
+
+    // Location + background location + battery optimisation
+    // (handled inside DriverLocationService to keep logic centralised)
+    await DriverLocationService.requestPermissions();
   }
 
   void _setupNotifications() {

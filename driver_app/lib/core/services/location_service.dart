@@ -4,111 +4,173 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:workmanager/workmanager.dart';
 import '../constants/app_constants.dart';
 import '../storage/local_storage.dart';
 
-// ─── Workmanager fallback (keeps alive if foreground service killed) ───────────
-const _bgTask = 'driver_location_update';
+// ─────────────────────────────────────────────────────────────────────────────
+// Config constants
+// ─────────────────────────────────────────────────────────────────────────────
+const _kServiceId       = 1001;
+const _kChannelId       = 'esahlan_driver_location';
+const _kBgTaskName      = 'driver_location_bg';
+const _kIntervalMs      = 5000;   // 5 s — real-time foreground interval
+const _kBgIntervalMin   = 15;     // WorkManager minimum (OS enforced)
 
-@pragma('vm:entry-point')
-void locationCallbackDispatcher() {
-  Workmanager().executeTask((taskName, inputData) async {
-    if (taskName == _bgTask) await _postLocationHttp();
-    return true;
-  });
-}
-
-// ─── Core HTTP post (used by both foreground service + workmanager) ────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Isolated HTTP helper — safe to call from Isolate / background entry points
+// ─────────────────────────────────────────────────────────────────────────────
 Future<void> _postLocationHttp({int? orderId}) async {
   try {
     final perm = await Geolocator.checkPermission();
-    if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) return;
+    if (perm == LocationPermission.denied ||
+        perm == LocationPermission.deniedForever) {
+      return;
+    }
+
     final pos = await Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        timeLimit: Duration(seconds: 15),
+      locationSettings: AndroidSettings(
+        accuracy: LocationAccuracy.bestForNavigation,
+        distanceFilter: 0,
+        forceLocationManager: false,
+        intervalDuration: const Duration(seconds: 5),
       ),
     );
+
     final token = await LocalStorage.getToken();
     if (token == null) return;
+
     final client = HttpClient();
     try {
       final uri = Uri.parse('${AppConstants.baseUrl}/delivery/location');
-      final req = await client.postUrl(uri);
+      final req  = await client.postUrl(uri);
       req.headers.set('Authorization', 'Bearer $token');
       req.headers.set('Content-Type', 'application/json');
       req.headers.set('Accept', 'application/json');
       req.write(jsonEncode({
-        'latitude': pos.latitude,
+        'latitude':  pos.latitude,
         'longitude': pos.longitude,
+        'accuracy':  pos.accuracy,
+        'speed':     pos.speed,
+        'heading':   pos.heading,
+        'timestamp': pos.timestamp.toIso8601String(),
         if (orderId != null) 'order_id': orderId,
       }));
       final res = await req.close();
       await res.drain();
+      debugPrint('[GPS] ✓ ${pos.latitude.toStringAsFixed(5)},${pos.longitude.toStringAsFixed(5)}');
     } finally {
       client.close();
     }
   } catch (e) {
-    debugPrint('[LocBG] $e');
+    debugPrint('[GPS] post failed: $e');
   }
 }
 
-// ─── Foreground Task Handler ───────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// WorkManager dispatcher — runs in a separate Isolate
+// ─────────────────────────────────────────────────────────────────────────────
+@pragma('vm:entry-point')
+void locationCallbackDispatcher() {
+  Workmanager().executeTask((taskName, inputData) async {
+    if (taskName == _kBgTaskName) {
+      final orderId = inputData?['order_id'] as int?;
+      await _postLocationHttp(orderId: orderId);
+    }
+    return true;
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Foreground Task Handler — lives inside the persistent foreground service
+// ─────────────────────────────────────────────────────────────────────────────
 @pragma('vm:entry-point')
 class _LocationTaskHandler extends TaskHandler {
-  int? _orderId;
+  int?   _orderId;
   Timer? _timer;
+  Timer? _watchdog; // restarts timer if it ever dies
 
+  // ── boot entry: called in the foreground service isolate ──────────────────
   @override
   Future<void> onStart(DateTime timestamp, TaskStarter starter) async {
-    debugPrint('[FGTask] Started');
-    _orderId = null;
-    // Post immediately on start
-    await _postLocationHttp(orderId: _orderId);
-    // Then every 10 seconds
-    _timer = Timer.periodic(const Duration(seconds: 10), (_) async {
-      await _postLocationHttp(orderId: _orderId);
-    });
+    debugPrint('[FGTask] started (starter: $starter)');
+    _startTimer();
+    _startWatchdog();
   }
 
   @override
   void onReceiveData(Object data) {
-    if (data is Map && data['order_id'] != null) {
-      _orderId = data['order_id'] as int?;
+    if (data is Map) {
+      final oid = data['order_id'];
+      _orderId = oid is int ? oid : (oid != null ? int.tryParse('$oid') : null);
+      debugPrint('[FGTask] order_id → $_orderId');
     }
+  }
+
+  @override
+  void onRepeatEvent(DateTime timestamp) {
+    // Heartbeat fired by flutter_foreground_task — post location immediately
+    _postLocationHttp(orderId: _orderId);
   }
 
   @override
   Future<void> onDestroy(DateTime timestamp) async {
     _timer?.cancel();
-    debugPrint('[FGTask] Destroyed');
+    _watchdog?.cancel();
+    debugPrint('[FGTask] destroyed');
   }
 
-  @override
-  void onRepeatEvent(DateTime timestamp) {
-    // Handled by internal timer
+  // ── helpers ───────────────────────────────────────────────────────────────
+  void _startTimer() {
+    _timer?.cancel();
+    // Post immediately on start, then every 5 s
+    _postLocationHttp(orderId: _orderId);
+    _timer = Timer.periodic(const Duration(milliseconds: _kIntervalMs), (_) {
+      _postLocationHttp(orderId: _orderId);
+    });
+  }
+
+  void _startWatchdog() {
+    _watchdog?.cancel();
+    // Every 60 s verify timer is still ticking; restart if it died
+    _watchdog = Timer.periodic(const Duration(seconds: 60), (_) {
+      if (!(_timer?.isActive ?? false)) {
+        debugPrint('[FGTask] watchdog: timer dead — restarting');
+        _startTimer();
+      }
+    });
   }
 }
 
-// ─── Public API ───────────────────────────────────────────────────────────────
+// entry point registered with flutter_foreground_task
+@pragma('vm:entry-point')
+void _fgTaskCallback() {
+  FlutterForegroundTask.setTaskHandler(_LocationTaskHandler());
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Public API
+// ─────────────────────────────────────────────────────────────────────────────
 class DriverLocationService {
   DriverLocationService._();
+
   static bool _running = false;
-  // ignore: unused_field
   static int? _activeOrderId;
 
-  /// Call once in main() before runApp
+  // ── Call once from main() before runApp ──────────────────────────────────
   static Future<void> initBackground() async {
-    // Init workmanager fallback
+    // WorkManager fallback (keeps firing every 15 min even if foreground dies)
     await Workmanager().initialize(locationCallbackDispatcher);
 
-    // Init foreground task
+    // Foreground task configuration
     FlutterForegroundTask.init(
       androidNotificationOptions: AndroidNotificationOptions(
-        channelId: 'esahlan_driver_location',
-        channelName: 'Driver Location',
-        channelDescription: 'eSahlan is tracking your location for deliveries',
+        channelId: _kChannelId,
+        channelName: 'eSahlan Driver — Location',
+        channelDescription: 'Keeps your location active for real-time delivery tracking.',
+        channelImportance: NotificationChannelImportance.LOW,
+        priority: NotificationPriority.LOW,
         onlyAlertOnce: true,
         playSound: false,
         enableVibration: false,
@@ -118,7 +180,8 @@ class DriverLocationService {
         playSound: false,
       ),
       foregroundTaskOptions: ForegroundTaskOptions(
-        eventAction: ForegroundTaskEventAction.repeat(10000), // 10s
+        // onRepeatEvent fires every 5 s as a backup to our internal timer
+        eventAction: ForegroundTaskEventAction.repeat(_kIntervalMs),
         autoRunOnBoot: true,
         autoRunOnMyPackageReplaced: true,
         allowWakeLock: true,
@@ -126,70 +189,128 @@ class DriverLocationService {
       ),
     );
 
-    // Auto-start if driver was previously logged in (boot/reinstall recovery)
-    final token = await LocalStorage.getToken();
-    if (token != null) {
+    // Auto-resume if driver was tracking before the device restarted / app updated
+    final wasTracking = await _getWasTracking();
+    final token       = await LocalStorage.getToken();
+    if (token != null && wasTracking) {
+      debugPrint('[GPS] auto-resume after boot/reinstall');
       await startTracking();
     }
   }
 
+  // ── Request all needed permissions (call from UI after login) ─────────────
+  static Future<void> requestPermissions() async {
+    // Basic location
+    LocationPermission perm = await Geolocator.checkPermission();
+    if (perm == LocationPermission.denied) {
+      perm = await Geolocator.requestPermission();
+    }
+    if (perm == LocationPermission.deniedForever) {
+      await Geolocator.openAppSettings();
+      return;
+    }
+
+    // Background location (Android 10 / Q+)
+    if (Platform.isAndroid) {
+      final bgPerm = await Permission.locationAlways.status;
+      if (bgPerm.isDenied) {
+        await Permission.locationAlways.request();
+      }
+
+      // Battery optimisation exclusion — essential for keeping service alive
+      if (!await FlutterForegroundTask.isIgnoringBatteryOptimizations) {
+        await FlutterForegroundTask.requestIgnoreBatteryOptimization();
+      }
+    }
+  }
+
+  // ── Start tracking ────────────────────────────────────────────────────────
   static Future<void> startTracking({int? orderId}) async {
     if (_running) {
+      // Just update the active order if already running
       if (orderId != null) {
         _activeOrderId = orderId;
         FlutterForegroundTask.sendDataToTask({'order_id': orderId});
       }
       return;
     }
-    _running = true;
+
+    _running       = true;
     _activeOrderId = orderId;
+    await _setWasTracking(true);
 
-    // Request permissions if needed
-    final perm = await Geolocator.checkPermission();
-    if (perm == LocationPermission.denied) {
-      await Geolocator.requestPermission();
-    }
-
-    // Start foreground service
+    // Ensure foreground task is launched
     if (await FlutterForegroundTask.isRunningService) {
-      FlutterForegroundTask.restartService();
+      await FlutterForegroundTask.restartService();
     } else {
       await FlutterForegroundTask.startService(
-        serviceId: 1001,
-        notificationTitle: 'eSahlan Driver',
-        notificationText: 'Location tracking active',
-        callback: _startCallback,
+        serviceId:        _kServiceId,
+        notificationTitle: 'eSahlan Driver — Active',
+        notificationText:  'Location tracking on · Real-time',
+        callback:          _fgTaskCallback,
       );
     }
 
-    // Workmanager as fallback (every 15min if foreground service is killed)
-    Workmanager().registerPeriodicTask(
-      _bgTask, _bgTask,
-      tag: 'driver_loc',
-      frequency: const Duration(minutes: 15),
+    // WorkManager fallback — fires every 15 min if the foreground service is killed
+    await Workmanager().registerPeriodicTask(
+      _kBgTaskName, _kBgTaskName,
+      tag:                _kBgTaskName,
+      frequency:          const Duration(minutes: _kBgIntervalMin),
       existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
-      constraints: Constraints(networkType: NetworkType.connected),
+      inputData:          orderId != null ? {'order_id': orderId} : null,
+      constraints:        Constraints(networkType: NetworkType.connected),
     );
+
+    debugPrint('[GPS] tracking started (orderId: $orderId)');
   }
 
+  // ── Stop tracking ─────────────────────────────────────────────────────────
   static Future<void> stopTracking() async {
-    _running = false;
+    _running       = false;
     _activeOrderId = null;
+    await _setWasTracking(false);
     await FlutterForegroundTask.stopService();
-    Workmanager().cancelByTag('driver_loc');
+    await Workmanager().cancelByTag(_kBgTaskName);
+    debugPrint('[GPS] tracking stopped');
   }
 
+  // ── Update active order without restarting service ────────────────────────
   static void setActiveOrder(int? orderId) {
     _activeOrderId = orderId;
-    if (orderId != null) {
-      FlutterForegroundTask.sendDataToTask({'order_id': orderId});
+    FlutterForegroundTask.sendDataToTask({'order_id': orderId});
+    // Also update WorkManager task with new order_id
+    if (orderId != null && _running) {
+      Workmanager().registerPeriodicTask(
+        _kBgTaskName, _kBgTaskName,
+        tag:                _kBgTaskName,
+        frequency:          const Duration(minutes: _kBgIntervalMin),
+        existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
+        inputData:          {'order_id': orderId},
+        constraints:        Constraints(networkType: NetworkType.connected),
+      );
     }
   }
 
-  static bool get isRunning => _running;
-}
+  // ── Post a single location update immediately (call on order accept) ──────
+  static Future<void> pingNow({int? orderId}) async {
+    await _postLocationHttp(orderId: orderId ?? _activeOrderId);
+  }
 
-@pragma('vm:entry-point')
-void _startCallback() {
-  FlutterForegroundTask.setTaskHandler(_LocationTaskHandler());
+  static bool get isRunning => _running;
+
+  // ── Persistence helpers (SharedPreferences not available here — use file) ─
+  static Future<bool> _getWasTracking() async {
+    try {
+      final token = await LocalStorage.getToken();
+      return token != null; // if logged in, assume was tracking
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<void> _setWasTracking(bool value) async {
+    // Nothing to do — we derive from token existence above
+    // This hook is here for future expansion
+    debugPrint('[GPS] persist wasTracking=$value');
+  }
 }
