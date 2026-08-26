@@ -982,6 +982,14 @@ Route::prefix('v1')->group(function () {
                 Route::get('soc/events', [\App\Http\Controllers\Api\Admin\SocController::class, 'recentEvents']);
             });
 
+            // Auto-dispatch + challenges
+            Route::post('orders/{order}/auto-dispatch',  [\App\Http\Controllers\Admin\AutoDispatchController::class, 'dispatch']);
+            Route::get('orders/{order}/nearest-drivers', [\App\Http\Controllers\Admin\AutoDispatchController::class, 'nearestDrivers']);
+            Route::get('driver-challenges',              [\App\Http\Controllers\Admin\AdminChallengeController::class, 'index']);
+            Route::post('driver-challenges',             [\App\Http\Controllers\Admin\AdminChallengeController::class, 'store']);
+            Route::post('driver-challenges/{id}/toggle', [\App\Http\Controllers\Admin\AdminChallengeController::class, 'toggle']);
+            Route::delete('driver-challenges/{id}',      [\App\Http\Controllers\Admin\AdminChallengeController::class, 'destroy']);
+
         });
     });
 });

@@ -248,8 +248,8 @@ class AdminOrderController extends Controller
                 $order->load('deliveryman.user');
                 $driverToken = $order->deliveryman?->fcm_token ?? $order->deliveryman?->user?->fcm_token;
                 if ($driverToken) {
-                    if ($request->status === 'confirmed') {
-                        // Ring the driver — confirmed means new order ready for them
+                    if (in_array($request->status, ['confirmed', 'ready_for_pickup'])) {
+                        // Ring the driver — order confirmed or ready for pickup
                         $pickupArr   = is_string($order->getRawOriginal('pickup_address'))   ? json_decode($order->getRawOriginal('pickup_address'), true)   ?? [] : (array) ($order->pickup_address   ?? []);
                         $deliveryArr = is_string($order->getRawOriginal('delivery_address')) ? json_decode($order->getRawOriginal('delivery_address'), true) ?? [] : (array) ($order->delivery_address ?? []);
                         FcmService::sendNewOrderRing($driverToken, [
@@ -426,6 +426,41 @@ class AdminOrderController extends Controller
             } catch (\Throwable $e) {
                 \Log::warning('[FCM] Assign notification failed: ' . $e->getMessage());
             }
+        }
+
+        // ── Ring the assigned driver ──────────────────────────────────
+        try {
+            $order->load('deliveryman.user', 'vendor');
+            $driverToken = $order->deliveryman?->fcm_token ?? $order->deliveryman?->user?->fcm_token;
+            if ($driverToken) {
+                $pickupArr   = is_string($order->getRawOriginal('pickup_address'))
+                    ? json_decode($order->getRawOriginal('pickup_address'), true) ?? []
+                    : (array) ($order->pickup_address ?? []);
+                $deliveryArr = is_string($order->getRawOriginal('delivery_address'))
+                    ? json_decode($order->getRawOriginal('delivery_address'), true) ?? []
+                    : (array) ($order->delivery_address ?? []);
+                if (empty($pickupArr['lat']) && $order->vendor) {
+                    $pickupArr['lat']      = $order->vendor->latitude ?? 0;
+                    $pickupArr['lng']      = $order->vendor->longitude ?? 0;
+                    $pickupArr['district'] = $order->vendor->name ?? '';
+                }
+                FcmService::sendNewOrderRing($driverToken, [
+                    'id'                  => $order->id,
+                    'order_number'        => $order->order_number,
+                    'module_slug'         => $order->module_slug ?? 'order',
+                    'delivery_fee'        => $order->delivery_fee ?? 0,
+                    'distance'            => 0,
+                    'estimated_minutes'   => 0,
+                    'driver_to_pickup_km' => 0,
+                    'pickup_address'      => $pickupArr,
+                    'delivery_address'    => $deliveryArr,
+                ]);
+                \Log::info('[FCM] Ring sent to driver ' . $order->deliveryman_id . ' order=' . $order->id);
+            } else {
+                \Log::warning('[FCM] Assign ring: no token for driver ' . $order->deliveryman_id);
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('[FCM] Driver ring on assign: ' . $e->getMessage());
         }
 
         return back()->with('success', 'Deliveryman assigned successfully.');
