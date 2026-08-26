@@ -911,8 +911,14 @@ class DeliveryController extends Controller
                 if ($zone) { $zoneFee = (float) $zone->base_price; $result['delivery_fee'] = $zoneFee; }
             }
 
-            // Use district coordinates for map
-            if ($senderDist && $result['pickup']['lat'] == 0) {
+            // Use real GPS coords from order if present, else fall back to district center
+            $realPickupLat = isset($pickupInfo['lat']) ? (float) $pickupInfo['lat'] : 0;
+            $realPickupLng = isset($pickupInfo['lng']) ? (float) $pickupInfo['lng'] : 0;
+            if ($realPickupLat != 0 && $realPickupLng != 0) {
+                $result['pickup']['lat'] = $realPickupLat;
+                $result['pickup']['lng'] = $realPickupLng;
+                if ($senderDist) $result['pickup']['district'] = $senderDist->name;
+            } elseif ($senderDist && $result['pickup']['lat'] == 0) {
                 $result['pickup']['lat'] = (float) $senderDist->latitude;
                 $result['pickup']['lng'] = (float) $senderDist->longitude;
                 $result['pickup']['district'] = $senderDist->name;
