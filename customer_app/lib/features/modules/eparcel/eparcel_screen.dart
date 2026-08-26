@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../../../core/api/module_api_service.dart';
@@ -427,9 +428,33 @@ class _EParcelScreenState extends ConsumerState<EParcelScreen>
 
     setState(() => _ordering = true);
     try {
+      // Get sender's real GPS coordinates for accurate driver-to-pickup distance
+      double? pickupLat, pickupLng;
+      try {
+        final perm = await Geolocator.checkPermission();
+        if (perm == LocationPermission.always || perm == LocationPermission.whileInUse) {
+          final pos = await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.high,
+              timeLimit: Duration(seconds: 8),
+            ),
+          );
+          pickupLat = pos.latitude;
+          pickupLng = pos.longitude;
+        }
+      } catch (_) {
+        // GPS unavailable — backend falls back to district center
+      }
+
       final parcelRes = await _svc.placeParcelOrder({
         'parcel_type_id':   _parcelTypeId,
-        'pickup_address':   {'district_id': _pickupDistrictId, 'name': _senderName, 'phone': _senderPhone},
+        'pickup_address':   {
+          'district_id': _pickupDistrictId,
+          'name': _senderName,
+          'phone': _senderPhone,
+          if (pickupLat != null) 'lat': pickupLat,
+          if (pickupLng != null) 'lng': pickupLng,
+        },
         'delivery_address': {'district_id': _deliveryDistrictId},
         'recipient_name':   _recipientNameCtrl.text.trim(),
         'recipient_phone':  _recipientPhoneCtrl.text.trim(),

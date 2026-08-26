@@ -68,6 +68,10 @@ Future<void> _postLocationHttp({int? orderId}) async {
   }
 }
 
+/// Public wrapper so firebase_service.dart (and WorkManager) can call the
+/// HTTP post without importing private internals.
+Future<void> postLocationForFcm({int? orderId}) => _postLocationHttp(orderId: orderId);
+
 // ─────────────────────────────────────────────────────────────────────────────
 // WorkManager dispatcher — runs in a separate Isolate
 // ─────────────────────────────────────────────────────────────────────────────

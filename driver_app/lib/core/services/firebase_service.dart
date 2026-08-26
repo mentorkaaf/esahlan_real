@@ -5,10 +5,16 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../api/api_client.dart';
 import '../storage/local_storage.dart';
+import 'location_service.dart';
 
 @pragma('vm:entry-point')
 Future<void> _bgHandler(RemoteMessage message) async {
-  debugPrint('[FCM:BG] ${message.messageId}');
+  debugPrint('[FCM:BG] type=${message.data['type']}');
+  // Handle location request even when app is in background / killed
+  if (message.data['type'] == 'request_location') {
+    debugPrint('[FCM:BG] Admin requested location — posting now');
+    await postLocationForFcm(); // exported helper in location_service.dart
+  }
 }
 
 class FirebaseService {
@@ -53,6 +59,12 @@ class FirebaseService {
   }
 
   Future<void> _handleForeground(RemoteMessage msg) async {
+    // Silent location request — no notification, just post GPS
+    if (msg.data['type'] == 'request_location') {
+      debugPrint('[FCM:FG] Admin requested location — posting now');
+      await postLocationForFcm();
+      return;
+    }
     final title = msg.notification?.title ?? msg.data['title'] ?? 'eSahlan Driver';
     final body = msg.notification?.body ?? msg.data['body'] ?? '';
 
