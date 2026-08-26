@@ -123,10 +123,10 @@ function renderDrivers(drivers) {
 
         var pos = { lat: d.latitude, lng: d.longitude };
         var isBusy = d.status === 'busy';
-        if (isBusy) busy++; else online++;
+        if (isBusy) busy++; else if (d.is_online && !d.is_stale) online++;
 
-        var minsAgo = d.last_seen_at ? Math.floor((Date.now() - new Date(d.last_seen_at)) / 60000) : 99;
-        var isStale = minsAgo > 5;   // >5 min: app likely killed, WorkManager fallback
+        var isStale = d.is_stale || false;
+        // Green=online+fresh, Orange=busy, Grey=stale/offline
         var fillColor = isBusy ? '#f97316' : isStale ? '#9ca3af' : '#22c55e';
         var icon = {
             path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
@@ -186,7 +186,8 @@ function renderDrivers(drivers) {
             '</div>' +
             '<div class="dp-meta">' +
             (d.order ? '📦 #' + d.order.order_number + ' &nbsp;·&nbsp; ' : '') +
-            (d.vehicle_type || '') + ' &nbsp;·&nbsp; ' + d.last_seen +
+            (d.vehicle_type || '') + ' &nbsp;·&nbsp; ' +
+            (d.is_stale ? '<span style="color:#f97316">⚠ ' + d.last_seen + '</span>' : d.last_seen) +
             '</div>' +
         '</div>';
     }).join('');

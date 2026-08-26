@@ -164,7 +164,12 @@ class DispatchController extends Controller
             ->where('is_approved', true)
             ->whereNotNull('latitude')
             ->whereNotNull('longitude')
-            ->where('last_location_at', '>=', now()->subMinutes(30))
+            ->where(function($q) {
+                // Always show online drivers (any location age)
+                // Also show recently-seen drivers even if now offline (last 30 min)
+                $q->where('is_online', true)
+                   ->orWhere('last_location_at', '>=', now()->subMinutes(30));
+            })
             ->get()
             ->map(function ($d) {
                 $activeOrder = null;
@@ -185,6 +190,8 @@ class DispatchController extends Controller
                     'longitude'    => (float) $d->longitude,
                     'last_seen'    => \Carbon\Carbon::parse($d->last_location_at)->diffForHumans(),
                     'last_seen_at' => $d->last_location_at,
+                    'is_online'    => (bool) $d->is_online,
+                    'is_stale'     => $d->last_location_at && \Carbon\Carbon::parse($d->last_location_at)->diffInMinutes(now()) > 5,
                     'rating'       => round($d->rating ?? 5, 1),
                     'order'        => $activeOrder,
                 ];
