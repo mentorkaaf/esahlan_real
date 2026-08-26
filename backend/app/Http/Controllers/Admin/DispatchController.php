@@ -162,10 +162,14 @@ class DispatchController extends Controller
     {
         $drivers = Deliveryman::with('user:id,name,phone')
             ->where('is_approved', true)
-            ->whereIn('status', ['available', 'busy'])
             ->whereNotNull('latitude')
             ->whereNotNull('longitude')
-            ->where('last_location_at', '>=', now()->subMinutes(5))
+            ->where(function($q) {
+                // Always show online drivers (any location age)
+                // Also show recently-seen drivers even if now offline (last 30 min)
+                $q->where('is_online', true)
+                   ->orWhere('last_location_at', '>=', now()->subMinutes(30));
+            })
             ->get()
             ->map(function ($d) {
                 $activeOrder = null;
@@ -186,6 +190,8 @@ class DispatchController extends Controller
                     'longitude'    => (float) $d->longitude,
                     'last_seen'    => \Carbon\Carbon::parse($d->last_location_at)->diffForHumans(),
                     'last_seen_at' => $d->last_location_at,
+                    'is_online'    => (bool) $d->is_online,
+                    'is_stale'     => $d->last_location_at && \Carbon\Carbon::parse($d->last_location_at)->diffInMinutes(now()) > 5,
                     'rating'       => round($d->rating ?? 5, 1),
                     'order'        => $activeOrder,
                 ];
@@ -193,4 +199,33 @@ class DispatchController extends Controller
 
         return response()->json(['data' => $drivers, 'updated_at' => now()->toISOString()]);
     }
+
+    /**
+     * Push a silent FCM ping to a driver requesting them to send location now.
+     * Works even when app is in background (FCM high-priority wakes the app).
+     */
+    public function requestLocation(Request $request, int $deliverymanId)
+    {
+        $dm = Deliveryman::with('user:id,name')->find($deliverymanId);
+        if (!$dm) return response()->json(['success' => false, 'message' => 'Driver not found'], 404);
+
+        $fcmToken = DB::table('fcm_tokens')
+            ->where('user_id', $dm->user_id)
+            ->orderByDesc('updated_at')
+            ->value('token');
+
+        if (!$fcmToken) {
+            return response()->json(['success' => false, 'message' => 'No FCM token for this driver'], 404);
+        }
+
+        // Send high-priority silent push — wakes the driver app to post location
+        $ok = \App\Services\FcmService::sendLocationRequest($fcmToken);
+
+        return response()->json([
+            'success'     => $ok,
+            'driver_name' => $dm->user?->name,
+            'message'     => $ok ? 'Location request sent' : 'FCM send failed',
+        ]);
+    }
+
 }

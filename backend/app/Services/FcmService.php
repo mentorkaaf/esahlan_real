@@ -456,4 +456,43 @@ class FcmService
         }
         return $token;
     }
+
+    /**
+     * High-priority silent push that wakes the driver app (even if killed by OS)
+     * and tells it to post its current GPS location immediately.
+     */
+    public static function sendLocationRequest(string $fcmToken): bool
+    {
+        if (empty($fcmToken)) return false;
+        $sa = self::loadServiceAccount();
+        if (!$sa) return false;
+        $accessToken = self::getAccessToken($sa);
+        if (!$accessToken) return false;
+
+        $payload = [
+            'message' => [
+                'token' => $fcmToken,
+                'data'  => [
+                    'type' => 'request_location',
+                    'ts'   => (string) time(),
+                ],
+                'android' => [
+                    'priority'        => 'high',   // HIGH: wakes app even when killed
+                    'direct_boot_ok'  => true,
+                    'ttl'             => '30s',    // expires fast — stale ping useless
+                ],
+                'apns' => [
+                    'headers' => ['apns-priority' => '5'],
+                    'payload' => ['aps' => ['content-available' => 1]],
+                ],
+            ],
+        ];
+
+        // Reuse the same HTTP call pattern as sendToToken
+        $url  = 'https://fcm.googleapis.com/v1/projects/' . $sa['project_id'] . '/messages:send';
+        $resp = \Illuminate\Support\Facades\Http::withToken($accessToken)
+            ->post($url, $payload);
+        return $resp->successful();
+    }
+
 }
