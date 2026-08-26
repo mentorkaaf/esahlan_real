@@ -1,7 +1,10 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'dart:ui';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../api/api_client.dart';
 import '../storage/local_storage.dart';
@@ -9,11 +12,17 @@ import 'location_service.dart';
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Global background handler — runs in its own isolate even when app is killed
+// REQUIRED: WidgetsFlutterBinding.ensureInitialized() + Firebase.initializeApp()
+// must be called first or all Flutter plugins silently fail in background isolate
 // ──────────────────────────────────────────────────────────────────────────────
 @pragma('vm:entry-point')
 Future<void> _bgHandler(RemoteMessage message) async {
+  // CRITICAL: must be first line — initializes Flutter engine in background isolate
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+
   final type = message.data['type'] ?? '';
-  debugPrint('[FCM:BG] type=$type');
+  debugPrint('[FCM:BG] type=$type data=${message.data}');
 
   if (type == 'request_location') {
     await postLocationForFcm();
