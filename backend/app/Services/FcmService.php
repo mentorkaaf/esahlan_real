@@ -308,16 +308,67 @@ class FcmService
             'delivery_lng'      => (string) ($delivery['lng'] ?? 0),
         ];
 
-        // Notification-type FCM with loud sound — works on ALL phones including HONOR.
-        // Flutter onMessageOpenedApp handles tap to open incoming order screen.
-        return self::sendToToken(
-            $fcmToken,
-            '🚨 New Order! Tap to accept',
-            'Order #' . $data['order_number'] . ' • $' . (string) $fee . ' delivery fee',
-            $data,
-            null,
-            'esahlan_order_ring_v2',
-        );
+        // Custom FCM payload — notification-type with order_ring.wav sound
+        // Cannot use sendToToken() because it hardcodes sound='default'
+        // which overrides the channel's custom sound setting
+        $sa = self::loadServiceAccount();
+        if (!$sa) return false;
+        $accessToken = self::getAccessToken($sa);
+        if (!$accessToken) return false;
+
+        $title = '🚨 New Order! Tap to accept';
+        $body  = 'Order #' . $data['order_number'] . ' • $' . (string) $fee . ' delivery fee';
+
+        $payload = [
+            'message' => [
+                'token'        => $fcmToken,
+                'notification' => ['title' => $title, 'body' => $body],
+                'data'         => array_map('strval', $data),
+                'android'      => [
+                    'priority'     => 'high',
+                    'notification' => [
+                        'channel_id'    => 'esahlan_order_ring_v2',
+                        'sound'         => 'order_ring',   // custom sound file (no extension)
+                        'color'         => '#FF8A00',
+                        'visibility'    => 'PUBLIC',
+                        'notification_priority' => 'PRIORITY_MAX',
+                        'default_sound'  => false,
+                        'default_vibrate_timings' => false,
+                        'vibrate_timings' => ['0s', '0.4s', '0.2s', '0.4s', '0.2s', '0.4s'],
+                    ],
+                ],
+                'apns' => [
+                    'headers' => ['apns-priority' => '10'],
+                    'payload' => ['aps' => ['alert' => ['title' => $title, 'body' => $body], 'sound' => 'order_ring.wav', 'badge' => 1]],
+                ],
+            ],
+        ];
+
+        $projectId = $sa['project_id'];
+        $url = "https://fcm.googleapis.com/v1/projects/{$projectId}/messages:send";
+        $ch  = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_HTTPHEADER     => [
+                'Authorization: Bearer ' . $accessToken,
+                'Content-Type: application/json',
+            ],
+            CURLOPT_POSTFIELDS     => json_encode($payload),
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 15,
+            CURLOPT_SSL_VERIFYPEER => false,
+        ]);
+        $resp = curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($code !== 200) {
+            Log::warning('[FCM] sendNewOrderRing failed', ['code' => $code, 'resp' => $resp]);
+            return false;
+        }
+        $parsed = json_decode($resp, true);
+        Log::info('[FCM] Ring sent (order_ring sound)', ['msg_id' => $parsed['name'] ?? 'unknown', 'order' => $data['order_id'] ?? '?']);
+        return true;
     }
 
     /**
