@@ -589,9 +589,20 @@ class _ActiveDeliveryState extends ConsumerState<_ActiveDeliveryPage> {
     final district = customer?['district']?.toString() ?? (addr is Map ? (addr['district'] ?? addr['city'] ?? '') : '');
     final hasLoc = vLat != 0 && vLng != 0;
 
-    final isPickup = status != 'out_for_delivery';
-    final actionLabel = isPickup ? 'Arrived at Pickup' : '✓ Complete Delivery';
-    final nextStatus = isPickup ? 'out_for_delivery' : 'delivered';
+    // Multi-step: pending/confirmed/preparing/ready_for_pickup → picked_up → out_for_delivery → delivered
+    final isPrePickup = status != 'picked_up' && status != 'out_for_delivery';
+    final isPickedUp  = status == 'picked_up';
+    final isPickup    = status != 'out_for_delivery'; // true during both pre-pickup and picked_up phases
+    final actionLabel = isPrePickup
+        ? 'Arrived at Pickup'
+        : isPickedUp
+            ? 'On The Way to Customer'
+            : '✓ Complete Delivery';
+    final nextStatus = isPrePickup
+        ? 'picked_up'
+        : isPickedUp
+            ? 'out_for_delivery'
+            : 'delivered';
 
     return Scaffold(
       backgroundColor: c.navy,
@@ -619,6 +630,12 @@ class _ActiveDeliveryState extends ConsumerState<_ActiveDeliveryPage> {
           if (vendor?['phone'] != null) IconButton(
             icon: const Icon(Icons.store_rounded, color: DC.orange),
             onPressed: () => launchUrl(Uri.parse('tel:${vendor!['phone']}')),
+          ),
+          // SOS button
+          IconButton(
+            icon: const Icon(Icons.sos_rounded, color: Colors.red),
+            tooltip: 'SOS Emergency',
+            onPressed: () => _sendSOS(),
           ),
         ],
       ),
@@ -696,22 +713,27 @@ class _ActiveDeliveryState extends ConsumerState<_ActiveDeliveryPage> {
             SizedBox(width: double.infinity, height: 52, child: ElevatedButton(
               onPressed: _loading ? null : () => _handleAction(nextStatus),
               style: ElevatedButton.styleFrom(
-                backgroundColor: isPickup ? DC.orange : DC.success,
+                backgroundColor: isPrePickup ? DC.orange : isPickedUp ? const Color(0xFF2196F3) : DC.success,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),
               child: _loading
                   ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
                   : Text(actionLabel, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
             )),
-            if (!isPickup) ...[
-              const SizedBox(height: 8),
-              SizedBox(width: double.infinity, height: 44, child: OutlinedButton.icon(
-                onPressed: hasLoc ? () => launchUrl(Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$vLat,$vLng&travelmode=driving')) : null,
-                icon: const Icon(Icons.navigation_rounded, size: 18),
-                label: const Text('Start Navigation'),
-                style: OutlinedButton.styleFrom(foregroundColor: DC.orange, side: const BorderSide(color: DC.orange)),
-              )),
-            ],
+            const SizedBox(height: 8),
+            // Navigate button — pickup phase navigates to vendor, delivery phase navigates to customer
+            if (isPickup) SizedBox(width: double.infinity, height: 44, child: OutlinedButton.icon(
+              onPressed: hasLoc ? () => launchUrl(Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$vLat,$vLng&travelmode=driving')) : null,
+              icon: const Icon(Icons.navigation_rounded, size: 18),
+              label: const Text('Navigate to Pickup'),
+              style: OutlinedButton.styleFrom(foregroundColor: DC.orange, side: const BorderSide(color: DC.orange)),
+            ))
+            else SizedBox(width: double.infinity, height: 44, child: OutlinedButton.icon(
+              onPressed: hasLoc ? () => launchUrl(Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$vLat,$vLng&travelmode=driving')) : null,
+              icon: const Icon(Icons.navigation_rounded, size: 18),
+              label: const Text('Navigate to Customer'),
+              style: OutlinedButton.styleFrom(foregroundColor: DC.success, side: const BorderSide(color: DC.success)),
+            )),
           ]),
         ),
       ]),
@@ -732,6 +754,37 @@ class _ActiveDeliveryState extends ConsumerState<_ActiveDeliveryPage> {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'), backgroundColor: DC.error));
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _sendSOS() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1F2E),
+        title: const Text('SOS Emergency', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w800)),
+        content: const Text('Are you in danger? This will immediately alert all admins with your location.', style: TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('SEND SOS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      final orderId = (widget.order['id'] as num?)?.toInt();
+      await ref.read(authRepoProvider).sendSOS(orderId: orderId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('🆘 SOS sent! Admins have been alerted.'), backgroundColor: Colors.red, duration: Duration(seconds: 5)),
+        );
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('SOS failed: $e'), backgroundColor: DC.error));
     }
   }
 }

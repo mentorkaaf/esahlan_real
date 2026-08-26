@@ -113,4 +113,50 @@ class AuthRepository {
     final res = await _dio.get('/delivery/profile');
     return res.data['data'] as Map<String, dynamic>;
   }
+
+  Future<Map<String, dynamic>> getStats() async {
+    try {
+      final res = await _dio.get('/delivery/stats');
+      return res.data['data'] as Map<String, dynamic>;
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
+  Future<void> sendSOS({int? orderId, String? message}) async {
+    try {
+      final data = <String, dynamic>{'message': message ?? 'SOS — driver needs help'};
+      if (orderId != null) data['order_id'] = orderId;
+      await _dio.post('/delivery/sos', data: data);
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
+  Future<List<dynamic>> getHeatmap() async {
+    try {
+      final res = await _dio.get('/delivery/heatmap');
+      return res.data['data'] as List<dynamic>;
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
+  Future<List<dynamic>> getChallenges() async {
+    try {
+      final res = await _dio.get('/delivery/challenges');
+      return res.data['data'] as List<dynamic>;
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
+  Future<List<dynamic>> orderHistory({int page = 1}) async {
+    try {
+      final res = await _dio.get('/delivery/history', queryParameters: {'page': page});
+      return (res.data['data'] as Map<String, dynamic>)['data'] as List<dynamic>;
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
 }

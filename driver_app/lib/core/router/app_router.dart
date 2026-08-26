@@ -11,6 +11,9 @@ import '../../features/orders/presentation/screens/incoming_order_screen.dart';
 import '../../features/earnings/presentation/screens/earnings_screen.dart';
 import '../../features/wallet/presentation/screens/wallet_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
+import '../../features/orders/presentation/screens/challenges_screen.dart';
+import '../../features/orders/presentation/screens/driver_stats_screen.dart';
+import '../../features/orders/presentation/screens/heatmap_screen.dart';
 import '../../shell/main_shell.dart';
 
 class _AuthNotifier extends ChangeNotifier {
@@ -57,6 +60,9 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/earnings', builder: (_, __) => const EarningsScreen()),
           GoRoute(path: '/wallet', builder: (_, __) => const WalletScreen()),
           GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
+          GoRoute(path: '/challenges', builder: (_, __) => const ChallengesScreen()),
+          GoRoute(path: '/driver-stats', builder: (_, __) => const DriverStatsScreen()),
+          GoRoute(path: '/heatmap', builder: (_, __) => const HeatmapScreen()),
         ],
       ),
     ],
