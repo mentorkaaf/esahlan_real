@@ -248,9 +248,28 @@ class AdminOrderController extends Controller
                 $order->load('deliveryman.user');
                 $driverToken = $order->deliveryman?->fcm_token ?? $order->deliveryman?->user?->fcm_token;
                 if ($driverToken) {
-                    FcmService::sendDriverOrderUpdate($driverToken, $order->order_number, $request->status, $order->id, $order->module_slug);
+                    if ($request->status === 'confirmed') {
+                        // Ring the driver — confirmed means new order ready for them
+                        $pickupArr   = is_string($order->getRawOriginal('pickup_address'))   ? json_decode($order->getRawOriginal('pickup_address'), true)   ?? [] : (array) ($order->pickup_address   ?? []);
+                        $deliveryArr = is_string($order->getRawOriginal('delivery_address')) ? json_decode($order->getRawOriginal('delivery_address'), true) ?? [] : (array) ($order->delivery_address ?? []);
+                        FcmService::sendNewOrderRing($driverToken, [
+                            'id'                  => $order->id,
+                            'order_number'        => $order->order_number,
+                            'module_slug'         => $order->module_slug ?? 'order',
+                            'delivery_fee'        => $order->delivery_fee ?? 0,
+                            'distance'            => 0,
+                            'estimated_minutes'   => 0,
+                            'driver_to_pickup_km' => 0,
+                            'pickup_address'      => $pickupArr,
+                            'delivery_address'    => $deliveryArr,
+                        ]);
+                    } else {
+                        FcmService::sendDriverOrderUpdate($driverToken, $order->order_number, $request->status, $order->id, $order->module_slug);
+                    }
                 }
-            } catch (\Throwable) {}
+            } catch (\Throwable $e) {
+                \Log::warning('[FCM] Driver notify: ' . $e->getMessage());
+            }
         }
 
         // ── Notify nearby drivers when order is confirmed (proximity-based) ──
