@@ -160,7 +160,7 @@ class DeliveryController extends Controller
             ->where('deliveryman_id', $dm->id)->where('created_at', '>=', now()->startOfWeek())->sum('amount');
 
         $activeOrder = Order::where('deliveryman_id', $dm->id)
-            ->whereIn('status', ['confirmed', 'preparing', 'ready_for_pickup', 'out_for_delivery'])
+            ->whereIn('status', ['confirmed', 'preparing', 'ready_for_pickup', 'picked_up', 'out_for_delivery'])
             ->with(['vendor:id,name,address,latitude,longitude,phone', 'user:id,name,phone'])
             ->first();
 
@@ -278,7 +278,7 @@ class DeliveryController extends Controller
         if (!$dm) return response()->json(['success' => false, 'message' => 'Profile not found'], 404);
 
         $orders = Order::where('deliveryman_id', $dm->id)
-            ->whereIn('status', ['confirmed', 'preparing', 'ready_for_pickup', 'out_for_delivery'])
+            ->whereIn('status', ['confirmed', 'preparing', 'ready_for_pickup', 'picked_up', 'out_for_delivery'])
             ->with(['vendor:id,name,address,latitude,longitude,phone,logo', 'user:id,name,phone', 'items'])
             ->get()
             ->map(fn($o) => $this->formatOrder($o, $dm));

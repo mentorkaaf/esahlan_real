@@ -745,8 +745,20 @@ class _ActiveDeliveryState extends ConsumerState<_ActiveDeliveryPage> {
     setState(() => _loading = true);
     try {
       await ref.read(authRepoProvider).updateOrderStatus((widget.order['id'] as num).toInt(), nextStatus);
+      // Invalidate active list in background — driver stays on this page
       ref.invalidate(_activeProvider);
-      if (mounted) { Navigator.pop(context); }
+      // Update local order status so buttons/labels update immediately without pop
+      if (mounted) {
+        setState(() {
+          widget.order['status'] = nextStatus;
+          _loading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(nextStatus == 'picked_up' ? '✓ Arrived at pickup confirmed' : '✓ On the way to customer'),
+          backgroundColor: DC.success,
+          duration: const Duration(seconds: 2),
+        ));
+      }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'), backgroundColor: DC.error));
     } finally {
