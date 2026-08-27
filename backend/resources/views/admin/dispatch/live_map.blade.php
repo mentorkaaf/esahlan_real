@@ -93,18 +93,26 @@ function initMap() {
     setInterval(fetchDrivers, 5000);
 }
 
+// ── Strip emoji / non-BMP characters (fixes mojibake from DB) ────────────
+function stripEmoji(str) {
+    if (!str) return '';
+    // Remove emoji and other non-BMP chars; keep ASCII + extended Latin
+    return str.replace(/[\u{1F000}-\u{1FFFF}]|[☀-⟿][️]?|[\uD800-\uDBFF][\uDC00-\uDFFF]/gu, '').trim();
+}
+
 // ── Vehicle type → Font Awesome icon + label ──────────────────────────────
 function vehicleIcon(type) {
-    var t = (type || '').toLowerCase();
+    var clean = stripEmoji(type);
+    var t = (clean || '').toLowerCase();
     if (t.includes('motorcycle') || t.includes('motorbike') || t.includes('scooter') || t.includes('bike'))
-        return '<i class="fas fa-motorcycle" style="margin-right:4px;"></i>' + type;
+        return '<i class="fas fa-motorcycle" style="margin-right:4px;"></i>' + (clean || 'Motorcycle');
     if (t.includes('bicycle') || t.includes('cycle'))
-        return '<i class="fas fa-bicycle" style="margin-right:4px;"></i>' + type;
+        return '<i class="fas fa-bicycle" style="margin-right:4px;"></i>' + (clean || 'Bicycle');
     if (t.includes('truck') || t.includes('van'))
-        return '<i class="fas fa-truck" style="margin-right:4px;"></i>' + type;
+        return '<i class="fas fa-truck" style="margin-right:4px;"></i>' + (clean || 'Truck');
     if (t.includes('car') || t.includes('auto'))
-        return '<i class="fas fa-car" style="margin-right:4px;"></i>' + type;
-    return '<i class="fas fa-shipping-fast" style="margin-right:4px;"></i>' + type;
+        return '<i class="fas fa-car" style="margin-right:4px;"></i>' + (clean || 'Car');
+    return '<i class="fas fa-shipping-fast" style="margin-right:4px;"></i>' + (clean || type || 'Vehicle');
 }
 
 // ── Fetch & Render ────────────────────────────────────────────────────────
@@ -160,22 +168,36 @@ function renderDrivers(drivers) {
                 position: pos,
                 map: map,
                 icon: icon,
-                title: d.name,
+                title: stripEmoji(d.name),
                 animation: google.maps.Animation.DROP,
             });
-            marker.addListener('click', function() {
-                var content = '<div style="font-family:sans-serif;min-width:200px;">' +
-                    '<div style="font-weight:800;font-size:14px;margin-bottom:6px;">' + d.name + '</div>' +
-                    '<div style="font-size:12px;color:#666;margin-bottom:4px;"><i class="fas fa-phone"></i> ' + (d.phone || '—') + '</div>' +
-                    '<div style="font-size:12px;margin-bottom:4px;"><b>Status:</b> <span style="color:' + (isBusy ? '#f97316' : '#22c55e') + '">' + d.status.toUpperCase() + '</span></div>' +
-                    '<div style="font-size:12px;color:#666;"><b>Vehicle:</b> ' + (d.vehicle_type ? vehicleIcon(d.vehicle_type) : '—') + '</div>' +
-                    (d.order ? '<div style="font-size:12px;margin-top:6px;padding:6px;background:#fef9c3;border-radius:6px;"><b>Order:</b> #' + d.order.order_number + ' (' + d.order.status + ')</div>' : '') +
-                    '<div style="font-size:10px;color:#9ca3af;margin-top:6px;">Last seen: ' + d.last_seen + '</div>' +
-                '<button onclick="requestLocation(' + d.id + ', this)" style="margin-top:8px;width:100%;padding:6px;border:none;border-radius:6px;background:#1e40af;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">📍 Request Location</button>' +
-                '</div>';
+            marker.addListener('click', (function(driver) { return function() {
+                var dd = driversData[driver.id] || driver;
+                var iB = dd.status === 'busy';
+                var hasPick = dd.order && dd.order.pickup_lat && dd.order.pickup_lng;
+                var hasDeliv = dd.order && dd.order.delivery_lat && dd.order.delivery_lng;
+
+                var content = '<div style="font-family:sans-serif;min-width:210px;">' +
+                    '<div style="font-weight:800;font-size:14px;margin-bottom:6px;">' + dd.name + '</div>' +
+                    '<div style="font-size:12px;color:#666;margin-bottom:4px;"><i class="fas fa-phone"></i> ' + (dd.phone || '—') + '</div>' +
+                    '<div style="font-size:12px;margin-bottom:4px;"><b>Status:</b> <span style="color:' + (iB ? '#f97316' : '#22c55e') + '">' + dd.status.toUpperCase() + '</span></div>' +
+                    '<div style="font-size:12px;color:#666;"><b>Vehicle:</b> ' + (dd.vehicle_type ? vehicleIcon(dd.vehicle_type) : '—') + '</div>' +
+                    (dd.order ? '<div style="font-size:12px;margin-top:6px;padding:6px;background:#fef9c3;border-radius:6px;"><b>Order:</b> #' + dd.order.order_number + ' (' + dd.order.status + ')</div>' : '') +
+                    '<div style="font-size:10px;color:#9ca3af;margin-top:6px;">Last seen: ' + dd.last_seen + '</div>' +
+                    '<button onclick="requestLocation(' + dd.id + ', this)" style="margin-top:8px;width:100%;padding:6px;border:none;border-radius:6px;background:#1e40af;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">📍 Request Location</button>' +
+                    (hasPick && hasDeliv ?
+                        '<button onclick="drawDriverRoute(' + dd.latitude + ',' + dd.longitude + ',' + dd.order.pickup_lat + ',' + dd.order.pickup_lng + ',' + dd.order.delivery_lat + ',' + dd.order.delivery_lng + ')" style="margin-top:6px;width:100%;padding:6px;border:none;border-radius:6px;background:#f97316;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">🗺 Show Route</button>' +
+                        '<button onclick="clearRoute()" style="margin-top:4px;width:100%;padding:5px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;color:#374151;font-size:11px;cursor:pointer;">✕ Clear Route</button>'
+                    : '') +
+                    '</div>';
                 infoWindow.setContent(content);
                 infoWindow.open(map, marker);
-            });
+
+                // Auto-draw route if driver has an active order with coordinates
+                if (hasPick && hasDeliv) {
+                    drawDriverRoute(dd.latitude, dd.longitude, dd.order.pickup_lat, dd.order.pickup_lng, dd.order.delivery_lat, dd.order.delivery_lng);
+                }
+            }; })(d));
             driverMarkers[d.id] = marker;
         }
     });
@@ -196,7 +218,7 @@ function renderDrivers(drivers) {
     list.innerHTML = drivers.map(function(d) {
         return '<div class="dp-item" onclick="panTo(' + d.latitude + ',' + d.longitude + ',' + d.id + ')">' +
             '<div style="display:flex;align-items:center;justify-content:space-between;">' +
-            '<div class="dp-name">' + d.name + '</div>' +
+            '<div class="dp-name">' + stripEmoji(d.name) + '</div>' +
             '<span class="dp-badge ' + d.status + '">' + d.status + '</span>' +
             '</div>' +
             '<div class="dp-meta">' +
@@ -228,6 +250,48 @@ function panTo(lat, lng, driverId) {
     map.setZoom(16);
     if (driverMarkers[driverId]) {
         google.maps.event.trigger(driverMarkers[driverId], 'click');
+    }
+}
+
+// ── Route drawing — Directions API ────────────────────────────────────────
+var activeRouteRenderer = null;
+
+function drawDriverRoute(driverLat, driverLng, pickupLat, pickupLng, delivLat, delivLng) {
+    if (activeRouteRenderer) {
+        activeRouteRenderer.setMap(null);
+        activeRouteRenderer = null;
+    }
+    if (!pickupLat || !delivLat) return;
+
+    var svc      = new google.maps.DirectionsService();
+    var renderer = new google.maps.DirectionsRenderer({
+        map:              map,
+        suppressMarkers:  true,
+        polylineOptions: {
+            strokeColor:   '#f97316',
+            strokeWeight:  5,
+            strokeOpacity: 0.85,
+        },
+    });
+
+    // Waypoint: pickup (vendor)
+    svc.route({
+        origin:      { lat: parseFloat(driverLat),  lng: parseFloat(driverLng) },
+        destination: { lat: parseFloat(delivLat),   lng: parseFloat(delivLng)  },
+        waypoints:   [{ location: { lat: parseFloat(pickupLat), lng: parseFloat(pickupLng) }, stopover: true }],
+        travelMode:  google.maps.TravelMode.DRIVING,
+    }, function(result, status) {
+        if (status === 'OK') {
+            renderer.setDirections(result);
+            activeRouteRenderer = renderer;
+        }
+    });
+}
+
+function clearRoute() {
+    if (activeRouteRenderer) {
+        activeRouteRenderer.setMap(null);
+        activeRouteRenderer = null;
     }
 }
 
@@ -283,6 +347,6 @@ function panTo(lat, lng, driverId) {
 })();
 </script>
 <script async defer
-    src="https://maps.googleapis.com/maps/api/js?key={{ \App\Models\Setting::get('google_maps_api_key', config('services.maps_api_key', env('GOOGLE_MAPS_API_KEY'))) }}&callback=initMap">
+    src="https://maps.googleapis.com/maps/api/js?key={{ \App\Models\Setting::get('google_maps_api_key', config('services.maps_api_key', env('GOOGLE_MAPS_API_KEY'))) }}&libraries=directions&callback=initMap">
 </script>
 @endpush
