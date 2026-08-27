@@ -128,17 +128,14 @@ class AuthRepository {
     try {
       final data = <String, dynamic>{'message': message ?? 'SOS — driver needs help'};
       if (orderId != null) data['order_id'] = orderId;
-      // Attach GPS coordinates
+      // Get last known position immediately (no blocking wait)
       try {
-        final pos = await Geolocator.getCurrentPosition(
-          locationSettings: const LocationSettings(
-            accuracy: LocationAccuracy.high,
-            timeLimit: Duration(seconds: 8),
-          ),
-        );
-        data['latitude']  = pos.latitude;
-        data['longitude'] = pos.longitude;
-      } catch (_) {} // GPS optional — don't block SOS
+        final pos = await Geolocator.getLastKnownPosition();
+        if (pos != null) {
+          data['latitude']  = pos.latitude;
+          data['longitude'] = pos.longitude;
+        }
+      } catch (_) {} // GPS optional — never block SOS
       await _dio.post('/delivery/sos', data: data);
     } on DioException catch (e) {
       throw ApiException.fromDio(e);

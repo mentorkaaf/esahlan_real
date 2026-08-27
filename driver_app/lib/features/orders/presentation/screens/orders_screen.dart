@@ -784,16 +784,24 @@ class _ActiveDeliveryState extends ConsumerState<_ActiveDeliveryPage> {
       ),
     );
     if (confirmed != true || !mounted) return;
+    // Show immediate feedback
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('🆘 Sending SOS...'), backgroundColor: Colors.orange, duration: Duration(seconds: 3)),
+    );
     try {
       final orderId = (widget.order['id'] as num?)?.toInt();
       await ref.read(authRepoProvider).sendSOS(orderId: orderId);
       if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('🆘 SOS sent! Admins have been alerted.'), backgroundColor: Colors.red, duration: Duration(seconds: 5)),
+          const SnackBar(content: Text('🆘 SOS sent! All admins alerted.'), backgroundColor: Colors.red, duration: Duration(seconds: 6)),
         );
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('SOS failed: $e'), backgroundColor: DC.error));
+      if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('SOS failed: $e'), backgroundColor: DC.error));
+      }
     }
   }
 }
