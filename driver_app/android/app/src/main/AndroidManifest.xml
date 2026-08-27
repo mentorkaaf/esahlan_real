@@ -30,7 +30,7 @@
 
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyA9J4TSypPZv3cr8Zlabn0BSDICD_Ibp-A"/>
+            android:value="AIzaSyC1pxwcaFZxDXwqDpxK_gDfPAdpFM8bTnc"/>
 
         <!-- FCM default notification channel — must match channel registered in FirebaseService -->
         <meta-data

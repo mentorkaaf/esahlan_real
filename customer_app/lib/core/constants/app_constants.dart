@@ -36,7 +36,7 @@ class AppConstants {
   static const int pageSize = 20;
 
   // ── Google Maps ──────────────────────────────────────────────────────────
-  static const String googleMapsApiKey = 'AIzaSyA9J4TSypPZv3cr8Zlabn0BSDICD_Ibp-A';
+  static const String googleMapsApiKey = 'AIzaSyC1pxwcaFZxDXwqDpxK_gDfPAdpFM8bTnc';
   static const double defaultLat = 2.0469;
   static const double defaultLng = 45.3182;
 

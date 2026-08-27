@@ -14,6 +14,7 @@ import '../../../../core/services/realtime_service.dart';
 import '../../../../core/theme/driver_colors.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../widgets/tracking_map_widget.dart';
 
 
 final _availableProvider = FutureProvider.autoDispose<List<dynamic>>((ref) => ref.read(authRepoProvider).availableOrders());
@@ -182,23 +183,19 @@ class _NewOrderCard extends StatelessWidget {
           ]),
         ),
 
-        // MAP
-        if (hasCoords) SizedBox(height: 160, child: GoogleMap(
-          initialCameraPosition: CameraPosition(
-            target: LatLng((pickupLat + deliveryLat) / 2, (pickupLng + deliveryLng) / 2), zoom: 12),
-          markers: {
-            Marker(markerId: const MarkerId('pickup'), position: LatLng(pickupLat, pickupLng),
-              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
-              infoWindow: InfoWindow(title: pickup['district'] ?? 'Pickup')),
-            Marker(markerId: const MarkerId('delivery'), position: LatLng(deliveryLat, deliveryLng),
-              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-              infoWindow: InfoWindow(title: delivery['district'] ?? 'Delivery')),
-          },
-          polylines: {Polyline(polylineId: const PolylineId('route'),
-            points: [LatLng(pickupLat, pickupLng), LatLng(deliveryLat, deliveryLng)],
-            color: DC.orange, width: 3, patterns: [PatternItem.dash(20), PatternItem.gap(10)])},
-          myLocationEnabled: false, zoomControlsEnabled: true, mapToolbarEnabled: false,
-        )),
+        // LIVE TRACKING MAP — real road route + driver position + ETA
+        if (hasCoords) Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          child: TrackingMapWidget(
+            pickupLat:     pickupLat,
+            pickupLng:     pickupLng,
+            deliveryLat:   deliveryLat,
+            deliveryLng:   deliveryLng,
+            pickupLabel:   pickup['district'] ?? 'Pickup',
+            deliveryLabel: delivery['district'] ?? 'Delivery',
+            height:        260,
+          ),
+        ),
 
         Padding(padding: const EdgeInsets.fromLTRB(18, 14, 18, 0), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
