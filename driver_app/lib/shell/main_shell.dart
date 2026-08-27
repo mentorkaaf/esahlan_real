@@ -118,7 +118,6 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.dc;
     return Scaffold(
       body: widget.child,
       bottomNavigationBar: _PremiumNavBar(
