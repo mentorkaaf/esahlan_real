@@ -36,6 +36,19 @@ class DispatchController extends Controller
         return view('admin.dispatch.index', compact('activeOrders', 'availableDrivers', 'stats'));
     }
 
+    /** Strip emoji and mojibake chars from a string for safe display */
+    private static function cleanName(?string $s): string
+    {
+        if (!$s) return '';
+        // Remove emoji (4-byte Unicode: U+1F000 and above) and their variation selectors
+        $s = preg_replace('/[\x{1F000}-\x{1FFFF}][\x{FE00}-\x{FEFF}]?/u', '', $s);
+        // Remove any remaining non-BMP surrogates or replacement chars
+        $s = preg_replace('/[\x{FFF0}-\x{FFFF}]/u', '', $s);
+        // Remove bytes in 0x80-0xBF range that are orphaned UTF-8 continuation bytes (mojibake)
+        $s = preg_replace('/[\x80-\xBF]+/', '', $s);
+        return trim($s);
+    }
+
     public function activeOrders()
     {
         $orders = Order::with(['vendor:id,name,latitude,longitude,phone,logo,district_id', 'user:id,name,phone,latitude,longitude,district_id', 'deliveryman.user:id,name,phone'])
@@ -53,15 +66,15 @@ class DispatchController extends Controller
                     'module_slug'   => $o->module_slug,
                     'total'         => (float) ($o->total_amount ?? 0),
                     'delivery_fee'  => (float) ($o->delivery_fee ?? 0),
-                    'customer_name' => $o->user?->name,
+                    'customer_name' => self::cleanName($o->user?->name),
                     'customer_phone'=> $o->user?->phone,
                     'customer_lat'  => (float) ($o->user?->latitude ?? 0),
                     'customer_lng'  => (float) ($o->user?->longitude ?? 0),
-                    'vendor_name'   => $o->vendor?->name,
+                    'vendor_name'   => self::cleanName($o->vendor?->name),
                     'vendor_lat'    => (float) ($o->vendor?->latitude ?? 0),
                     'vendor_lng'    => (float) ($o->vendor?->longitude ?? 0),
                     'vendor_logo'   => $o->vendor?->logo,
-                    'driver_name'   => $o->deliveryman?->user?->name,
+                    'driver_name'   => self::cleanName($o->deliveryman?->user?->name),
                     'driver_id'     => $o->deliveryman_id,
                     'placed_at'     => $o->created_at?->diffForHumans(),
                     'district'      => $addr['district'] ?? $addr['city'] ?? null,
@@ -219,7 +232,7 @@ class DispatchController extends Controller
                 }
                 return [
                     'id'           => $d->id,
-                    'name'         => $d->user?->name ?? 'Driver #' . $d->id,
+                    'name'         => self::cleanName($d->user?->name) ?: 'Driver #' . $d->id,
                     'phone'        => $d->user?->phone,
                     'vehicle_type' => $d->vehicle_type,
                     'status'       => $d->status,
