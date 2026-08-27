@@ -109,6 +109,16 @@ var map, ordersData=[], driversData=[], markers=[], currentTab='orders', assignO
 var vehicleEmoji = {motorcycle:'Motorcycle',bajaj:'Bajaj',car:'Car',van:'Van',truck:'Truck',bicycle:'Bicycle',pickup:'Pickup'};
 var statusColor = {pending:'#F59E0B',confirmed:'#3B82F6',preparing:'#8B5CF6',ready_for_pickup:'#FF8A00',out_for_delivery:'#10B981'};
 
+// Strip emoji / mojibake characters from DB strings
+function se(str) {
+    if (!str) return '';
+    try {
+        return str.replace(/[^\x00-\x7FÀ-ɏ؀-ۿ]/gu, '').trim();
+    } catch(e) {
+        return str.replace(/[^\x00-\x7F]/g, '').trim();
+    }
+}
+
 function initDispatchMap() {
  map = new google.maps.Map(document.getElementById('dispatch-map'), {
  center:{lat:2.0469,lng:45.3182}, zoom:13,
@@ -151,10 +161,10 @@ function plotMarkers() {
  var m = new google.maps.Marker({
  position:{lat:o.vendor_lat,lng:o.vendor_lng}, map:map,
  icon:{path:google.maps.SymbolPath.CIRCLE,scale:12,fillColor:'#FF8A00',fillOpacity:1,strokeColor:'#fff',strokeWeight:3},
- title:o.vendor_name,
+ title:se(o.vendor_name),
  });
  m.addListener('click',function(){
- iw.setContent('<div style="padding:4px"><b style="color:#FF8A00">'+o.vendor_name+'</b></div>');
+ iw.setContent('<div style="padding:4px"><b style="color:#FF8A00">'+se(o.vendor_name)+'</b></div>');
  iw.open(map,m);
  });
  markers.push(m);
@@ -167,10 +177,10 @@ function plotMarkers() {
  var m = new google.maps.Marker({
  position:{lat:o.customer_lat,lng:o.customer_lng}, map:map,
  icon:{path:google.maps.SymbolPath.CIRCLE,scale:8,fillColor:'#3B82F6',fillOpacity:1,strokeColor:'#fff',strokeWeight:2},
- title:o.customer_name,
+ title:se(o.customer_name),
  });
  m.addListener('click',function(){
- iw.setContent('<div style="padding:4px"><b>'+o.customer_name+'</b><br><small>#'+o.order_number+'</small></div>');
+ iw.setContent('<div style="padding:4px"><b>'+se(o.customer_name)+'</b><br><small>#'+o.order_number+'</small></div>');
  iw.open(map,m);
  });
  markers.push(m);
@@ -185,12 +195,12 @@ function plotMarkers() {
  var m = new google.maps.Marker({
  position:{lat:d.latitude,lng:d.longitude}, map:map,
  label:{text:emoji,fontSize:'20px'},
- title:d.name+' ('+d.vehicle_type+')',
+ title:se(d.name)+' ('+se(d.vehicle_type)+')',
  });
  m.addListener('click',function(){
  iw.setContent(
  '<div style="padding:6px;min-width:160px;">'+
- '<div style="font-weight:800;font-size:14px;">'+d.name+'</div>'+
+ '<div style="font-weight:800;font-size:14px;">'+se(d.name)+'</div>'+
  '<div style="font-size:12px;color:#666;">'+d.phone+'</div>'+
  '<div style="margin-top:4px;">'+
  '<span style="padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700;background:'+color+'20;color:'+color+';">'+d.status+'</span>'+
@@ -226,12 +236,12 @@ function renderPanel() {
  '<span style="padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;background:'+sc+'15;color:'+sc+';">'+o.status.replace(/_/g,' ')+'</span>'+
  '</div>'+
  '<div style="font-size:12px;color:#666;margin-top:6px;">'+
- '<span style="color:#FF8A00;"><i class='fas fa-store'></i></span> '+(o.vendor_name||'')+' <span style="color:#3B82F6;"><i class='fas fa-user'></i></span> '+(o.customer_name||'')+
+ '<span style="color:#FF8A00;"><i class="fas fa-store"></i></span> '+se(o.vendor_name||'')+' <span style="color:#3B82F6;"><i class="fas fa-user"></i></span> '+se(o.customer_name||'')+
  '</div>'+
  '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">'+
  '<span style="font-weight:700;color:#10B981;font-size:13px;">$'+o.total.toFixed(2)+'</span>'+
  (hasDriver
- ? '<span style="font-size:11px;padding:3px 8px;background:#e8f5e9;color:#2e7d32;border-radius:6px;font-weight:600;">'+o.driver_name+'</span>'
+ ? '<span style="font-size:11px;padding:3px 8px;background:#e8f5e9;color:#2e7d32;border-radius:6px;font-weight:600;">'+se(o.driver_name)+'</span>'
  : '<button onclick="event.stopPropagation();openAssign('+o.id+',\''+o.order_number+'\')" style="padding:4px 12px;background:#FF8A00;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">Assign</button>')+
  '</div>'+
  '<div style="font-size:10px;color:#aaa;margin-top:4px;">'+o.placed_at+'</div>'+
@@ -246,7 +256,7 @@ function renderPanel() {
  '<div style="display:flex;align-items:center;gap:10px;">'+
  '<div style="width:40px;height:40px;border-radius:10px;background:'+color+'15;display:flex;align-items:center;justify-content:center;font-size:20px;">'+emoji+'</div>'+
  '<div style="flex:1;">'+
- '<div style="font-weight:700;font-size:13px;color:#07003B;">'+d.name+'</div>'+
+ '<div style="font-weight:700;font-size:13px;color:#07003B;">'+se(d.name)+'</div>'+
  '<div style="font-size:11px;color:#8A8A9A;">'+d.phone+'</div>'+
  '</div>'+
  '<div style="text-align:right;">'+
@@ -274,7 +284,7 @@ function openAssign(orderId, orderNum) {
  sel.innerHTML = available.length
  ? available.map(function(d){
  var emoji = vehicleEmoji[d.vehicle_type]||'';
- return '<option value="'+d.id+'">'+d.name+' '+d.phone+' ('+d.rating+')</option>';
+ return '<option value="'+d.id+'">'+se(d.name)+' '+d.phone+' ('+d.rating+')</option>';
  }).join('')
  : '<option value="">No available drivers</option>';
  openModal('assignModal');
