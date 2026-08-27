@@ -139,6 +139,26 @@ class FirebaseService {
             alert: false, badge: true, sound: false);
   }
 
+  // ── Killed-state: notification tap launched the app ─────────────────────
+  // Called from main() before runApp(). If the app was launched by tapping
+  // the system ring notification, save the order to SharedPreferences so
+  // MainShell.checkPendingOrder() navigates to the ring screen.
+  static Future<void> saveInitialMessageIfOrder() async {
+    try {
+      final msg = await FirebaseMessaging.instance.getInitialMessage();
+      if (msg == null) return;
+      final type = msg.data['type'] ?? '';
+      debugPrint('[FCM] getInitialMessage type=$type');
+      if (type == 'new_order') {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_kPendingOrderKey, jsonEncode(msg.data));
+        debugPrint('[FCM] Initial order saved to prefs: ${msg.data['order_number']}');
+      }
+    } catch (e) {
+      debugPrint('[FCM] saveInitialMessageIfOrder error: $e');
+    }
+  }
+
   // ── Full initialisation — call from MainShell.initState ───────────────────
   Future<void> initialize() async {
     if (_init) return;
@@ -177,6 +197,23 @@ class FirebaseService {
 
     // Foreground FCM (app open, message received)
     FirebaseMessaging.onMessage.listen(_handleForeground);
+
+    // Background-state notification tap → driver taps tray notification while
+    // app is in background. Save to prefs so MainShell.didChangeAppLifecycleState
+    // picks it up on resume.
+    FirebaseMessaging.onMessageOpenedApp.listen((msg) async {
+      final type = msg.data['type'] ?? '';
+      debugPrint('[FCM:TAP] onMessageOpenedApp type=$type');
+      if (type == 'new_order') {
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString(_kPendingOrderKey, jsonEncode(msg.data));
+          debugPrint('[FCM:TAP] saved to prefs, shell will pick up on resume');
+          // Also call directly if shell is ready
+          onNewOrder?.call(msg.data);
+        } catch (_) {}
+      }
+    });
 
     // Register FCM token
     await _registerToken();

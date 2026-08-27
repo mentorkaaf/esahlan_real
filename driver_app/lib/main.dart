@@ -17,6 +17,9 @@ void main() async {
   try {
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
     await FirebaseService.setupBeforeRunApp();
+    // Killed-state: app launched by tapping the ring notification.
+    // Save order to SharedPreferences so MainShell picks it up in checkPendingOrder().
+    await FirebaseService.saveInitialMessageIfOrder();
   } catch (e) {
     debugPrint('[Firebase] Init error: $e');
   }
