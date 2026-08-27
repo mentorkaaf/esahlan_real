@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -214,17 +215,38 @@ class DriverLocationService {
       return;
     }
 
-    // Background location (Android 10 / Q+)
     if (Platform.isAndroid) {
+      // Background location (Android 10+) — needed for tracking when app is not foreground
       final bgPerm = await Permission.locationAlways.status;
       if (bgPerm.isDenied) {
         await Permission.locationAlways.request();
       }
 
-      // Battery optimisation exclusion — essential for keeping service alive
+      // Battery optimisation exclusion — essential for keeping service alive on HONOR/Huawei
       if (!await FlutterForegroundTask.isIgnoringBatteryOptimizations) {
         await FlutterForegroundTask.requestIgnoreBatteryOptimization();
       }
+
+      // Overlay permission (SYSTEM_ALERT_WINDOW) — needed for fullScreenIntent on HONOR
+      final overlayPerm = await Permission.systemAlertWindow.status;
+      if (overlayPerm.isDenied) {
+        await Permission.systemAlertWindow.request();
+      }
+
+      // Notification permission (Android 13+)
+      final notifPerm = await Permission.notification.status;
+      if (notifPerm.isDenied) {
+        await Permission.notification.request();
+      }
+    }
+  }
+
+  // ── Request overlay permission separately (call on ring order first launch) ─
+  static Future<void> requestOverlayPermission(BuildContext? context) async {
+    if (!Platform.isAndroid) return;
+    final status = await Permission.systemAlertWindow.status;
+    if (!status.isGranted) {
+      await Permission.systemAlertWindow.request();
     }
   }
 

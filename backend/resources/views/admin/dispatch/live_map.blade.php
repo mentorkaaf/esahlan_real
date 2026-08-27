@@ -93,6 +93,20 @@ function initMap() {
     setInterval(fetchDrivers, 5000);
 }
 
+// ── Vehicle type → Font Awesome icon + label ──────────────────────────────
+function vehicleIcon(type) {
+    var t = (type || '').toLowerCase();
+    if (t.includes('motorcycle') || t.includes('motorbike') || t.includes('scooter') || t.includes('bike'))
+        return '<i class="fas fa-motorcycle" style="margin-right:4px;"></i>' + type;
+    if (t.includes('bicycle') || t.includes('cycle'))
+        return '<i class="fas fa-bicycle" style="margin-right:4px;"></i>' + type;
+    if (t.includes('truck') || t.includes('van'))
+        return '<i class="fas fa-truck" style="margin-right:4px;"></i>' + type;
+    if (t.includes('car') || t.includes('auto'))
+        return '<i class="fas fa-car" style="margin-right:4px;"></i>' + type;
+    return '<i class="fas fa-shipping-fast" style="margin-right:4px;"></i>' + type;
+}
+
 // ── Fetch & Render ────────────────────────────────────────────────────────
 function fetchDrivers() {
     fetch('{{ route('admin.dispatch.live-drivers') }}')
@@ -154,7 +168,7 @@ function renderDrivers(drivers) {
                     '<div style="font-weight:800;font-size:14px;margin-bottom:6px;">' + d.name + '</div>' +
                     '<div style="font-size:12px;color:#666;margin-bottom:4px;"><i class="fas fa-phone"></i> ' + (d.phone || '—') + '</div>' +
                     '<div style="font-size:12px;margin-bottom:4px;"><b>Status:</b> <span style="color:' + (isBusy ? '#f97316' : '#22c55e') + '">' + d.status.toUpperCase() + '</span></div>' +
-                    '<div style="font-size:12px;color:#666;"><b>Vehicle:</b> ' + (d.vehicle_type || '—') + '</div>' +
+                    '<div style="font-size:12px;color:#666;"><b>Vehicle:</b> ' + (d.vehicle_type ? vehicleIcon(d.vehicle_type) : '—') + '</div>' +
                     (d.order ? '<div style="font-size:12px;margin-top:6px;padding:6px;background:#fef9c3;border-radius:6px;"><b>Order:</b> #' + d.order.order_number + ' (' + d.order.status + ')</div>' : '') +
                     '<div style="font-size:10px;color:#9ca3af;margin-top:6px;">Last seen: ' + d.last_seen + '</div>' +
                 '<button onclick="requestLocation(' + d.id + ', this)" style="margin-top:8px;width:100%;padding:6px;border:none;border-radius:6px;background:#1e40af;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">📍 Request Location</button>' +
@@ -187,7 +201,7 @@ function renderDrivers(drivers) {
             '</div>' +
             '<div class="dp-meta">' +
             (d.order ? '📦 #' + d.order.order_number + ' &nbsp;·&nbsp; ' : '') +
-            (d.vehicle_type || '') + ' &nbsp;·&nbsp; ' +
+            (d.vehicle_type ? vehicleIcon(d.vehicle_type) : '') + ' &nbsp;·&nbsp; ' +
             (d.is_stale ? '<span style="color:#f97316">⚠ ' + d.last_seen + '</span>' : d.last_seen) +
             '</div>' +
         '</div>';

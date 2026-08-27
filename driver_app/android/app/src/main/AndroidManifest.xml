@@ -20,6 +20,8 @@
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
     <uses-permission android:name="android.permission.DISABLE_KEYGUARD"/>
     <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
+    <!-- HONOR/Huawei: required for fullScreenIntent to pop over lock screen -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
 
     <application
         android:label="eSahlan Driver"
