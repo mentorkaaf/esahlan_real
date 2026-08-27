@@ -90,36 +90,39 @@
 </div>
 
 {{-- Summary Strip --}}
-<div class="summary-strip">
-    <div class="sbox">
-        <div class="val" id="sTotal">—</div>
-        <div class="lbl">Total Drivers</div>
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;text-align:center;">
+        <div id="sTotal" style="font-size:26px;font-weight:800;">—</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Total Drivers</div>
     </div>
-    <div class="sbox">
-        <div class="val" id="sOnline" style="color:#34C759">—</div>
-        <div class="lbl">Online Now</div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;text-align:center;">
+        <div id="sOnline" style="font-size:26px;font-weight:800;color:#34C759;">—</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Online Now</div>
     </div>
-    <div class="sbox">
-        <div class="val" id="sDiamond" style="color:#8B5CF6">—</div>
-        <div class="lbl">Diamond Tier</div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;text-align:center;">
+        <div id="sDiamond" style="font-size:26px;font-weight:800;color:#8B5CF6;">—</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Diamond Tier</div>
     </div>
-    <div class="sbox">
-        <div class="val" id="sGold" style="color:#D97706">—</div>
-        <div class="lbl">Gold Tier</div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;text-align:center;">
+        <div id="sGold" style="font-size:26px;font-weight:800;color:#D97706;">—</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Gold Tier</div>
     </div>
 </div>
 
 {{-- Filters --}}
-<div class="filter-row">
-    <input id="searchInput" type="text" placeholder="Search name or phone..." oninput="loadData()" style="min-width:200px;">
-    <select id="tierFilter" onchange="loadData()">
+<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:18px;">
+    <input id="searchInput" type="text" placeholder="Search name or phone..." oninput="loadData()"
+        style="min-width:200px;padding:7px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;">
+    <select id="tierFilter" onchange="loadData()"
+        style="padding:7px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;">
         <option value="">All Tiers</option>
-        <option value="diamond">💎 Diamond</option>
-        <option value="gold">🥇 Gold</option>
-        <option value="silver">🥈 Silver</option>
-        <option value="bronze">🥉 Bronze</option>
+        <option value="diamond">Diamond</option>
+        <option value="gold">Gold</option>
+        <option value="silver">Silver</option>
+        <option value="bronze">Bronze</option>
     </select>
-    <select id="statusFilter" onchange="loadData()">
+    <select id="statusFilter" onchange="loadData()"
+        style="padding:7px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;">
         <option value="">All Statuses</option>
         <option value="online">Online</option>
         <option value="offline">Offline</option>
