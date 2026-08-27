@@ -1,98 +1,98 @@
-﻿@extends('admin.layouts.app')
+@extends('admin.layouts.app')
 @section('title', 'Dispatch Center')
 
 @section('content')
 <div class="page-header">
-    <div>
-        <h2 class="page-title"><i class="fas fa-broadcast-tower" style="color:var(--primary)"></i> Dispatch Center</h2>
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Dashboard</a></li>
-            <li class="breadcrumb-item active">Dispatch</li>
-        </ol>
-    </div>
-    <div style="display:flex;gap:8px;align-items:center;">
-        <span id="lastUpdate" style="font-size:11px;color:#8A8A9A;"></span>
-        <button class="btn btn-primary btn-sm" onclick="loadData()"><i class="fas fa-sync-alt"></i> Refresh</button>
-    </div>
+ <div>
+ <h2 class="page-title"><i class="fas fa-broadcast-tower" style="color:var(--primary)"></i> Dispatch Center</h2>
+ <ol class="breadcrumb">
+ <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Dashboard</a></li>
+ <li class="breadcrumb-item active">Dispatch</li>
+ </ol>
+ </div>
+ <div style="display:flex;gap:8px;align-items:center;">
+ <span id="lastUpdate" style="font-size:11px;color:#8A8A9A;"></span>
+ <button class="btn btn-primary btn-sm" onclick="loadData()"><i class="fas fa-sync-alt"></i> Refresh</button>
+ </div>
 </div>
 
 {{-- Stats Strip --}}
 <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin-bottom:16px;">
-    <div style="background:#fff;border-radius:12px;padding:12px 14px;border-left:4px solid #F59E0B;">
-        <div style="font-size:22px;font-weight:900;color:#07003B;">{{ $stats['pending'] }}</div>
-        <div style="font-size:11px;color:#8A8A9A;">Pending</div>
-    </div>
-    <div style="background:#fff;border-radius:12px;padding:12px 14px;border-left:4px solid #3B82F6;">
-        <div style="font-size:22px;font-weight:900;color:#07003B;">{{ $stats['confirmed'] }}</div>
-        <div style="font-size:11px;color:#8A8A9A;">Confirmed</div>
-    </div>
-    <div style="background:#fff;border-radius:12px;padding:12px 14px;border-left:4px solid #FF8A00;">
-        <div style="font-size:22px;font-weight:900;color:#07003B;">{{ $stats['ready'] }}</div>
-        <div style="font-size:11px;color:#8A8A9A;">Ready</div>
-    </div>
-    <div style="background:#fff;border-radius:12px;padding:12px 14px;border-left:4px solid #8B5CF6;">
-        <div style="font-size:22px;font-weight:900;color:#07003B;">{{ $stats['delivering'] }}</div>
-        <div style="font-size:11px;color:#8A8A9A;">Delivering</div>
-    </div>
-    <div style="background:#fff;border-radius:12px;padding:12px 14px;border-left:4px solid #EF4444;">
-        <div style="font-size:22px;font-weight:900;color:#07003B;">{{ $stats['unassigned'] }}</div>
-        <div style="font-size:11px;color:#8A8A9A;">Unassigned</div>
-    </div>
-    <div style="background:#fff;border-radius:12px;padding:12px 14px;border-left:4px solid #10B981;">
-        <div style="font-size:22px;font-weight:900;color:#07003B;">{{ $stats['drivers_online'] }}</div>
-        <div style="font-size:11px;color:#8A8A9A;">Drivers Online</div>
-    </div>
-    <div style="background:#fff;border-radius:12px;padding:12px 14px;border-left:4px solid #F59E0B;">
-        <div style="font-size:22px;font-weight:900;color:#07003B;">{{ $stats['drivers_busy'] }}</div>
-        <div style="font-size:11px;color:#8A8A9A;">Drivers Busy</div>
-    </div>
+ <div style="background:#fff;border-radius:12px;padding:12px 14px;border-left:4px solid #F59E0B;">
+ <div style="font-size:22px;font-weight:900;color:#07003B;">{{ $stats['pending'] }}</div>
+ <div style="font-size:11px;color:#8A8A9A;">Pending</div>
+ </div>
+ <div style="background:#fff;border-radius:12px;padding:12px 14px;border-left:4px solid #3B82F6;">
+ <div style="font-size:22px;font-weight:900;color:#07003B;">{{ $stats['confirmed'] }}</div>
+ <div style="font-size:11px;color:#8A8A9A;">Confirmed</div>
+ </div>
+ <div style="background:#fff;border-radius:12px;padding:12px 14px;border-left:4px solid #FF8A00;">
+ <div style="font-size:22px;font-weight:900;color:#07003B;">{{ $stats['ready'] }}</div>
+ <div style="font-size:11px;color:#8A8A9A;">Ready</div>
+ </div>
+ <div style="background:#fff;border-radius:12px;padding:12px 14px;border-left:4px solid #8B5CF6;">
+ <div style="font-size:22px;font-weight:900;color:#07003B;">{{ $stats['delivering'] }}</div>
+ <div style="font-size:11px;color:#8A8A9A;">Delivering</div>
+ </div>
+ <div style="background:#fff;border-radius:12px;padding:12px 14px;border-left:4px solid #EF4444;">
+ <div style="font-size:22px;font-weight:900;color:#07003B;">{{ $stats['unassigned'] }}</div>
+ <div style="font-size:11px;color:#8A8A9A;">Unassigned</div>
+ </div>
+ <div style="background:#fff;border-radius:12px;padding:12px 14px;border-left:4px solid #10B981;">
+ <div style="font-size:22px;font-weight:900;color:#07003B;">{{ $stats['drivers_online'] }}</div>
+ <div style="font-size:11px;color:#8A8A9A;">Drivers Online</div>
+ </div>
+ <div style="background:#fff;border-radius:12px;padding:12px 14px;border-left:4px solid #F59E0B;">
+ <div style="font-size:22px;font-weight:900;color:#07003B;">{{ $stats['drivers_busy'] }}</div>
+ <div style="font-size:11px;color:#8A8A9A;">Drivers Busy</div>
+ </div>
 </div>
 
 {{-- Map + Panel --}}
 <div style="display:grid;grid-template-columns:1fr 380px;gap:16px;align-items:start;">
-    {{-- Map --}}
-    <div style="background:#fff;border-radius:16px;overflow:hidden;border:1.5px solid #f0f1f5;">
-        <div style="padding:14px 18px;border-bottom:1px solid #f0f1f5;display:flex;align-items:center;gap:12px;">
-            <span style="font-weight:800;font-size:15px;color:#07003B;">Live Map</span>
-            <span style="display:flex;align-items:center;gap:4px;font-size:11px;color:#8A8A9A;"><span style="width:8px;height:8px;border-radius:50%;background:#F59E0B;"></span> Orders</span>
-            <span style="display:flex;align-items:center;gap:4px;font-size:11px;color:#8A8A9A;"><span style="width:8px;height:8px;border-radius:50%;background:#10B981;"></span> Drivers</span>
-            <span style="display:flex;align-items:center;gap:4px;font-size:11px;color:#8A8A9A;"><span style="width:8px;height:8px;border-radius:50%;background:#FF8A00;"></span> Vendors</span>
-        </div>
-        <div id="dispatch-map" style="height:520px;"></div>
-    </div>
+ {{-- Map --}}
+ <div style="background:#fff;border-radius:16px;overflow:hidden;border:1.5px solid #f0f1f5;">
+ <div style="padding:14px 18px;border-bottom:1px solid #f0f1f5;display:flex;align-items:center;gap:12px;">
+ <span style="font-weight:800;font-size:15px;color:#07003B;">Live Map</span>
+ <span style="display:flex;align-items:center;gap:4px;font-size:11px;color:#8A8A9A;"><span style="width:8px;height:8px;border-radius:50%;background:#F59E0B;"></span> Orders</span>
+ <span style="display:flex;align-items:center;gap:4px;font-size:11px;color:#8A8A9A;"><span style="width:8px;height:8px;border-radius:50%;background:#10B981;"></span> Drivers</span>
+ <span style="display:flex;align-items:center;gap:4px;font-size:11px;color:#8A8A9A;"><span style="width:8px;height:8px;border-radius:50%;background:#FF8A00;"></span> Vendors</span>
+ </div>
+ <div id="dispatch-map" style="height:520px;"></div>
+ </div>
 
-    {{-- Side Panel --}}
-    <div style="background:#fff;border-radius:16px;border:1.5px solid #f0f1f5;max-height:590px;display:flex;flex-direction:column;">
-        <div style="padding:10px 14px;border-bottom:1px solid #f0f1f5;display:flex;gap:0;">
-            <button class="dispatch-tab active" data-tab="orders" onclick="switchTab('orders',this)">Orders <span id="ordersCount" style="background:#FF8A00;color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;margin-left:4px;">0</span></button>
-            <button class="dispatch-tab" data-tab="drivers" onclick="switchTab('drivers',this)">Drivers <span id="driversCount" style="background:#10B981;color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;margin-left:4px;">0</span></button>
-        </div>
-        <div id="panelContent" style="flex:1;overflow-y:auto;padding:10px;"></div>
-    </div>
+ {{-- Side Panel --}}
+ <div style="background:#fff;border-radius:16px;border:1.5px solid #f0f1f5;max-height:590px;display:flex;flex-direction:column;">
+ <div style="padding:10px 14px;border-bottom:1px solid #f0f1f5;display:flex;gap:0;">
+ <button class="dispatch-tab active" data-tab="orders" onclick="switchTab('orders',this)">Orders <span id="ordersCount" style="background:#FF8A00;color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;margin-left:4px;">0</span></button>
+ <button class="dispatch-tab" data-tab="drivers" onclick="switchTab('drivers',this)">Drivers <span id="driversCount" style="background:#10B981;color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;margin-left:4px;">0</span></button>
+ </div>
+ <div id="panelContent" style="flex:1;overflow-y:auto;padding:10px;"></div>
+ </div>
 </div>
 
 {{-- Assign Modal --}}
 <div class="modal-overlay" id="assignModal">
-    <div class="modal-box" style="max-width:420px;">
-        <div class="modal-header">
-            <h3 class="modal-title">Assign Driver</h3>
-            <button class="modal-close" onclick="closeModal('assignModal')">âœ•</button>
-        </div>
-        <div class="modal-body">
-            <div style="background:#f8f9fa;border-radius:10px;padding:12px;margin-bottom:14px;">
-                <div style="font-size:12px;color:#8A8A9A;">Order</div>
-                <div style="font-weight:800;color:#07003B;" id="assignOrderNum"></div>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Select Driver</label>
-                <select id="assignDriverSelect" class="form-control"></select>
-            </div>
-        </div>
-        <div style="padding:16px;border-top:1px solid #f0f1f5;display:flex;gap:10px;">
-            <button onclick="closeModal('assignModal')" style="flex:1;padding:10px;border:1.5px solid #e0e0e0;border-radius:10px;background:#fff;font-weight:600;cursor:pointer;">Cancel</button>
-            <button onclick="confirmAssign()" style="flex:1;padding:10px;border:none;border-radius:10px;background:#FF8A00;color:#fff;font-weight:700;cursor:pointer;">Assign Driver</button>
-        </div>
-    </div>
+ <div class="modal-box" style="max-width:420px;">
+ <div class="modal-header">
+ <h3 class="modal-title">Assign Driver</h3>
+ <button class="modal-close" onclick="closeModal('assignModal')"></button>
+ </div>
+ <div class="modal-body">
+ <div style="background:#f8f9fa;border-radius:10px;padding:12px;margin-bottom:14px;">
+ <div style="font-size:12px;color:#8A8A9A;">Order</div>
+ <div style="font-weight:800;color:#07003B;" id="assignOrderNum"></div>
+ </div>
+ <div class="form-group">
+ <label class="form-label">Select Driver</label>
+ <select id="assignDriverSelect" class="form-control"></select>
+ </div>
+ </div>
+ <div style="padding:16px;border-top:1px solid #f0f1f5;display:flex;gap:10px;">
+ <button onclick="closeModal('assignModal')" style="flex:1;padding:10px;border:1.5px solid #e0e0e0;border-radius:10px;background:#fff;font-weight:600;cursor:pointer;">Cancel</button>
+ <button onclick="confirmAssign()" style="flex:1;padding:10px;border:none;border-radius:10px;background:#FF8A00;color:#fff;font-weight:700;cursor:pointer;">Assign Driver</button>
+ </div>
+ </div>
 </div>
 
 <style>
@@ -106,194 +106,194 @@
 @push('scripts')
 <script>
 var map, ordersData=[], driversData=[], markers=[], currentTab='orders', assignOrderId=null;
-var vehicleEmoji = {motorcycle:'ðŸï¸',bajaj:'ðŸ›º',car:'ðŸš—',van:'ðŸš',truck:'ðŸš›',bicycle:'ðŸš²',pickup:'ðŸš›'};
+var vehicleEmoji = {motorcycle:'Motorcycle',bajaj:'Bajaj',car:'Car',van:'Van',truck:'Truck',bicycle:'Bicycle',pickup:'Pickup'};
 var statusColor = {pending:'#F59E0B',confirmed:'#3B82F6',preparing:'#8B5CF6',ready_for_pickup:'#FF8A00',out_for_delivery:'#10B981'};
 
 function initDispatchMap() {
-    map = new google.maps.Map(document.getElementById('dispatch-map'), {
-        center:{lat:2.0469,lng:45.3182}, zoom:13,
-        mapTypeControl:true,
-        mapTypeControlOptions:{style:google.maps.MapTypeControlStyle.HORIZONTAL_BAR,position:google.maps.ControlPosition.TOP_RIGHT,mapTypeIds:['roadmap','satellite','hybrid']},
-        streetViewControl:false,
-        styles:[{featureType:'poi',stylers:[{visibility:'off'}]}],
-    });
-    loadData();
-    setInterval(loadData, 20000);
+ map = new google.maps.Map(document.getElementById('dispatch-map'), {
+ center:{lat:2.0469,lng:45.3182}, zoom:13,
+ mapTypeControl:true,
+ mapTypeControlOptions:{style:google.maps.MapTypeControlStyle.HORIZONTAL_BAR,position:google.maps.ControlPosition.TOP_RIGHT,mapTypeIds:['roadmap','satellite','hybrid']},
+ streetViewControl:false,
+ styles:[{featureType:'poi',stylers:[{visibility:'off'}]}],
+ });
+ loadData();
+ setInterval(loadData, 20000);
 }
 
 function clearMarkers() { markers.forEach(function(m){m.setMap(null)}); markers=[]; }
 
 async function loadData() {
-    try {
-        var [oRes, dRes] = await Promise.all([
-            fetch('/admin/dispatch/orders').then(function(r){return r.json()}),
-            fetch('/admin/dispatch/deliverymen/available').then(function(r){return r.json()})
-        ]);
-        ordersData = oRes.data || [];
-        driversData = dRes.data || [];
-        document.getElementById('ordersCount').textContent = ordersData.length;
-        document.getElementById('driversCount').textContent = driversData.length;
-        document.getElementById('lastUpdate').textContent = 'Updated ' + new Date().toLocaleTimeString();
-        renderPanel();
-        plotMarkers();
-    } catch(e) {}
+ try {
+ var [oRes, dRes] = await Promise.all([
+ fetch('/admin/dispatch/orders').then(function(r){return r.json()}),
+ fetch('/admin/dispatch/deliverymen/available').then(function(r){return r.json()})
+ ]);
+ ordersData = oRes.data || [];
+ driversData = dRes.data || [];
+ document.getElementById('ordersCount').textContent = ordersData.length;
+ document.getElementById('driversCount').textContent = driversData.length;
+ document.getElementById('lastUpdate').textContent = 'Updated ' + new Date().toLocaleTimeString();
+ renderPanel();
+ plotMarkers();
+ } catch(e) {}
 }
 
 function plotMarkers() {
-    clearMarkers();
-    var iw = new google.maps.InfoWindow();
+ clearMarkers();
+ var iw = new google.maps.InfoWindow();
 
-    // Vendor markers (orange store icon)
-    var vendorsSeen = {};
-    ordersData.forEach(function(o) {
-        if (o.vendor_lat && o.vendor_lng && !vendorsSeen[o.vendor_name]) {
-            vendorsSeen[o.vendor_name] = true;
-            var m = new google.maps.Marker({
-                position:{lat:o.vendor_lat,lng:o.vendor_lng}, map:map,
-                icon:{path:google.maps.SymbolPath.CIRCLE,scale:12,fillColor:'#FF8A00',fillOpacity:1,strokeColor:'#fff',strokeWeight:3},
-                title:o.vendor_name,
-            });
-            m.addListener('click',function(){
-                iw.setContent('<div style="padding:4px"><b style="color:#FF8A00">ðŸª '+o.vendor_name+'</b></div>');
-                iw.open(map,m);
-            });
-            markers.push(m);
-        }
-    });
+ // Vendor markers (orange store icon)
+ var vendorsSeen = {};
+ ordersData.forEach(function(o) {
+ if (o.vendor_lat && o.vendor_lng && !vendorsSeen[o.vendor_name]) {
+ vendorsSeen[o.vendor_name] = true;
+ var m = new google.maps.Marker({
+ position:{lat:o.vendor_lat,lng:o.vendor_lng}, map:map,
+ icon:{path:google.maps.SymbolPath.CIRCLE,scale:12,fillColor:'#FF8A00',fillOpacity:1,strokeColor:'#fff',strokeWeight:3},
+ title:o.vendor_name,
+ });
+ m.addListener('click',function(){
+ iw.setContent('<div style="padding:4px"><b style="color:#FF8A00">'+o.vendor_name+'</b></div>');
+ iw.open(map,m);
+ });
+ markers.push(m);
+ }
+ });
 
-    // Customer markers (blue person)
-    ordersData.forEach(function(o) {
-        if (o.customer_lat && o.customer_lng) {
-            var m = new google.maps.Marker({
-                position:{lat:o.customer_lat,lng:o.customer_lng}, map:map,
-                icon:{path:google.maps.SymbolPath.CIRCLE,scale:8,fillColor:'#3B82F6',fillOpacity:1,strokeColor:'#fff',strokeWeight:2},
-                title:o.customer_name,
-            });
-            m.addListener('click',function(){
-                iw.setContent('<div style="padding:4px"><b>ðŸ‘¤ '+o.customer_name+'</b><br><small>#'+o.order_number+'</small></div>');
-                iw.open(map,m);
-            });
-            markers.push(m);
-        }
-    });
+ // Customer markers (blue person)
+ ordersData.forEach(function(o) {
+ if (o.customer_lat && o.customer_lng) {
+ var m = new google.maps.Marker({
+ position:{lat:o.customer_lat,lng:o.customer_lng}, map:map,
+ icon:{path:google.maps.SymbolPath.CIRCLE,scale:8,fillColor:'#3B82F6',fillOpacity:1,strokeColor:'#fff',strokeWeight:2},
+ title:o.customer_name,
+ });
+ m.addListener('click',function(){
+ iw.setContent('<div style="padding:4px"><b>'+o.customer_name+'</b><br><small>#'+o.order_number+'</small></div>');
+ iw.open(map,m);
+ });
+ markers.push(m);
+ }
+ });
 
-    // Driver markers (vehicle emoji)
-    driversData.forEach(function(d) {
-        if (!d.latitude || !d.longitude) return;
-        var emoji = vehicleEmoji[d.vehicle_type] || 'ðŸš—';
-        var color = d.status === 'available' ? '#10B981' : '#F59E0B';
-        var m = new google.maps.Marker({
-            position:{lat:d.latitude,lng:d.longitude}, map:map,
-            label:{text:emoji,fontSize:'20px'},
-            title:d.name+' ('+d.vehicle_type+')',
-        });
-        m.addListener('click',function(){
-            iw.setContent(
-                '<div style="padding:6px;min-width:160px;">'+
-                '<div style="font-weight:800;font-size:14px;">'+d.name+'</div>'+
-                '<div style="font-size:12px;color:#666;">'+d.phone+'</div>'+
-                '<div style="margin-top:4px;">'+
-                '<span style="padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700;background:'+color+'20;color:'+color+';">'+d.status+'</span>'+
-                ' <span style="color:#f59e0b;">â˜… '+d.rating+'</span>'+
-                '</div>'+
-                '<div style="font-size:11px;color:#888;margin-top:4px;">'+emoji+' '+d.vehicle_type+' Â· '+d.total_deliveries+' trips</div>'+
-                (d.last_seen ? '<div style="font-size:10px;color:#aaa;margin-top:2px;">Last seen: '+d.last_seen+'</div>' : '')+
-                '</div>'
-            );
-            iw.open(map,m);
-        });
-        markers.push(m);
-    });
+ // Driver markers (vehicle emoji)
+ driversData.forEach(function(d) {
+ if (!d.latitude || !d.longitude) return;
+ var emoji = vehicleEmoji[d.vehicle_type] || '—';
+ var color = d.status === 'available' ? '#10B981' : '#F59E0B';
+ var m = new google.maps.Marker({
+ position:{lat:d.latitude,lng:d.longitude}, map:map,
+ label:{text:emoji,fontSize:'20px'},
+ title:d.name+' ('+d.vehicle_type+')',
+ });
+ m.addListener('click',function(){
+ iw.setContent(
+ '<div style="padding:6px;min-width:160px;">'+
+ '<div style="font-weight:800;font-size:14px;">'+d.name+'</div>'+
+ '<div style="font-size:12px;color:#666;">'+d.phone+'</div>'+
+ '<div style="margin-top:4px;">'+
+ '<span style="padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700;background:'+color+'20;color:'+color+';">'+d.status+'</span>'+
+ ' <span style="color:#f59e0b;"> '+d.rating+'</span>'+
+ '</div>'+
+ '<div style="font-size:11px;color:#888;margin-top:4px;">'+emoji+' '+d.vehicle_type+' '+d.total_deliveries+' trips</div>'+
+ (d.last_seen ? '<div style="font-size:10px;color:#aaa;margin-top:2px;">Last seen: '+d.last_seen+'</div>' : '')+
+ '</div>'
+ );
+ iw.open(map,m);
+ });
+ markers.push(m);
+ });
 }
 
 function switchTab(tab, btn) {
-    currentTab = tab;
-    document.querySelectorAll('.dispatch-tab').forEach(function(t){t.classList.remove('active')});
-    btn.classList.add('active');
-    renderPanel();
+ currentTab = tab;
+ document.querySelectorAll('.dispatch-tab').forEach(function(t){t.classList.remove('active')});
+ btn.classList.add('active');
+ renderPanel();
 }
 
 function renderPanel() {
-    var panel = document.getElementById('panelContent');
-    if (currentTab === 'orders') {
-        if (!ordersData.length) { panel.innerHTML = '<div style="text-align:center;padding:40px;color:#8A8A9A;"><i class="fas fa-inbox" style="font-size:30px;display:block;margin-bottom:10px;opacity:0.3;"></i>No active orders</div>'; return; }
-        panel.innerHTML = ordersData.map(function(o) {
-            var sc = statusColor[o.status] || '#888';
-            var hasDriver = !!o.driver_name;
-            return '<div class="d-order" onclick="focusOrder('+o.id+')">'+
-                '<div style="display:flex;justify-content:space-between;align-items:center;">'+
-                '<span style="font-weight:800;font-size:13px;color:#07003B;">#'+o.order_number+'</span>'+
-                '<span style="padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;background:'+sc+'15;color:'+sc+';">'+o.status.replace(/_/g,' ')+'</span>'+
-                '</div>'+
-                '<div style="font-size:12px;color:#666;margin-top:6px;">'+
-                '<span style="color:#FF8A00;">ðŸª</span> '+(o.vendor_name||'â€”')+' â†’ <span style="color:#3B82F6;">ðŸ‘¤</span> '+(o.customer_name||'â€”')+
-                '</div>'+
-                '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">'+
-                '<span style="font-weight:700;color:#10B981;font-size:13px;">$'+o.total.toFixed(2)+'</span>'+
-                (hasDriver
-                    ? '<span style="font-size:11px;padding:3px 8px;background:#e8f5e9;color:#2e7d32;border-radius:6px;font-weight:600;">'+o.driver_name+'</span>'
-                    : '<button onclick="event.stopPropagation();openAssign('+o.id+',\''+o.order_number+'\')" style="padding:4px 12px;background:#FF8A00;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">Assign</button>')+
-                '</div>'+
-                '<div style="font-size:10px;color:#aaa;margin-top:4px;">'+o.placed_at+'</div>'+
-                '</div>';
-        }).join('');
-    } else {
-        if (!driversData.length) { panel.innerHTML = '<div style="text-align:center;padding:40px;color:#8A8A9A;"><i class="fas fa-motorcycle" style="font-size:30px;display:block;margin-bottom:10px;opacity:0.3;"></i>No drivers online</div>'; return; }
-        panel.innerHTML = driversData.map(function(d) {
-            var emoji = vehicleEmoji[d.vehicle_type] || 'ðŸš—';
-            var color = d.status === 'available' ? '#10B981' : '#F59E0B';
-            return '<div class="d-driver">'+
-                '<div style="display:flex;align-items:center;gap:10px;">'+
-                '<div style="width:40px;height:40px;border-radius:10px;background:'+color+'15;display:flex;align-items:center;justify-content:center;font-size:20px;">'+emoji+'</div>'+
-                '<div style="flex:1;">'+
-                '<div style="font-weight:700;font-size:13px;color:#07003B;">'+d.name+'</div>'+
-                '<div style="font-size:11px;color:#8A8A9A;">'+d.phone+'</div>'+
-                '</div>'+
-                '<div style="text-align:right;">'+
-                '<span style="padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;background:'+color+'15;color:'+color+';">'+d.status+'</span>'+
-                '<div style="font-size:11px;color:#f59e0b;margin-top:2px;">â˜… '+d.rating+' Â· '+d.total_deliveries+' trips</div>'+
-                '</div>'+
-                '</div>'+
-                (d.last_seen ? '<div style="font-size:10px;color:#aaa;margin-top:6px;">ðŸ“ Last seen: '+d.last_seen+'</div>' : '')+
-                '</div>';
-        }).join('');
-    }
+ var panel = document.getElementById('panelContent');
+ if (currentTab === 'orders') {
+ if (!ordersData.length) { panel.innerHTML = '<div style="text-align:center;padding:40px;color:#8A8A9A;"><i class="fas fa-inbox" style="font-size:30px;display:block;margin-bottom:10px;opacity:0.3;"></i>No active orders</div>'; return; }
+ panel.innerHTML = ordersData.map(function(o) {
+ var sc = statusColor[o.status] || '#888';
+ var hasDriver = !!o.driver_name;
+ return '<div class="d-order" onclick="focusOrder('+o.id+')">'+
+ '<div style="display:flex;justify-content:space-between;align-items:center;">'+
+ '<span style="font-weight:800;font-size:13px;color:#07003B;">#'+o.order_number+'</span>'+
+ '<span style="padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;background:'+sc+'15;color:'+sc+';">'+o.status.replace(/_/g,' ')+'</span>'+
+ '</div>'+
+ '<div style="font-size:12px;color:#666;margin-top:6px;">'+
+ '<span style="color:#FF8A00;"><i class='fas fa-store'></i></span> '+(o.vendor_name||'')+' <span style="color:#3B82F6;"><i class='fas fa-user'></i></span> '+(o.customer_name||'')+
+ '</div>'+
+ '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">'+
+ '<span style="font-weight:700;color:#10B981;font-size:13px;">$'+o.total.toFixed(2)+'</span>'+
+ (hasDriver
+ ? '<span style="font-size:11px;padding:3px 8px;background:#e8f5e9;color:#2e7d32;border-radius:6px;font-weight:600;">'+o.driver_name+'</span>'
+ : '<button onclick="event.stopPropagation();openAssign('+o.id+',\''+o.order_number+'\')" style="padding:4px 12px;background:#FF8A00;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">Assign</button>')+
+ '</div>'+
+ '<div style="font-size:10px;color:#aaa;margin-top:4px;">'+o.placed_at+'</div>'+
+ '</div>';
+ }).join('');
+ } else {
+ if (!driversData.length) { panel.innerHTML = '<div style="text-align:center;padding:40px;color:#8A8A9A;"><i class="fas fa-motorcycle" style="font-size:30px;display:block;margin-bottom:10px;opacity:0.3;"></i>No drivers online</div>'; return; }
+ panel.innerHTML = driversData.map(function(d) {
+ var emoji = vehicleEmoji[d.vehicle_type] || '—';
+ var color = d.status === 'available' ? '#10B981' : '#F59E0B';
+ return '<div class="d-driver">'+
+ '<div style="display:flex;align-items:center;gap:10px;">'+
+ '<div style="width:40px;height:40px;border-radius:10px;background:'+color+'15;display:flex;align-items:center;justify-content:center;font-size:20px;">'+emoji+'</div>'+
+ '<div style="flex:1;">'+
+ '<div style="font-weight:700;font-size:13px;color:#07003B;">'+d.name+'</div>'+
+ '<div style="font-size:11px;color:#8A8A9A;">'+d.phone+'</div>'+
+ '</div>'+
+ '<div style="text-align:right;">'+
+ '<span style="padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;background:'+color+'15;color:'+color+';">'+d.status+'</span>'+
+ '<div style="font-size:11px;color:#f59e0b;margin-top:2px;"> '+d.rating+' '+d.total_deliveries+' trips</div>'+
+ '</div>'+
+ '</div>'+
+ (d.last_seen ? '<div style="font-size:10px;color:#aaa;margin-top:6px;"> Last seen: '+d.last_seen+'</div>' : '')+
+ '</div>';
+ }).join('');
+ }
 }
 
 function focusOrder(id) {
-    var o = ordersData.find(function(x){return x.id===id});
-    if (o && o.vendor_lat && o.vendor_lng) map.panTo({lat:o.vendor_lat,lng:o.vendor_lng});
-    if (o) map.setZoom(15);
+ var o = ordersData.find(function(x){return x.id===id});
+ if (o && o.vendor_lat && o.vendor_lng) map.panTo({lat:o.vendor_lat,lng:o.vendor_lng});
+ if (o) map.setZoom(15);
 }
 
 function openAssign(orderId, orderNum) {
-    assignOrderId = orderId;
-    document.getElementById('assignOrderNum').textContent = '#' + orderNum;
-    var sel = document.getElementById('assignDriverSelect');
-    var available = driversData.filter(function(d){return d.status==='available'});
-    sel.innerHTML = available.length
-        ? available.map(function(d){
-            var emoji = vehicleEmoji[d.vehicle_type]||'ðŸš—';
-            return '<option value="'+d.id+'">'+emoji+' '+d.name+' â€” '+d.phone+' (â˜…'+d.rating+')</option>';
-        }).join('')
-        : '<option value="">No available drivers</option>';
-    openModal('assignModal');
+ assignOrderId = orderId;
+ document.getElementById('assignOrderNum').textContent = '#' + orderNum;
+ var sel = document.getElementById('assignDriverSelect');
+ var available = driversData.filter(function(d){return d.status==='available'});
+ sel.innerHTML = available.length
+ ? available.map(function(d){
+ var emoji = vehicleEmoji[d.vehicle_type]||'';
+ return '<option value="'+d.id+'">'+d.name+' '+d.phone+' ('+d.rating+')</option>';
+ }).join('')
+ : '<option value="">No available drivers</option>';
+ openModal('assignModal');
 }
 
 async function confirmAssign() {
-    var dmId = document.getElementById('assignDriverSelect').value;
-    if (!assignOrderId || !dmId) return;
-    try {
-        var res = await fetch('/admin/dispatch/assign', {
-            method:'POST',
-            headers:{'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name=csrf-token]').content},
-            body:JSON.stringify({order_id:assignOrderId,deliveryman_id:parseInt(dmId)})
-        }).then(function(r){return r.json()});
-        if (res.success) {
-            closeModal('assignModal');
-            loadData();
-        }
-    } catch(e) {}
+ var dmId = document.getElementById('assignDriverSelect').value;
+ if (!assignOrderId || !dmId) return;
+ try {
+ var res = await fetch('/admin/dispatch/assign', {
+ method:'POST',
+ headers:{'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name=csrf-token]').content},
+ body:JSON.stringify({order_id:assignOrderId,deliveryman_id:parseInt(dmId)})
+ }).then(function(r){return r.json()});
+ if (res.success) {
+ closeModal('assignModal');
+ loadData();
+ }
+ } catch(e) {}
 }
 </script>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC1pxwcaFZxDXwqDpxK_gDfPAdpFM8bTnc&callback=initDispatchMap" async defer></script>
