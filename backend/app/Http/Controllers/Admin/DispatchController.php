@@ -204,8 +204,18 @@ class DispatchController extends Controller
                     $activeOrder = DB::table('orders')
                         ->where('deliveryman_id', $d->id)
                         ->whereIn('status', ['out_for_delivery', 'ready_for_pickup'])
-                        ->select('id', 'order_number', 'status', 'module_slug')
+                        ->select('id', 'order_number', 'status', 'module_slug', 'delivery_address', 'vendor_id')
                         ->first();
+                    if ($activeOrder) {
+                        $vendor = DB::table('vendors')->where('id', $activeOrder->vendor_id)->select('latitude', 'longitude')->first();
+                        $activeOrder->pickup_lat = $vendor ? (float) $vendor->latitude : null;
+                        $activeOrder->pickup_lng = $vendor ? (float) $vendor->longitude : null;
+                        $addr = $activeOrder->delivery_address;
+                        if (is_string($addr)) $addr = json_decode($addr, true);
+                        $activeOrder->delivery_lat = is_array($addr) && isset($addr['lat']) ? (float) $addr['lat'] : null;
+                        $activeOrder->delivery_lng = is_array($addr) && isset($addr['lng']) ? (float) $addr['lng'] : null;
+                        unset($activeOrder->delivery_address, $activeOrder->vendor_id);
+                    }
                 }
                 return [
                     'id'           => $d->id,
