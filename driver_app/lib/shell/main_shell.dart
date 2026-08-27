@@ -14,72 +14,104 @@ class MainShell extends StatefulWidget {
   State<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> {
+class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   static const _tabs = ['/dashboard', '/orders', '/earnings', '/wallet', '/profile'];
+  bool _initialized = false;
 
   int _index(BuildContext context) {
     final loc = GoRouterState.of(context).matchedLocation;
-    final i = _tabs.indexOf(loc);
+    final i   = _tabs.indexOf(loc);
     return i >= 0 ? i : 0;
   }
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
 
-    // ── Wire up new-order handler (fires from foreground FCM or notification tap)
-    FirebaseService().onNewOrder = (data) {
-      if (!mounted) return;
-      // Build order map from FCM data — may be flat data keys or nested
-      final orderData = _parseOrderFromFcm(data);
-      context.push('/incoming-order', extra: orderData);
-    };
+    // ── Wire up the in-app new-order navigation ──────────────────────────
+    FirebaseService().onNewOrder = _handleIncomingOrder;
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Initialise FCM channels + listeners (safe to call multiple times)
+      await FirebaseService().initialize();
+      _initialized = true;
+
+      // Check for order that arrived while app was KILLED or BACKGROUND
+      // _bgHandler saved it to SharedPreferences; we read + consume it now.
+      await _checkPendingOrder();
+
       if (mounted) AppUpdateChecker.check(context, 'driver');
     });
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     FirebaseService().onNewOrder = null;
     super.dispose();
   }
 
-  /// FCM data keys from backend: order_id, order_number, delivery_fee,
-  /// pickup_district, pickup_address, pickup_lat, pickup_lng,
-  /// delivery_district, delivery_address, delivery_lat, delivery_lng,
-  /// distance_km, estimated_minutes, driver_to_pickup_km, module_slug
+  // ── App lifecycle — check pending order when app comes to foreground ─────
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _initialized) {
+      _checkPendingOrder();
+    }
+  }
+
+  // ── Read pending order from SharedPreferences ────────────────────────────
+  // Called on startup AND every time the app resumes.
+  // This handles BOTH killed-app taps AND background-app taps.
+  Future<void> _checkPendingOrder() async {
+    final data = await FirebaseService.checkPendingOrder();
+    if (data != null && mounted) {
+      // Small delay ensures GoRouter is settled before push
+      await Future.delayed(const Duration(milliseconds: 200));
+      if (mounted) _handleIncomingOrder(data);
+    }
+  }
+
+  // ── Navigate to IncomingOrderScreen ──────────────────────────────────────
+  void _handleIncomingOrder(Map<String, dynamic> data) {
+    if (!mounted) return;
+    // Cancel alarm notification (app is now showing the full-screen UI)
+    FirebaseService().cancelOrderNotification();
+    final orderData = _parseOrderFromFcm(data);
+    context.push('/incoming-order', extra: orderData);
+  }
+
+  /// Map flat FCM data keys → nested order structure for IncomingOrderScreen.
   Map<String, dynamic> _parseOrderFromFcm(Map<String, dynamic> data) {
-    // If backend sent a nested JSON string under 'order', decode it
+    // Backend sends a nested JSON string under 'order' key in some flows
     if (data.containsKey('order')) {
       try {
-        final raw = data['order'];
+        final raw    = data['order'];
         final nested = raw is String ? jsonDecode(raw) : raw;
         if (nested is Map<String, dynamic>) return nested;
       } catch (_) {}
     }
 
-    // Otherwise reconstruct from flat keys
+    // Standard flat keys from sendNewOrderRing / sendDataOnly
     return {
-      'id': int.tryParse('${data['order_id'] ?? 0}') ?? 0,
+      'id':           int.tryParse('${data['order_id'] ?? 0}') ?? 0,
       'order_number': data['order_number'] ?? '',
-      'module_slug': data['module_slug'] ?? 'order',
+      'module_slug':  data['module_slug']  ?? 'order',
       'delivery_fee': data['delivery_fee'] ?? '0',
-      'distance_km': data['distance_km'] ?? '0',
-      'estimated_minutes': int.tryParse('${data['estimated_minutes'] ?? 0}') ?? 0,
-      'driver_to_pickup_km': data['driver_to_pickup_km'] ?? '0',
+      'distance_km':  data['distance_km']  ?? '0',
+      'estimated_minutes':    int.tryParse('${data['estimated_minutes'] ?? 0}') ?? 0,
+      'driver_to_pickup_km':  data['driver_to_pickup_km'] ?? '0',
       'pickup': {
         'district': data['pickup_district'] ?? '',
-        'address': data['pickup_address'] ?? '',
-        'lat': data['pickup_lat'] ?? '0',
-        'lng': data['pickup_lng'] ?? '0',
+        'address':  data['pickup_address']  ?? '',
+        'lat':      data['pickup_lat']      ?? '0',
+        'lng':      data['pickup_lng']      ?? '0',
       },
       'delivery': {
         'district': data['delivery_district'] ?? '',
-        'address': data['delivery_address'] ?? '',
-        'lat': data['delivery_lat'] ?? '0',
-        'lng': data['delivery_lng'] ?? '0',
+        'address':  data['delivery_address']  ?? '',
+        'lat':      data['delivery_lat']      ?? '0',
+        'lng':      data['delivery_lng']      ?? '0',
       },
     };
   }
@@ -106,11 +138,11 @@ class _PremiumNavBar extends StatelessWidget {
   const _PremiumNavBar({required this.currentIndex, required this.onTap});
 
   static const _items = [
-    (Icons.home_rounded, Icons.home_outlined, 'Home'),
-    (Icons.delivery_dining_rounded, Icons.delivery_dining_outlined, 'Orders'),
-    (Icons.bar_chart_rounded, Icons.bar_chart_outlined, 'Earnings'),
-    (Icons.account_balance_wallet_rounded, Icons.account_balance_wallet_outlined, 'Wallet'),
-    (Icons.person_rounded, Icons.person_outline_rounded, 'Profile'),
+    (Icons.home_rounded,                    Icons.home_outlined,                   'Home'),
+    (Icons.delivery_dining_rounded,         Icons.delivery_dining_outlined,        'Orders'),
+    (Icons.bar_chart_rounded,               Icons.bar_chart_outlined,              'Earnings'),
+    (Icons.account_balance_wallet_rounded,  Icons.account_balance_wallet_outlined, 'Wallet'),
+    (Icons.person_rounded,                  Icons.person_outline_rounded,          'Profile'),
   ];
 
   @override
@@ -167,9 +199,8 @@ class _PremiumNavBar extends StatelessWidget {
                     style: TextStyle(
                       color: isActive ? DC.orange : Colors.white30,
                       fontSize: 10,
-                      fontWeight: isActive
-                          ? FontWeight.w700
-                          : FontWeight.w500,
+                      fontWeight:
+                          isActive ? FontWeight.w700 : FontWeight.w500,
                     ),
                     child: Text(label),
                   ),

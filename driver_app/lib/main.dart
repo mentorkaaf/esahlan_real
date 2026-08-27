@@ -1,5 +1,4 @@
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,16 +11,12 @@ import 'core/constants/app_constants.dart';
 import 'core/providers/theme_provider.dart';
 import 'firebase_options.dart';
 
-String? _coldDeepLink;
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
     await FirebaseService.setupBeforeRunApp();
-    final initial = await FirebaseMessaging.instance.getInitialMessage();
-    if (initial != null) _coldDeepLink = initial.data['deep_link'];
   } catch (e) {
     debugPrint('[Firebase] Init error: $e');
   }
@@ -42,61 +37,16 @@ class DriverApp extends ConsumerStatefulWidget {
   ConsumerState<DriverApp> createState() => _DriverAppState();
 }
 
-class _DriverAppState extends ConsumerState<DriverApp> with WidgetsBindingObserver {
+class _DriverAppState extends ConsumerState<DriverApp> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await FirebaseService().initialize();
-      _setupNotifications();
-      _requestPermissions();
+      // Request notification permission early
+      await Permission.notification.request();
+      // Location + battery + overlay permissions
+      await DriverLocationService.requestPermissions();
     });
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      FirebaseService().refreshTokenIfNeeded();
-    }
-  }
-
-  Future<void> _requestPermissions() async {
-    // Notifications first (shows a dialog the user can accept easily)
-    await Permission.notification.request();
-
-    // Location + background location + battery optimisation
-    // (handled inside DriverLocationService to keep logic centralised)
-    await DriverLocationService.requestPermissions();
-  }
-
-  void _setupNotifications() {
-    void navigate(String path) {
-      try { ref.read(routerProvider).go(path); } catch (_) {}
-    }
-
-    // onDeepLink removed — new_order handled by onNewOrder in MainShell
-    // Generic deep-link for other notification types
-    FirebaseMessaging.onMessageOpenedApp.listen((msg) {
-      final type = msg.data['type'] ?? '';
-      if (type == 'new_order') return; // handled by MainShell.onNewOrder
-      final dl = msg.data['deep_link'] as String?;
-      if (dl != null) navigate(dl);
-    });
-
-    if (_coldDeepLink != null) {
-      final dl = _coldDeepLink!;
-      _coldDeepLink = null;
-      Future.delayed(const Duration(milliseconds: 1500), () {
-        if (mounted) navigate(dl);
-      });
-    }
   }
 
   @override

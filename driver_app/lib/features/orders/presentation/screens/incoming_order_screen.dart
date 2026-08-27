@@ -1,21 +1,20 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:math' as math;
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:audioplayers/audioplayers.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../core/theme/driver_colors.dart';
+import '../../../../core/services/firebase_service.dart';
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Provider
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
+// Provider — kept for compatibility with any code that checks incoming state
+// ─────────────────────────────────────────────────────────────────────────────
 class _IncomingOrderState {
   final Map<String, dynamic>? order;
   const _IncomingOrderState({this.order});
-  _IncomingOrderState copyWith({Map<String, dynamic>? order}) =>
-      _IncomingOrderState(order: order);
 }
 
 class IncomingOrderNotifier extends StateNotifier<_IncomingOrderState> {
@@ -29,9 +28,40 @@ final incomingOrderProvider =
     StateNotifierProvider<IncomingOrderNotifier, _IncomingOrderState>(
         (ref) => IncomingOrderNotifier());
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Incoming Order Screen â€” Full-screen DoorDash-style alarm
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
+// Module config
+// ─────────────────────────────────────────────────────────────────────────────
+const _kModuleIcons = {
+  'efood':    Icons.restaurant_rounded,
+  'egrocery': Icons.local_grocery_store_rounded,
+  'eshop':    Icons.shopping_bag_rounded,
+  'eparcel':  Icons.local_shipping_rounded,
+  'emoving':  Icons.move_to_inbox_rounded,
+  'elaundry': Icons.local_laundry_service_rounded,
+  'erent':    Icons.home_rounded,
+};
+const _kModuleLabels = {
+  'efood':    'eFood Delivery',
+  'egrocery': 'eGrocery Delivery',
+  'eshop':    'eShop Delivery',
+  'eparcel':  'eParcel Delivery',
+  'emoving':  'eMoving Service',
+  'elaundry': 'eLaundry Pickup',
+  'erent':    'eRent Service',
+};
+const _kModuleColors = {
+  'efood':    Color(0xFFEF4444),
+  'egrocery': Color(0xFF22C55E),
+  'eshop':    Color(0xFF8B5CF6),
+  'eparcel':  Color(0xFFFF8A00),
+  'emoving':  Color(0xFF3B82F6),
+  'elaundry': Color(0xFF06B6D4),
+  'erent':    Color(0xFFF59E0B),
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// IncomingOrderScreen — full-screen DoorDash-style incoming order alarm
+// ─────────────────────────────────────────────────────────────────────────────
 class IncomingOrderScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic> order;
   const IncomingOrderScreen({super.key, required this.order});
@@ -43,121 +73,104 @@ class IncomingOrderScreen extends ConsumerStatefulWidget {
 
 class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen>
     with TickerProviderStateMixin {
-  static const _kCountdown = 45;
+  // ── countdown ─────────────────────────────────────────────────────────────
+  static const _kTimeout = 45;
+  int   _secondsLeft = _kTimeout;
+  Timer? _timer;
 
-  // Animations
-  late AnimationController _pulseCtrl;
-  late AnimationController _rippleCtrl;
-  late AnimationController _slideCtrl;
-  late AnimationController _rotateCtrl;
-  late Animation<double> _pulseAnim;
-  late Animation<double> _rippleAnim;
-  late Animation<Offset> _slideAnim;
-  late Animation<double> _rotateAnim;
-
-  Timer? _countdownTimer;
-  int _secondsLeft = _kCountdown;
+  // ── button state ──────────────────────────────────────────────────────────
   bool _accepting = false;
   bool _declining = false;
 
-  final _alarm = AudioPlayer();
+  // ── audio ─────────────────────────────────────────────────────────────────
+  final _player = AudioPlayer();
 
-  static const _moduleIcons = {
-    'efood':    Icons.restaurant_rounded,
-    'egrocery': Icons.local_grocery_store_rounded,
-    'eshop':    Icons.shopping_bag_rounded,
-    'eparcel':  Icons.local_shipping_rounded,
-    'emoving':  Icons.move_to_inbox_rounded,
-    'elaundry': Icons.local_laundry_service_rounded,
-    'erent':    Icons.home_rounded,
-  };
-  static const _moduleLabels = {
-    'efood':    'eFood Delivery',
-    'egrocery': 'eGrocery Delivery',
-    'eshop':    'eShop Delivery',
-    'eparcel':  'eParcel Delivery',
-    'emoving':  'eMoving Service',
-    'elaundry': 'eLaundry Pickup',
-    'erent':    'eRent Service',
-  };
-  static const _moduleColors = {
-    'efood':    Color(0xFFEF4444),
-    'egrocery': Color(0xFF22C55E),
-    'eshop':    Color(0xFF8B5CF6),
-    'eparcel':  Color(0xFFFF8A00),
-    'emoving':  Color(0xFF3B82F6),
-    'elaundry': Color(0xFF06B6D4),
-    'erent':    Color(0xFFF59E0B),
-  };
+  // ── animations ────────────────────────────────────────────────────────────
+  late final AnimationController _pulseCtrl;
+  late final AnimationController _rippleCtrl;
+  late final AnimationController _slideCtrl;
+  late final Animation<double>   _pulseAnim;
+  late final Animation<double>   _rippleAnim;
+  late final Animation<Offset>   _slideAnim;
 
   @override
   void initState() {
     super.initState();
-    // Full immersive â€” hide status bar + nav bar
+
+    // Full immersive — hide status bar + nav bar
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
-    // Pulse animation â€” icon breathing
+    // Pulse: icon breathes
     _pulseCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 900))
+        vsync: this, duration: const Duration(milliseconds: 850))
       ..repeat(reverse: true);
-    _pulseAnim = Tween<double>(begin: 0.92, end: 1.08)
+    _pulseAnim = Tween<double>(begin: 0.90, end: 1.10)
         .animate(CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
 
-    // Ripple animation â€” expanding rings
+    // Ripple: expanding rings behind icon
     _rippleCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1500))
+        vsync: this, duration: const Duration(milliseconds: 1400))
       ..repeat();
-    _rippleAnim = Tween<double>(begin: 0, end: 1)
+    _rippleAnim = Tween<double>(begin: 0.0, end: 1.0)
         .animate(CurvedAnimation(parent: _rippleCtrl, curve: Curves.easeOut));
 
-    // Slide up animation
+    // Slide: bottom card slides up
     _slideCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 500));
+        vsync: this, duration: const Duration(milliseconds: 450));
     _slideAnim = Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
         .animate(CurvedAnimation(parent: _slideCtrl, curve: Curves.easeOutCubic));
     _slideCtrl.forward();
 
-    // Rotate animation for the ring
-    _rotateCtrl = AnimationController(
-        vsync: this, duration: const Duration(seconds: 3))
-      ..repeat();
-    _rotateAnim = Tween<double>(begin: 0, end: 1).animate(_rotateCtrl);
-
-    _startAlarm();
+    _startAudio();
     _startCountdown();
   }
 
-  Future<void> _startAlarm() async {
+  // ── audio ─────────────────────────────────────────────────────────────────
+  Future<void> _startAudio() async {
     try {
-      await _alarm.setReleaseMode(ReleaseMode.loop);
-      await _alarm.setVolume(1.0);
-      await _alarm.play(AssetSource('sounds/order_ring.wav'));
-    } catch (_) {}
+      await _player.setReleaseMode(ReleaseMode.loop);
+      await _player.setVolume(1.0);
+      await _player.play(AssetSource('sounds/order_ring.wav'));
+    } catch (e) {
+      debugPrint('[Ring] audio error: $e');
+    }
   }
 
+  // ── countdown ─────────────────────────────────────────────────────────────
   void _startCountdown() {
-    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       setState(() => _secondsLeft--);
-      if (_secondsLeft <= 0) _decline(autoDecline: true);
+      if (_secondsLeft <= 0) _decline(auto: true);
     });
   }
 
+  // ── stop everything ───────────────────────────────────────────────────────
+  void _stopAll() {
+    _timer?.cancel();
+    _player.stop();
+    FirebaseService().cancelOrderNotification();
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  }
+
+  // ── accept ────────────────────────────────────────────────────────────────
   Future<void> _accept() async {
     if (_accepting || _declining) return;
     HapticFeedback.heavyImpact();
     setState(() => _accepting = true);
     _stopAll();
     try {
-      final id = (widget.order['id'] as num).toInt();
+      final id = _orderId;
       await ref.read(authRepoProvider).acceptOrder(id);
       if (mounted) {
         ref.read(incomingOrderProvider.notifier).clear();
         context.go('/orders');
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: const Text('âœ“ Order accepted â€” go pick it up!'),
+          content: const Text('Order accepted — go pick it up!'),
           backgroundColor: DC.success,
           behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ));
       }
     } catch (e) {
@@ -172,14 +185,14 @@ class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen>
     }
   }
 
-  Future<void> _decline({bool autoDecline = false}) async {
+  // ── decline ───────────────────────────────────────────────────────────────
+  Future<void> _decline({bool auto = false}) async {
     if (_accepting || _declining) return;
-    if (!autoDecline) HapticFeedback.mediumImpact();
+    if (!auto) HapticFeedback.mediumImpact();
     setState(() => _declining = true);
     _stopAll();
     try {
-      final id = (widget.order['id'] as num).toInt();
-      await ref.read(authRepoProvider).rejectOrder(id);
+      await ref.read(authRepoProvider).rejectOrder(_orderId);
     } catch (_) {}
     if (mounted) {
       ref.read(incomingOrderProvider.notifier).clear();
@@ -187,37 +200,41 @@ class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen>
     }
   }
 
-  void _stopAll() {
-    _countdownTimer?.cancel();
-    _alarm.stop();
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-  }
-
   @override
   void dispose() {
     _stopAll();
-    _alarm.dispose();
+    _player.dispose();
     _pulseCtrl.dispose();
     _rippleCtrl.dispose();
     _slideCtrl.dispose();
-    _rotateCtrl.dispose();
     super.dispose();
   }
+
+  // ── helpers ───────────────────────────────────────────────────────────────
+  int get _orderId =>
+      (widget.order['id'] is num)
+          ? (widget.order['id'] as num).toInt()
+          : int.tryParse('${widget.order['id'] ?? 0}') ?? 0;
 
   @override
   Widget build(BuildContext context) {
     final o        = widget.order;
-    final pickup   = (o['pickup']   as Map<String, dynamic>?) ?? {};
-    final delivery = (o['delivery'] as Map<String, dynamic>?) ?? {};
+    final pickup   = (o['pickup']   as Map?)?.cast<String, dynamic>() ?? {};
+    final delivery = (o['delivery'] as Map?)?.cast<String, dynamic>() ?? {};
     final module   = (o['module_slug'] ?? 'order').toString();
-    final fee      = double.tryParse('${o['delivery_fee']  ?? 0}') ?? 0;
-    final distance = double.tryParse('${o['distance_km']   ?? 0}') ?? 0;
-    final estMin   = (o['estimated_minutes'] as num?)?.toInt() ?? 0;
-    final toPickup = double.tryParse('${o['driver_to_pickup_km'] ?? 0}') ?? 0;
 
-    final moduleColor = _moduleColors[module] ?? DC.orange;
-    final progress    = _secondsLeft / _kCountdown;
-    final timerColor  = _secondsLeft > 20
+    final fee      = double.tryParse('${o['delivery_fee']       ?? 0}') ?? 0;
+    final distance = double.tryParse('${o['distance_km']        ?? 0}') ?? 0;
+    final estMin   = int.tryParse   ('${o['estimated_minutes']  ?? 0}') ?? 0;
+    final toPickup = double.tryParse('${o['driver_to_pickup_km']?? 0}') ?? 0;
+    final orderNum = o['order_number']?.toString() ?? '';
+
+    final moduleColor = _kModuleColors[module] ?? DC.orange;
+    final moduleIcon  = _kModuleIcons[module]  ?? Icons.delivery_dining_rounded;
+    final moduleLabel = _kModuleLabels[module] ?? 'Delivery';
+
+    final progress   = _secondsLeft / _kTimeout;
+    final timerColor = _secondsLeft > 20
         ? const Color(0xFF22C55E)
         : _secondsLeft > 10 ? DC.orange : DC.error;
 
@@ -226,51 +243,48 @@ class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen>
     return Scaffold(
       backgroundColor: const Color(0xFF060B14),
       body: Stack(children: [
-        // â”€â”€ ANIMATED BACKGROUND â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-        _AnimatedBackground(
-          pulseAnim: _pulseAnim,
+        // ── Animated background ─────────────────────────────────────────────
+        _RippleBackground(
           rippleAnim: _rippleAnim,
-          rotateAnim: _rotateAnim,
           moduleColor: moduleColor,
           size: size,
         ),
 
-        // â”€â”€ MAIN CONTENT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── Content ─────────────────────────────────────────────────────────
         SafeArea(
           child: Column(children: [
-            // â”€â”€ TOP SECTION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // Top: pulsing icon + module label + order number
             Expanded(
-              flex: 5,
-              child: _TopSection(
-                pulseAnim: _pulseAnim,
+              flex: 4,
+              child: _TopHero(
+                pulseAnim:   _pulseAnim,
                 moduleColor: moduleColor,
-                moduleIcon: _moduleIcons[module] ?? Icons.delivery_dining_rounded,
-                moduleLabel: _moduleLabels[module] ?? 'Delivery',
-                orderNumber: o['order_number']?.toString() ?? '',
+                moduleIcon:  moduleIcon,
+                moduleLabel: moduleLabel,
+                orderNumber: orderNum,
               ),
             ),
 
-            // â”€â”€ SLIDE-UP CARD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // Bottom: slide-up card with all order info + buttons
             Expanded(
-              flex: 7,
+              flex: 6,
               child: SlideTransition(
                 position: _slideAnim,
                 child: _OrderCard(
-                  fee: fee,
-                  distance: distance,
-                  estMin: estMin,
-                  toPickup: toPickup,
-                  pickup: pickup,
-                  delivery: delivery,
-                  secondsLeft: _secondsLeft,
-                  countdown: _kCountdown,
-                  progress: progress,
-                  timerColor: timerColor,
-                  moduleColor: moduleColor,
-                  accepting: _accepting,
-                  declining: _declining,
-                  onAccept: _accept,
-                  onDecline: _decline,
+                  fee:          fee,
+                  distance:     distance,
+                  estMin:       estMin,
+                  toPickup:     toPickup,
+                  pickup:       pickup,
+                  delivery:     delivery,
+                  secondsLeft:  _secondsLeft,
+                  progress:     progress,
+                  timerColor:   timerColor,
+                  moduleColor:  moduleColor,
+                  accepting:    _accepting,
+                  declining:    _declining,
+                  onAccept:     _accept,
+                  onDecline:    () => _decline(),
                 ),
               ),
             ),
@@ -281,20 +295,15 @@ class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen>
   }
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Animated Background â€” ripple rings + gradient glow
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-class _AnimatedBackground extends StatelessWidget {
-  final Animation<double> pulseAnim;
+// ─────────────────────────────────────────────────────────────────────────────
+// Ripple Background — animated dark gradient + expanding rings
+// ─────────────────────────────────────────────────────────────────────────────
+class _RippleBackground extends StatelessWidget {
   final Animation<double> rippleAnim;
-  final Animation<double> rotateAnim;
   final Color moduleColor;
-  final Size size;
-
-  const _AnimatedBackground({
-    required this.pulseAnim,
+  final Size  size;
+  const _RippleBackground({
     required this.rippleAnim,
-    required this.rotateAnim,
     required this.moduleColor,
     required this.size,
   });
@@ -302,78 +311,81 @@ class _AnimatedBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: Listenable.merge([pulseAnim, rippleAnim]),
-      builder: (_, __) {
-        return CustomPaint(
-          size: size,
-          painter: _BgPainter(
-            ripple: rippleAnim.value,
-            pulse: pulseAnim.value,
-            color: moduleColor,
-          ),
-        );
-      },
+      animation: rippleAnim,
+      builder: (_, __) => CustomPaint(
+        size: size,
+        painter: _BgPainter(
+          ripple:      rippleAnim.value,
+          moduleColor: moduleColor,
+        ),
+      ),
     );
   }
 }
 
 class _BgPainter extends CustomPainter {
   final double ripple;
-  final double pulse;
-  final Color color;
-  _BgPainter({required this.ripple, required this.pulse, required this.color});
+  final Color  moduleColor;
+  _BgPainter({required this.ripple, required this.moduleColor});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final cx = size.width / 2;
-    final cy = size.height * 0.35;
+    // Dark gradient background
+    final bgPaint = Paint()
+      ..shader = RadialGradient(
+        center: const Alignment(0, -0.3),
+        radius: 1.4,
+        colors: [
+          moduleColor.withValues(alpha: 0.18),
+          const Color(0xFF0A0F1E),
+          const Color(0xFF060B14),
+        ],
+        stops: const [0.0, 0.55, 1.0],
+      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), bgPaint);
 
-    // Dark base gradient
-    final bgPaint = Paint();
-    final bgRect = Rect.fromLTWH(0, 0, size.width, size.height);
-    bgPaint.shader = const LinearGradient(
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-      colors: [Color(0xFF060B14), Color(0xFF0D1628), Color(0xFF060B14)],
-    ).createShader(bgRect);
-    canvas.drawRect(bgRect, bgPaint);
+    // Three staggered ripple rings
+    final cx = size.width  / 2;
+    final cy = size.height * 0.38;
+    for (int i = 0; i < 3; i++) {
+      final t = (ripple + i / 3.0) % 1.0;
+      final radius = size.width * 0.28 + t * size.width * 0.42;
+      final opacity = (1.0 - t) * 0.22;
+      canvas.drawCircle(
+        Offset(cx, cy),
+        radius,
+        Paint()
+          ..color   = moduleColor.withValues(alpha: opacity)
+          ..style   = PaintingStyle.stroke
+          ..strokeWidth = 2.5,
+      );
+    }
 
     // Glow behind icon
-    final glowPaint = Paint()
-      ..color = color.withValues(alpha: 0.12 * pulse)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 80);
-    canvas.drawCircle(Offset(cx, cy), 140 * pulse, glowPaint);
-
-    // Ripple rings
-    for (int i = 0; i < 3; i++) {
-      final t = (ripple + i / 3) % 1.0;
-      final radius = 80.0 + t * 160;
-      final opacity = (1 - t) * 0.3;
-      if (opacity <= 0) continue;
-      final paint = Paint()
-        ..color = color.withValues(alpha: opacity)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5;
-      canvas.drawCircle(Offset(cx, cy), radius, paint);
-    }
+    canvas.drawCircle(
+      Offset(cx, cy),
+      size.width * 0.20,
+      Paint()
+        ..color  = moduleColor.withValues(alpha: 0.07)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 40),
+    );
   }
 
   @override
   bool shouldRepaint(_BgPainter old) =>
-      old.ripple != ripple || old.pulse != pulse;
+      old.ripple != ripple || old.moduleColor != moduleColor;
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Top Section â€” icon + label
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-class _TopSection extends StatelessWidget {
+// ─────────────────────────────────────────────────────────────────────────────
+// Top Hero — pulsing icon, module label, order number
+// ─────────────────────────────────────────────────────────────────────────────
+class _TopHero extends StatelessWidget {
   final Animation<double> pulseAnim;
-  final Color moduleColor;
-  final IconData moduleIcon;
-  final String moduleLabel;
-  final String orderNumber;
-
-  const _TopSection({
+  final Color             moduleColor;
+  final IconData          moduleIcon;
+  final String            moduleLabel;
+  final String            orderNumber;
+  const _TopHero({
     required this.pulseAnim,
     required this.moduleColor,
     required this.moduleIcon,
@@ -386,85 +398,88 @@ class _TopSection extends StatelessWidget {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // Alert badge
+        // Alert chip
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.08),
+            color:        moduleColor.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+            border:       Border.all(color: moduleColor.withValues(alpha: 0.4)),
           ),
-          child: const Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.notifications_active_rounded,
-                color: Colors.white70, size: 14),
-            SizedBox(width: 6),
-            Text('NEW ORDER REQUEST',
-                style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.5)),
-          ]),
+          child: Text(
+            'NEW ORDER',
+            style: TextStyle(
+              color:      moduleColor,
+              fontSize:   11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 2.0,
+            ),
+          ),
         ),
 
-        const SizedBox(height: 28),
+        const SizedBox(height: 20),
 
-        // Module icon â€” pulsing
+        // Pulsing icon
         ScaleTransition(
           scale: pulseAnim,
           child: Container(
-            width: 100,
-            height: 100,
+            width: 96, height: 96,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: RadialGradient(colors: [
-                moduleColor.withValues(alpha: 0.25),
-                moduleColor.withValues(alpha: 0.05),
-              ]),
-              border: Border.all(color: moduleColor.withValues(alpha: 0.5), width: 2),
+              gradient: RadialGradient(
+                colors: [
+                  moduleColor.withValues(alpha: 0.30),
+                  moduleColor.withValues(alpha: 0.08),
+                ],
+              ),
+              border: Border.all(
+                  color: moduleColor.withValues(alpha: 0.55), width: 2),
             ),
-            child: Icon(moduleIcon, color: moduleColor, size: 46),
+            child: Icon(moduleIcon, size: 44, color: moduleColor),
           ),
         ),
 
-        const SizedBox(height: 16),
+        const SizedBox(height: 18),
 
         // Module label
-        Text(moduleLabel,
-            style: TextStyle(
-                color: moduleColor,
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.5)),
-        const SizedBox(height: 4),
+        Text(
+          moduleLabel,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 22,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.3,
+          ),
+        ),
+
+        const SizedBox(height: 6),
+
+        // Order number
         if (orderNumber.isNotEmpty)
-          Text('Order #$orderNumber',
-              style: const TextStyle(
-                  color: Colors.white38, fontSize: 13)),
+          Text(
+            'Order #$orderNumber',
+            style: TextStyle(
+              color:      Colors.white.withValues(alpha: 0.45),
+              fontSize:   13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
       ],
     );
   }
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Order Card â€” slide-up panel with all details
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
+// Order Card — earnings, route, countdown, accept / decline
+// ─────────────────────────────────────────────────────────────────────────────
 class _OrderCard extends StatelessWidget {
-  final double fee;
-  final double distance;
-  final int estMin;
-  final double toPickup;
-  final Map<String, dynamic> pickup;
-  final Map<String, dynamic> delivery;
-  final int secondsLeft;
-  final int countdown;
-  final double progress;
-  final Color timerColor;
-  final Color moduleColor;
-  final bool accepting;
-  final bool declining;
-  final VoidCallback onAccept;
-  final void Function({bool autoDecline}) onDecline;
+  final double   fee, distance, toPickup;
+  final int      estMin, secondsLeft;
+  final double   progress;
+  final Color    timerColor, moduleColor;
+  final Map<String, dynamic> pickup, delivery;
+  final bool     accepting, declining;
+  final VoidCallback onAccept, onDecline;
 
   const _OrderCard({
     required this.fee,
@@ -474,7 +489,6 @@ class _OrderCard extends StatelessWidget {
     required this.pickup,
     required this.delivery,
     required this.secondsLeft,
-    required this.countdown,
     required this.progress,
     required this.timerColor,
     required this.moduleColor,
@@ -486,392 +500,413 @@ class _OrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bottomPad = MediaQuery.of(context).padding.bottom;
-
     return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        color: Color(0xFF111827),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      decoration: BoxDecoration(
+        color:        const Color(0xFF0E1520),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(
+            color: Colors.white.withValues(alpha: 0.07)),
         boxShadow: [
-          BoxShadow(color: Colors.black54, blurRadius: 40, spreadRadius: 4),
+          BoxShadow(
+            color:       Colors.black.withValues(alpha: 0.55),
+            blurRadius:  30,
+            offset:      const Offset(0, -8),
+          ),
         ],
       ),
-      child: Column(children: [
-        // Drag handle
-        Container(
-          margin: const EdgeInsets.only(top: 10, bottom: 4),
-          width: 36,
-          height: 4,
-          decoration: BoxDecoration(
-            color: Colors.white12,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Earnings row ─────────────────────────────────────────────
+            Row(children: [
+              Expanded(child: _StatTile(
+                label: 'Earnings',
+                value: '\$${fee.toStringAsFixed(2)}',
+                color: const Color(0xFF22C55E),
+                icon:  Icons.attach_money_rounded,
+              )),
+              if (distance > 0) ...[
+                const SizedBox(width: 10),
+                Expanded(child: _StatTile(
+                  label: 'Distance',
+                  value: '${distance.toStringAsFixed(1)} km',
+                  color: const Color(0xFF60A5FA),
+                  icon:  Icons.route_rounded,
+                )),
+              ],
+              if (estMin > 0) ...[
+                const SizedBox(width: 10),
+                Expanded(child: _StatTile(
+                  label: 'Est. Time',
+                  value: '${estMin}m',
+                  color: DC.orange,
+                  icon:  Icons.access_time_rounded,
+                )),
+              ],
+            ]),
 
-        Expanded(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(20, 8, 20, bottomPad + 8),
-            child: Column(children: [
-              // â”€â”€ EARNINGS + TIMER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-              Row(children: [
-                // Timer ring
+            const SizedBox(height: 16),
+
+            // ── Route ────────────────────────────────────────────────────
+            _RouteSection(
+              pickup:      pickup,
+              delivery:    delivery,
+              toPickup:    toPickup,
+              moduleColor: moduleColor,
+            ),
+
+            const SizedBox(height: 16),
+
+            // ── Countdown ────────────────────────────────────────────────
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
                 SizedBox(
-                  width: 72,
-                  height: 72,
+                  width: 48, height: 48,
                   child: Stack(alignment: Alignment.center, children: [
-                    SizedBox.expand(
-                      child: CircularProgressIndicator(
-                        value: progress,
-                        strokeWidth: 6,
-                        backgroundColor: Colors.white10,
-                        valueColor: AlwaysStoppedAnimation(timerColor),
-                        strokeCap: StrokeCap.round,
+                    CircularProgressIndicator(
+                      value:       progress,
+                      strokeWidth: 3.5,
+                      backgroundColor:
+                          Colors.white.withValues(alpha: 0.08),
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(timerColor),
+                    ),
+                    Text(
+                      '$secondsLeft',
+                      style: TextStyle(
+                        color:      timerColor,
+                        fontSize:   15,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
-                    Column(mainAxisSize: MainAxisSize.min, children: [
-                      Text('$secondsLeft',
-                          style: TextStyle(
-                              color: timerColor,
-                              fontSize: 22,
-                              fontWeight: FontWeight.w900,
-                              height: 1)),
-                      Text('sec',
-                          style: const TextStyle(
-                              color: Colors.white38,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600)),
-                    ]),
                   ]),
                 ),
-                const SizedBox(width: 16),
-                // Earnings
-                Expanded(
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                    const Text('You earn',
-                        style:
-                            TextStyle(color: Colors.white38, fontSize: 12)),
-                    const SizedBox(height: 2),
-                    Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                      Text(
-                        '\$${fee.toStringAsFixed(fee == fee.floorToDouble() ? 0 : 2)}',
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 36,
-                            fontWeight: FontWeight.w900,
-                            height: 1),
-                      ),
-                      const SizedBox(width: 4),
-                      const Padding(
-                        padding: EdgeInsets.only(bottom: 4),
-                        child: Text('delivery fee',
-                            style: TextStyle(
-                                color: Colors.white38, fontSize: 11)),
-                      ),
-                    ]),
-                  ]),
-                ),
-              ]),
-
-              const SizedBox(height: 16),
-              _divider(),
-              const SizedBox(height: 16),
-
-              // â”€â”€ ROUTE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-              _RouteSection(pickup: pickup, delivery: delivery),
-
-              const SizedBox(height: 16),
-              _divider(),
-              const SizedBox(height: 14),
-
-              // â”€â”€ STATS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-              Row(children: [
-                _Stat(
-                    icon: Icons.straighten_rounded,
-                    value: distance > 0
-                        ? '${distance.toStringAsFixed(1)} km'
-                        : 'â€”',
-                    label: 'Distance',
-                    color: moduleColor),
-                _gap(),
-                _Stat(
-                    icon: Icons.timer_rounded,
-                    value: estMin > 0 ? '~$estMin min' : 'â€”',
-                    label: 'Est. time',
-                    color: moduleColor),
-                _gap(),
-                _Stat(
-                    icon: Icons.directions_bike_rounded,
-                    value: toPickup > 0
-                        ? '${toPickup.toStringAsFixed(1)} km'
-                        : 'â€”',
-                    label: 'To pickup',
-                    color: moduleColor),
-              ]),
-
-              const SizedBox(height: 20),
-
-              // â”€â”€ BUTTONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-              Row(children: [
-                // DECLINE
-                Expanded(
-                  flex: 2,
-                  child: _Button(
-                    onTap: declining ? null : () => onDecline(),
-                    loading: declining,
-                    label: 'Decline',
-                    icon: Icons.close_rounded,
-                    color: Colors.white,
-                    backgroundColor: Colors.white.withValues(alpha: 0.07),
-                    borderColor: Colors.white.withValues(alpha: 0.12),
-                    textColor: Colors.white60,
+                const SizedBox(width: 10),
+                Text(
+                  'Respond before time runs out',
+                  style: TextStyle(
+                    color:    Colors.white.withValues(alpha: 0.40),
+                    fontSize: 12,
                   ),
                 ),
-                const SizedBox(width: 12),
-                // ACCEPT
-                Expanded(
-                  flex: 3,
-                  child: _Button(
-                    onTap: accepting ? null : onAccept,
-                    loading: accepting,
-                    label: 'Accept Order',
-                    icon: Icons.check_circle_rounded,
-                    color: Colors.white,
-                    backgroundColor: const Color(0xFF16A34A),
-                    shadowColor: const Color(0xFF22C55E),
-                    textColor: Colors.white,
-                    bold: true,
-                  ),
+              ],
+            ),
+
+            const SizedBox(height: 16),
+
+            // ── Buttons ──────────────────────────────────────────────────
+            Row(children: [
+              // Decline
+              Expanded(
+                flex: 2,
+                child: _ActionButton(
+                  label:     'Decline',
+                  icon:      Icons.close_rounded,
+                  bgColor:   const Color(0xFF1C2234),
+                  textColor: Colors.white54,
+                  loading:   declining,
+                  onTap:     onDecline,
                 ),
-              ]),
+              ),
+              const SizedBox(width: 12),
+              // Accept
+              Expanded(
+                flex: 3,
+                child: _ActionButton(
+                  label:     'ACCEPT',
+                  icon:      Icons.check_rounded,
+                  bgColor:   const Color(0xFF22C55E),
+                  textColor: Colors.white,
+                  loading:   accepting,
+                  onTap:     onAccept,
+                ),
+              ),
             ]),
-          ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Route section — pickup → delivery with real addresses
+// ─────────────────────────────────────────────────────────────────────────────
+class _RouteSection extends StatelessWidget {
+  final Map<String, dynamic> pickup, delivery;
+  final double toPickup;
+  final Color  moduleColor;
+  const _RouteSection({
+    required this.pickup,
+    required this.delivery,
+    required this.toPickup,
+    required this.moduleColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final pickupDistrict  = pickup['district']  as String? ?? '';
+    final pickupAddress   = pickup['address']   as String? ?? '';
+    final delivDistrict   = delivery['district']as String? ?? '';
+    final delivAddress    = delivery['address'] as String? ?? '';
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color:        Colors.white.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(16),
+        border:       Border.all(
+            color: Colors.white.withValues(alpha: 0.06)),
+      ),
+      child: Column(children: [
+        // Pickup
+        _RouteRow(
+          dotColor: moduleColor,
+          label:    'PICKUP',
+          district: pickupDistrict,
+          address:  pickupAddress,
+          badge:    toPickup > 0
+              ? '${toPickup.toStringAsFixed(1)} km away'
+              : null,
+        ),
+        // Connector line
+        Padding(
+          padding: const EdgeInsets.only(left: 10),
+          child: Row(children: [
+            Container(
+              width: 2, height: 20,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    moduleColor.withValues(alpha: 0.6),
+                    const Color(0xFF22C55E).withValues(alpha: 0.6),
+                  ],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+              ),
+            ),
+          ]),
+        ),
+        // Delivery
+        _RouteRow(
+          dotColor: const Color(0xFF22C55E),
+          label:    'DELIVER',
+          district: delivDistrict,
+          address:  delivAddress,
         ),
       ]),
     );
   }
-
-  Widget _divider() => Container(
-      height: 1, color: Colors.white.withValues(alpha: 0.06));
-  Widget _gap() => const SizedBox(width: 8);
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Route Section
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-class _RouteSection extends StatelessWidget {
-  final Map<String, dynamic> pickup;
-  final Map<String, dynamic> delivery;
-  const _RouteSection({required this.pickup, required this.delivery});
+class _RouteRow extends StatelessWidget {
+  final Color   dotColor;
+  final String  label, district, address;
+  final String? badge;
+  const _RouteRow({
+    required this.dotColor,
+    required this.label,
+    required this.district,
+    required this.address,
+    this.badge,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final pickupDistrict = pickup['district']?.toString() ?? '';
-    final pickupAddress  = pickup['address']?.toString()  ?? '';
-    final delivDistrict  = delivery['district']?.toString() ?? '';
-    final delivAddress   = delivery['address']?.toString()  ?? '';
-
+    final hasAddress = district.isNotEmpty || address.isNotEmpty;
     return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      // Left column: icons + line
       Column(children: [
         Container(
-          width: 32,
-          height: 32,
+          width: 22, height: 22,
           decoration: BoxDecoration(
-            color: DC.orange.withValues(alpha: 0.15),
             shape: BoxShape.circle,
-            border: Border.all(color: DC.orange.withValues(alpha: 0.4)),
+            color: dotColor.withValues(alpha: 0.15),
+            border: Border.all(color: dotColor, width: 2),
           ),
-          child: const Icon(Icons.circle_rounded, color: DC.orange, size: 12),
-        ),
-        Container(
-            width: 2, height: 32,
-            color: Colors.white.withValues(alpha: 0.1)),
-        Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            color: const Color(0xFF22C55E).withValues(alpha: 0.15),
-            shape: BoxShape.circle,
-            border: Border.all(
-                color: const Color(0xFF22C55E).withValues(alpha: 0.4)),
+          child: Center(
+            child: Container(
+              width: 7, height: 7,
+              decoration: BoxDecoration(
+                  shape: BoxShape.circle, color: dotColor),
+            ),
           ),
-          child: const Icon(Icons.location_on_rounded,
-              color: Color(0xFF22C55E), size: 14),
         ),
       ]),
-      const SizedBox(width: 12),
-
-      // Right column: text
+      const SizedBox(width: 10),
       Expanded(
         child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-          // Pickup
-          const Text('PICKUP',
+          Row(children: [
+            Text(
+              label,
               style: TextStyle(
-                  color: Colors.white38,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.2)),
+                color:         dotColor,
+                fontSize:      10,
+                fontWeight:    FontWeight.w700,
+                letterSpacing: 1.4,
+              ),
+            ),
+            if (badge != null) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color:        dotColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  badge!,
+                  style: TextStyle(
+                      color: dotColor, fontSize: 9, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ]),
           const SizedBox(height: 2),
-          Text(
-            pickupDistrict.isNotEmpty ? pickupDistrict : 'Pickup location',
-            style: const TextStyle(
-                color: Colors.white,
-                fontSize: 15,
-                fontWeight: FontWeight.w700),
-          ),
-          if (pickupAddress.isNotEmpty)
-            Text(pickupAddress,
+          if (hasAddress) ...[
+            if (district.isNotEmpty)
+              Text(
+                district,
                 style: const TextStyle(
-                    color: Colors.white38, fontSize: 11),
+                    color:      Colors.white,
+                    fontSize:   13,
+                    fontWeight: FontWeight.w600),
+              ),
+            if (address.isNotEmpty)
+              Text(
+                address,
+                style: TextStyle(
+                    color:    Colors.white.withValues(alpha: 0.40),
+                    fontSize: 11),
                 maxLines: 1,
-                overflow: TextOverflow.ellipsis),
-
-          const SizedBox(height: 20),
-
-          // Delivery
-          const Text('DELIVERY',
+                overflow: TextOverflow.ellipsis,
+              ),
+          ] else
+            Text(
+              'Address not available',
               style: TextStyle(
-                  color: Colors.white38,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.2)),
-          const SizedBox(height: 2),
-          Text(
-            delivDistrict.isNotEmpty ? delivDistrict : 'Delivery location',
-            style: const TextStyle(
-                color: Colors.white,
-                fontSize: 15,
-                fontWeight: FontWeight.w700),
-          ),
-          if (delivAddress.isNotEmpty)
-            Text(delivAddress,
-                style: const TextStyle(
-                    color: Colors.white38, fontSize: 11),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis),
+                  color:    Colors.white.withValues(alpha: 0.25),
+                  fontSize: 12),
+            ),
+          const SizedBox(height: 6),
         ]),
       ),
     ]);
   }
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Stat chip
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-class _Stat extends StatelessWidget {
+// ─────────────────────────────────────────────────────────────────────────────
+// Stat tile
+// ─────────────────────────────────────────────────────────────────────────────
+class _StatTile extends StatelessWidget {
+  final String label, value;
+  final Color  color;
   final IconData icon;
-  final String value;
-  final String label;
-  final Color color;
-  const _Stat(
-      {required this.icon,
-      required this.value,
-      required this.label,
-      required this.color});
+  const _StatTile({
+    required this.label,
+    required this.value,
+    required this.color,
+    required this.icon,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding:
-            const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.04),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
-        ),
-        child: Column(children: [
-          Icon(icon, color: color, size: 18),
-          const SizedBox(height: 5),
-          Text(value,
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 13)),
-          Text(label,
-              style: const TextStyle(
-                  color: Colors.white38, fontSize: 9)),
-        ]),
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+      decoration: BoxDecoration(
+        color:        color.withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: 0.22)),
       ),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, color: color, size: 18),
+        const SizedBox(height: 5),
+        Text(
+          value,
+          style: TextStyle(
+              color: color, fontSize: 16, fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: TextStyle(
+              color:    Colors.white.withValues(alpha: 0.35),
+              fontSize: 10,
+              fontWeight: FontWeight.w500),
+        ),
+      ]),
     );
   }
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Button
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-class _Button extends StatelessWidget {
-  final VoidCallback? onTap;
-  final bool loading;
-  final String label;
+// ─────────────────────────────────────────────────────────────────────────────
+// Action button
+// ─────────────────────────────────────────────────────────────────────────────
+class _ActionButton extends StatelessWidget {
+  final String   label;
   final IconData icon;
-  final Color color;
-  final Color backgroundColor;
-  final Color? borderColor;
-  final Color? shadowColor;
-  final Color textColor;
-  final bool bold;
-
-  const _Button({
-    required this.onTap,
-    required this.loading,
+  final Color    bgColor, textColor;
+  final bool     loading;
+  final VoidCallback onTap;
+  const _ActionButton({
     required this.label,
     required this.icon,
-    required this.color,
-    required this.backgroundColor,
-    this.borderColor,
-    this.shadowColor,
+    required this.bgColor,
     required this.textColor,
-    this.bold = false,
+    required this.loading,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: loading ? null : onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        height: 62,
+        height:   52,
         decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: BorderRadius.circular(18),
-          border: borderColor != null
-              ? Border.all(color: borderColor!)
-              : null,
-          boxShadow: shadowColor != null
-              ? [
-                  BoxShadow(
-                      color: shadowColor!.withValues(alpha: 0.35),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8))
-                ]
-              : null,
+          color:        loading ? bgColor.withValues(alpha: 0.5) : bgColor,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            if (!loading)
+              BoxShadow(
+                color:      bgColor.withValues(alpha: 0.35),
+                blurRadius: 16,
+                offset:     const Offset(0, 6),
+              ),
+          ],
         ),
-        child: loading
-            ? Center(
-                child: SizedBox.square(
-                  dimension: 24,
-                  child: CircularProgressIndicator(
-                      strokeWidth: 2.5, color: textColor),
-                ))
-            : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Icon(icon, color: textColor, size: 22),
-                const SizedBox(width: 8),
-                Text(label,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: loading
+              ? [
+                  SizedBox(
+                    width: 20, height: 20,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: textColor),
+                  ),
+                ]
+              : [
+                  Icon(icon, color: textColor, size: 20),
+                  const SizedBox(width: 7),
+                  Text(
+                    label,
                     style: TextStyle(
-                        color: textColor,
-                        fontWeight: bold
-                            ? FontWeight.w900
-                            : FontWeight.w600,
-                        fontSize: bold ? 17 : 15)),
-              ]),
+                        color:      textColor,
+                        fontSize:   15,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5),
+                  ),
+                ],
+        ),
       ),
     );
   }
 }
-
