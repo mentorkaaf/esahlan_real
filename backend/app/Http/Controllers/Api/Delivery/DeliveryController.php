@@ -1075,27 +1075,110 @@ class DeliveryController extends Controller
                 'diamond'=>null][$tier]??null;
     }
 
-    // SOS
+    // ── SOS EMERGENCY ────────────────────────────────────────────────────────────
     public function sos(Request $request) {
         $dm = $this->dm($request);
-        if (!$dm) return response()->json(['success'=>false],404);
-        $dm->loadMissing('user:id,name,phone');
+        if (!$dm) return response()->json(['success' => false], 404);
+        $dm->loadMissing('user:id,name,phone,email');
+
+        $driverName  = $dm->user?->name  ?? 'Driver #' . $dm->id;
+        $driverPhone = $dm->user?->phone ?? '—';
+        $lat         = $request->latitude;
+        $lng         = $request->longitude;
+        $message     = $request->message ?? 'SOS — driver needs help';
+        $orderId     = $request->order_id;
+
+        // 1. Save to DB
         $alertId = DB::table('driver_sos_alerts')->insertGetId([
-            'deliveryman_id'=>$dm->id,'order_id'=>$request->order_id,
-            'latitude'=>$request->latitude,'longitude'=>$request->longitude,
-            'message'=>$request->message??'SOS — driver needs help',
-            'status'=>'pending','created_at'=>now(),'updated_at'=>now()]);
-        $admins = DB::table('users')->join('roles','users.role_id','=','roles.id')
-            ->where('roles.slug','admin')->whereNotNull('users.fcm_token')->pluck('users.fcm_token');
-        $driverName = $dm->user?->name ?? 'Driver';
-        foreach ($admins as $token) {
-            try { \App\Services\FcmService::sendToToken($token,'SOS Alert',
-                "SOS from {$driverName}: ".($request->message??'Needs help'),
-                ['type'=>'driver_sos','alert_id'=>(string)$alertId,
-                 'driver_name'=>$driverName,'lat'=>(string)($request->latitude??''),'lng'=>(string)($request->longitude??'')]);
-            } catch(\Throwable){}
+            'deliveryman_id' => $dm->id,
+            'driver_name'    => $driverName,
+            'driver_phone'   => $driverPhone,
+            'order_id'       => $orderId,
+            'latitude'       => $lat,
+            'longitude'      => $lng,
+            'message'        => $message,
+            'status'         => 'active',
+            'created_at'     => now(),
+            'updated_at'     => now(),
+        ]);
+
+        // 2. FCM to ALL admin/super_admin users — high-priority alarm
+        $adminUsers = DB::table('users')
+            ->join('roles', 'users.role_id', '=', 'roles.id')
+            ->whereIn('roles.slug', ['super_admin', 'admin', 'operations_manager'])
+            ->get(['users.id', 'users.email', 'users.fcm_token']);
+
+        $mapsUrl = ($lat && $lng)
+            ? "https://maps.google.com/?q={$lat},{$lng}"
+            : null;
+
+        foreach ($adminUsers as $admin) {
+            // FCM push
+            if ($admin->fcm_token) {
+                try {
+                    \App\Services\FcmService::sendSosAlert(
+                        $admin->fcm_token,
+                        $driverName,
+                        $driverPhone,
+                        $message,
+                        $alertId,
+                        $lat,
+                        $lng
+                    );
+                } catch (\Throwable) {}
+            }
+
+            // Email
+            if ($admin->email) {
+                try {
+                    \Illuminate\Support\Facades\Mail::send([], [], function ($mail) use (
+                        $admin, $driverName, $driverPhone, $message, $mapsUrl, $alertId, $orderId
+                    ) {
+                        $mail->to($admin->email)
+                            ->subject("🆘 SOS EMERGENCY — {$driverName}")
+                            ->html(
+                                "<div style='font-family:sans-serif;max-width:600px;margin:auto;'>" .
+                                "<div style='background:#EF4444;padding:24px;border-radius:12px 12px 0 0;text-align:center;'>" .
+                                "<h1 style='color:#fff;margin:0;font-size:28px;'>🆘 SOS EMERGENCY</h1>" .
+                                "</div>" .
+                                "<div style='background:#fff;padding:24px;border:1px solid #e5e7eb;border-radius:0 0 12px 12px;'>" .
+                                "<table style='width:100%;border-collapse:collapse;'>" .
+                                "<tr><td style='padding:8px;color:#6b7280;font-weight:600;width:140px;'>Driver</td>" .
+                                "<td style='padding:8px;font-weight:700;font-size:16px;'>{$driverName}</td></tr>" .
+                                "<tr style='background:#f9fafb;'><td style='padding:8px;color:#6b7280;font-weight:600;'>Phone</td>" .
+                                "<td style='padding:8px;'><a href='tel:{$driverPhone}' style='color:#f97316;font-weight:700;'>{$driverPhone}</a></td></tr>" .
+                                ($orderId ? "<tr><td style='padding:8px;color:#6b7280;font-weight:600;'>Order</td><td style='padding:8px;'>#{$orderId}</td></tr>" : "") .
+                                "<tr style='background:#f9fafb;'><td style='padding:8px;color:#6b7280;font-weight:600;'>Message</td>" .
+                                "<td style='padding:8px;'>{$message}</td></tr>" .
+                                ($mapsUrl ? "<tr><td style='padding:8px;color:#6b7280;font-weight:600;'>Location</td>" .
+                                "<td style='padding:8px;'><a href='{$mapsUrl}' style='background:#EF4444;color:#fff;padding:8px 16px;border-radius:6px;text-decoration:none;font-weight:700;'>📍 View on Map</a></td></tr>" : "") .
+                                "</table>" .
+                                "<div style='margin-top:20px;padding:16px;background:#FEF2F2;border-radius:8px;border-left:4px solid #EF4444;'>" .
+                                "<p style='margin:0;color:#991B1B;font-weight:700;'>Respond immediately — driver may be in danger.</p>" .
+                                "<p style='margin:8px 0 0;'><a href='" . url("/admin/sos/{$alertId}") . "' style='background:#EF4444;color:#fff;padding:10px 24px;border-radius:6px;text-decoration:none;font-weight:700;display:inline-block;'>Open SOS Dashboard</a></p>" .
+                                "</div></div></div>"
+                            );
+                    });
+                } catch (\Throwable) {}
+            }
         }
-        return response()->json(['success'=>true,'message'=>'SOS sent','alert_id'=>$alertId]);
+
+        // 3. Broadcast via Reverb to admin dashboard (real-time alarm)
+        try {
+            event(new \App\Events\DriverSosAlert([
+                'alert_id'    => $alertId,
+                'driver_id'   => $dm->id,
+                'driver_name' => $driverName,
+                'driver_phone'=> $driverPhone,
+                'lat'         => $lat,
+                'lng'         => $lng,
+                'message'     => $message,
+                'order_id'    => $orderId,
+                'created_at'  => now()->toISOString(),
+            ]));
+        } catch (\Throwable) {}
+
+        return response()->json(['success' => true, 'message' => 'SOS sent to all admins', 'alert_id' => $alertId]);
     }
 
     // HEATMAP

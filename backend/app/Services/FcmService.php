@@ -554,6 +554,74 @@ class FcmService
     }
 
     /**
+     * SOS emergency alert — high-priority FCM to admin devices.
+     * Uses notification block so it shows even if admin app is killed.
+     */
+    public static function sendSosAlert(
+        string $fcmToken,
+        string $driverName,
+        string $driverPhone,
+        string $message,
+        int    $alertId,
+        ?float $lat,
+        ?float $lng
+    ): bool {
+        if (empty($fcmToken)) return false;
+        $sa = self::loadServiceAccount();
+        if (!$sa) return false;
+        $accessToken = self::getAccessToken($sa);
+        if (!$accessToken) return false;
+
+        $mapsUrl = ($lat && $lng) ? "https://maps.google.com/?q={$lat},{$lng}" : '';
+
+        $payload = [
+            'message' => [
+                'token' => $fcmToken,
+                'notification' => [
+                    'title' => "🆘 SOS — {$driverName}",
+                    'body'  => "{$driverPhone} — {$message}",
+                ],
+                'data' => [
+                    'type'         => 'sos_alert',
+                    'alert_id'     => (string) $alertId,
+                    'driver_name'  => $driverName,
+                    'driver_phone' => $driverPhone,
+                    'message'      => $message,
+                    'latitude'     => (string) ($lat ?? ''),
+                    'longitude'    => (string) ($lng ?? ''),
+                    'maps_url'     => $mapsUrl,
+                    'ts'           => (string) time(),
+                ],
+                'android' => [
+                    'priority' => 'high',
+                    'ttl'      => '300s',
+                    'notification' => [
+                        'channel_id'           => 'sos_alarm',
+                        'notification_priority' => 'PRIORITY_MAX',
+                        'default_sound'         => true,
+                        'default_vibrate_timings' => true,
+                    ],
+                ],
+                'apns' => [
+                    'headers' => ['apns-priority' => '10'],
+                    'payload' => [
+                        'aps' => [
+                            'alert'             => ['title' => "🆘 SOS — {$driverName}", 'body' => $driverPhone],
+                            'sound'             => 'default',
+                            'badge'             => 1,
+                            'content-available' => 1,
+                        ],
+                    ],
+                ],
+            ],
+        ];
+
+        $url  = 'https://fcm.googleapis.com/v1/projects/' . $sa['project_id'] . '/messages:send';
+        $resp = \Illuminate\Support\Facades\Http::withToken($accessToken)->post($url, $payload);
+        return $resp->successful();
+    }
+
+    /**
      * High-priority silent push that wakes the driver app (even if killed by OS)
      * and tells it to post its current GPS location immediately.
      */

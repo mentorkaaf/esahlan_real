@@ -27,6 +27,8 @@ use App\Http\Controllers\Admin\AdminDeliverymanController;
 use App\Http\Controllers\Admin\AdminNotificationController;
 use App\Http\Controllers\Admin\AdminReportController;
 use App\Http\Controllers\Admin\DispatchController;
+use App\Http\Controllers\Admin\SosController;
+use App\Http\Controllers\Admin\DriverPerformanceController;
 use App\Http\Controllers\Admin\AdminModuleDataController;
 use App\Http\Controllers\Admin\AdminEFoodController;
 use App\Http\Controllers\Admin\AdminWalletController;
@@ -1192,6 +1194,16 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
         });
 
         // Dispatch Center
+        // SOS Emergency
+        Route::get('/sos', [SosController::class, 'index'])->name('sos.index');
+        Route::get('/sos/live', [SosController::class, 'liveAlerts'])->name('sos.live');
+        Route::get('/sos/{id}', [SosController::class, 'show'])->name('sos.show');
+        Route::post('/sos/{id}/resolve', [SosController::class, 'resolve'])->name('sos.resolve');
+
+        // Driver Performance
+        Route::get('/drivers/performance', [DriverPerformanceController::class, 'index'])->name('drivers.performance');
+        Route::get('/drivers/performance/data', [DriverPerformanceController::class, 'data'])->name('drivers.performance.data');
+
         Route::get('/dispatch', [DispatchController::class, 'index'])->name('dispatch');
         Route::get('/dispatch/map', [DispatchController::class, 'liveMap'])->name('dispatch.map');
         Route::get('/dispatch/live-drivers', [DispatchController::class, 'liveDrivers'])->name('dispatch.live-drivers');

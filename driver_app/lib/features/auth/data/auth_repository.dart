@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/services/firebase_service.dart';
 import '../../../core/services/location_service.dart';
@@ -127,6 +128,17 @@ class AuthRepository {
     try {
       final data = <String, dynamic>{'message': message ?? 'SOS — driver needs help'};
       if (orderId != null) data['order_id'] = orderId;
+      // Attach GPS coordinates
+      try {
+        final pos = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            timeLimit: Duration(seconds: 8),
+          ),
+        );
+        data['latitude']  = pos.latitude;
+        data['longitude'] = pos.longitude;
+      } catch (_) {} // GPS optional — don't block SOS
       await _dio.post('/delivery/sos', data: data);
     } on DioException catch (e) {
       throw ApiException.fromDio(e);

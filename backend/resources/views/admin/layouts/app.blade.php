@@ -722,6 +722,13 @@
         <a href="{{ route('admin.dispatch.map') }}" class="nav-link {{ request()->routeIs('admin.dispatch.map') ? 'active' : '' }}">
             <div class="nav-icon"><i class="fas fa-satellite-dish"></i></div><span class="nav-text">Live Tracking</span>
         </a>
+        <a href="{{ route('admin.sos.index') }}" class="nav-link {{ request()->routeIs('admin.sos*') ? 'active' : '' }}" style="{{ request()->routeIs('admin.sos*') ? '' : '' }}">
+            <div class="nav-icon" style="color:#FF2D55;"><i class="fas fa-exclamation-triangle"></i></div>
+            <span class="nav-text" style="color:#FF2D55;font-weight:700;">SOS Alerts</span>
+        </a>
+        <a href="{{ route('admin.drivers.performance') }}" class="nav-link {{ request()->routeIs('admin.drivers.performance*') ? 'active' : '' }}">
+            <div class="nav-icon"><i class="fas fa-chart-bar"></i></div><span class="nav-text">Driver Performance</span>
+        </a>
 
         {{-- ══ MODULE DATA ══ --}}
         <div class="nav-link nav-toggle-btn {{ request()->is('admin/module-data*') || request()->is('admin/eshop*') ? 'open active' : '' }}"
