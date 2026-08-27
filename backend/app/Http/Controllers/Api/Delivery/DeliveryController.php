@@ -305,7 +305,8 @@ class DeliveryController extends Controller
         $dm = $this->dm($request);
         if (!$dm || !$dm->is_approved) return response()->json(['success' => false, 'message' => 'Not approved'], 403);
 
-        if ($order->deliveryman_id) {
+        // Allow if THIS driver is already assigned (ring-accept flow)
+        if ($order->deliveryman_id && $order->deliveryman_id !== $dm->id) {
             return response()->json(['success' => false, 'message' => 'Order already assigned'], 422);
         }
 

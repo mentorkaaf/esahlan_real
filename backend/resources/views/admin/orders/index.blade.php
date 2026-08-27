@@ -88,9 +88,29 @@ function initDriversMap() {
         streetViewControl: false,
     });
 
-    var vehicleIcons = {
-        motorcycle: 'ðŸï¸', bajaj: 'ðŸ›º', car: 'ðŸš—', van: 'ðŸš', truck: 'ðŸš›', bicycle: 'ðŸš²', pickup: 'ðŸš›'
-    };
+    // Vehicle marker: SVG pin icon (emoji causes garbled text on some browsers)
+    function vehicleMarkerIcon(vehicle, statusColor) {
+        return {
+            path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
+            fillColor: statusColor,
+            fillOpacity: 1,
+            strokeColor: '#fff',
+            strokeWeight: 2,
+            scale: 1.6,
+            anchor: new google.maps.Point(12, 22),
+        };
+    }
+    function vehicleLabel(v) {
+        v = (v||'').toLowerCase();
+        if (v.includes('motorcycle')||v.includes('scooter')) return 'Motorcycle';
+        if (v.includes('bajaj')||v.includes('rickshaw')) return 'Bajaj';
+        if (v.includes('bicycle')||v.includes('cycle')) return 'Bicycle';
+        if (v.includes('truck')) return 'Truck';
+        if (v.includes('van')) return 'Van';
+        if (v.includes('pickup')) return 'Pickup';
+        if (v.includes('car')) return 'Car';
+        return v || 'Vehicle';
+    }
 
     var drivers = {{ Illuminate\Support\Js::from($availableDrivers->map(function($d) {
         return [
@@ -110,13 +130,13 @@ function initDriversMap() {
 
     drivers.forEach(function(d) {
         if (!d.lat || !d.lng) return;
-        var emoji = vehicleIcons[d.vehicle] || 'ðŸš—';
+        var vLabel = vehicleLabel(d.vehicle);
         var statusColor = d.status === 'available' ? '#10B981' : '#F59E0B';
         var marker = new google.maps.Marker({
             position: {lat: d.lat, lng: d.lng},
             map: map,
-            label: {text: emoji, fontSize: '22px'},
-            title: d.name + ' (' + d.vehicle + ')',
+            icon: vehicleMarkerIcon(d.vehicle, statusColor),
+            title: d.name + ' (' + vLabel + ')',
         });
         marker.addListener('click', function() {
             iw.setContent(
@@ -127,7 +147,7 @@ function initDriversMap() {
                 '<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;background:' + statusColor + '20;color:' + statusColor + ';">' + d.status + '</span>' +
                 ' <span style="color:#f59e0b;">â˜… ' + (d.rating||5) + '</span>' +
                 '</div>' +
-                '<div style="font-size:11px;color:#888;margin-top:2px;">' + emoji + ' ' + d.vehicle + '</div>' +
+                '<div style="font-size:11px;color:#888;margin-top:2px;">' + vLabel + '</div>' +
                 '</div>'
             );
             iw.open(map, marker);

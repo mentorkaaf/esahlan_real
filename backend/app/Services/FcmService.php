@@ -308,13 +308,68 @@ class FcmService
             'delivery_lng'      => (string) ($delivery['lng'] ?? 0),
         ];
 
-        // DATA-ONLY FCM — no 'notification' block.
-        // CRITICAL: A notification block causes Android to handle the message directly
-        // (shows system tray notification) and Flutter _bgHandler is NEVER called
-        // when the app is killed or in background.
-        // Without notification block → _bgHandler is ALWAYS called regardless of app state.
-        // _bgHandler then shows the fullScreenIntent alarm with order_ring.wav itself.
-        return self::sendDataOnly($fcmToken, $data);
+        // HYBRID FCM: notification + data.
+        // The notification block is handled by Google Play Services — ALWAYS delivered
+        // even on killed/battery-optimized phones. Our channel (esahlan_order_ring_v3)
+        // provides the alarm sound. The data payload is read by Flutter via
+        // getInitialMessage() (killed-tap) or onMessageOpenedApp (background-tap).
+        $sa = self::loadServiceAccount();
+        if (!$sa) return false;
+        $accessToken = self::getAccessToken($sa);
+        if (!$accessToken) return false;
+
+        $payload = [
+            'message' => [
+                'token' => $fcmToken,
+                'data'  => array_map('strval', $data),
+                'notification' => [
+                    'title' => 'New Order — Tap to accept',
+                    'body'  => 'Order #' . ($order['order_number'] ?? '') . '  •  $' . $fee . ' delivery fee',
+                ],
+                'android' => [
+                    'priority'       => 'high',
+                    'direct_boot_ok' => true,
+                    'notification'   => [
+                        'channel_id'             => 'esahlan_order_ring_v3',
+                        'notification_priority'   => 'PRIORITY_MAX',
+                        'sound'                   => 'order_ring',
+                        'default_vibrate_timings' => false,
+                        'click_action'            => 'FLUTTER_NOTIFICATION_CLICK',
+                        'visibility'              => 'PUBLIC',
+                    ],
+                ],
+                'apns' => [
+                    'headers' => ['apns-priority' => '10'],
+                    'payload' => ['aps' => ['sound' => 'order_ring.wav', 'badge' => 1]],
+                ],
+            ],
+        ];
+
+        $projectId = $sa['project_id'];
+        $url = "https://fcm.googleapis.com/v1/projects/{$projectId}/messages:send";
+        $ch  = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_HTTPHEADER     => [
+                'Authorization: Bearer ' . $accessToken,
+                'Content-Type: application/json',
+            ],
+            CURLOPT_POSTFIELDS     => json_encode($payload),
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 15,
+            CURLOPT_SSL_VERIFYPEER => false,
+        ]);
+        $resp = curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($code !== 200) {
+            \Illuminate\Support\Facades\Log::warning('[FCM] sendNewOrderRing failed', ['code' => $code, 'resp' => $resp]);
+            return false;
+        }
+        $parsed = json_decode($resp, true);
+        \Illuminate\Support\Facades\Log::info('[FCM] sendNewOrderRing OK', ['msg_id' => $parsed['name'] ?? 'unknown']);
+        return true;
     }
 
     /**
