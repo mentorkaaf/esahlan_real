@@ -1131,6 +1131,7 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::post('/withdrawals/{id}/process',      [$wc, 'processWithdrawal'])->name('withdrawal.process');
             Route::post('/withdrawals/bulk-approve',      [$wc, 'bulkApproveWithdrawals'])->name('withdrawal.bulk-approve');
             Route::get('/user/{userId}',                  [$wc, 'userDetail'])->name('user-detail');
+            Route::get('/user/{userId}/statement',        [$wc, 'statementExport'])->name('user-statement');
             Route::post('/reset/{userId}',                [$wc, 'resetWallet'])->name('reset');
             Route::post('/bulk-reset',                    [$wc, 'bulkResetWallets'])->name('bulk-reset');
             Route::post('/nuke-all',                      [$wc, 'nukeAll'])->name('nuke-all');

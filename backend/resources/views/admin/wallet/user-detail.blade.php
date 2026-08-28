@@ -26,6 +26,7 @@
 .two-col { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
 .ep-btn { display:inline-flex; align-items:center; gap:6px; padding:8px 14px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; border:1.5px solid #E2E8F0; background:#fff; color:#374151; text-decoration:none; }
 .ep-btn-primary { background:#07003B; color:#fff; border-color:#07003B; }
+[x-cloak] { display: none !important; }
 </style>
 @endpush
 
@@ -44,8 +45,58 @@
       <div style="font-size:12px;color:#94A3B8">{{ $user->email }} · {{ $user->phone }}</div>
     </div>
   </div>
-  <div style="display:flex;gap:8px;flex-wrap:wrap">
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
     <a href="{{ route('admin.wallet.transactions', ['user_id' => $user->id]) }}" class="ep-btn"><i class="fas fa-list"></i> All Transactions</a>
+
+    {{-- Statement Download --}}
+    <div style="position:relative;display:inline-block" x-data="{ open: false }">
+      <button @click="open = !open" class="ep-btn" style="background:#07003B;color:#fff;border-color:#07003B;gap:6px">
+        <i class="fas fa-file-download"></i> Download Statement <i class="fas fa-chevron-down" style="font-size:9px"></i>
+      </button>
+      <div x-show="open" @click.outside="open=false" x-cloak
+           style="position:absolute;right:0;top:calc(100% + 6px);background:#fff;border:1px solid #E2E8F0;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:99;min-width:230px;overflow:hidden">
+
+        {{-- Period selector --}}
+        <div style="padding:12px 16px;border-bottom:1px solid #F1F5F9">
+          <div style="font-size:10px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Period</div>
+          <form id="stmtForm" method="GET" action="{{ route('admin.wallet.user-statement', $user->id) }}" style="display:flex;gap:6px;flex-direction:column">
+            <div style="display:flex;gap:6px">
+              <input type="date" name="from" id="stmtFrom" style="flex:1;padding:5px 8px;border:1px solid #E2E8F0;border-radius:7px;font-size:11px;color:#374151">
+              <input type="date" name="to"   id="stmtTo"   style="flex:1;padding:5px 8px;border:1px solid #E2E8F0;border-radius:7px;font-size:11px;color:#374151">
+            </div>
+            <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:2px">
+              @foreach(['This Month' => [now()->startOfMonth()->format('Y-m-d'), now()->format('Y-m-d')], 'Last 3 Months' => [now()->subMonths(3)->format('Y-m-d'), now()->format('Y-m-d')], 'This Year' => [now()->startOfYear()->format('Y-m-d'), now()->format('Y-m-d')], 'All Time' => ['','']] as $label => $range)
+              <button type="button" onclick="setRange('{{ $range[0] }}','{{ $range[1] }}')"
+                style="font-size:9px;font-weight:700;padding:3px 8px;border-radius:6px;border:1px solid #E2E8F0;background:#F8FAFC;color:#374151;cursor:pointer">
+                {{ $label }}
+              </button>
+              @endforeach
+            </div>
+          </form>
+        </div>
+
+        {{-- Download buttons --}}
+        <div style="padding:10px 12px;display:flex;flex-direction:column;gap:6px">
+          <button onclick="downloadStmt('pdf')"
+            style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:9px;border:none;background:#FEF2F2;color:#B91C1C;font-weight:700;font-size:12px;cursor:pointer;text-align:left">
+            <i class="fas fa-file-pdf" style="font-size:16px"></i>
+            <div>
+              <div>Download PDF</div>
+              <div style="font-size:9px;font-weight:400;color:#94A3B8">Bank-style statement</div>
+            </div>
+          </button>
+          <button onclick="downloadStmt('excel')"
+            style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:9px;border:none;background:#F0FDF4;color:#15803D;font-weight:700;font-size:12px;cursor:pointer;text-align:left">
+            <i class="fas fa-file-excel" style="font-size:16px"></i>
+            <div>
+              <div>Download Excel</div>
+              <div style="font-size:9px;font-weight:400;color:#94A3B8">Full data with 2 sheets</div>
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
+
     @if($wallet?->is_frozen)
       <form method="POST" action="{{ route('admin.wallet.unfreeze', $user->id) }}" style="margin:0">@csrf<button type="submit" class="ep-btn ep-btn-primary" onclick="return confirm('Unfreeze?')"><i class="fas fa-unlock"></i> Unfreeze</button></form>
     @endif
@@ -195,5 +246,21 @@ new Chart(document.getElementById('trendChart'), {
     }
   }
 });
+</script>
+<script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+<script>
+function setRange(from, to) {
+  document.getElementById('stmtFrom').value = from;
+  document.getElementById('stmtTo').value   = to;
+}
+function downloadStmt(format) {
+  const from   = document.getElementById('stmtFrom').value;
+  const to     = document.getElementById('stmtTo').value;
+  const base   = '{{ route("admin.wallet.user-statement", $user->id) }}';
+  const params = new URLSearchParams({ format });
+  if (from) params.append('from', from);
+  if (to)   params.append('to', to);
+  window.open(base + '?' + params.toString(), '_blank');
+}
 </script>
 @endpush

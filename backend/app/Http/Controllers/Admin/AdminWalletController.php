@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Response;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class AdminWalletController extends Controller
 {
@@ -523,6 +524,147 @@ class AdminWalletController extends Controller
             ")->first();
 
         return view('admin.wallet.user-detail', compact('user','wallet','transactions','withdrawals','trend','monthStats'));
+    }
+
+    // ─── Statement Export (PDF / Excel) ──────────────────────────────────────
+
+    public function statementExport(Request $request, $userId)
+    {
+        $format    = $request->query('format', 'pdf'); // pdf | excel
+        $from      = $request->query('from');           // YYYY-MM-DD
+        $to        = $request->query('to');
+        $user      = User::findOrFail($userId);
+        $wallet    = Wallet::where('owner_type', 'App\\Models\\User')->where('owner_id', $userId)->first();
+
+        $txQuery = DB::table('transactions')
+            ->where('wallet_id', $wallet?->id)
+            ->orderByDesc('created_at');
+
+        if ($from) $txQuery->where('created_at', '>=', $from . ' 00:00:00');
+        if ($to)   $txQuery->where('created_at', '<=', $to   . ' 23:59:59');
+
+        $transactions = $txQuery->get();
+
+        $withdrawals = DB::table('withdrawal_requests')
+            ->where('owner_id', $userId)->where('owner_type', 'App\\Models\\User')
+            ->orderByDesc('created_at')
+            ->get();
+
+        $totalCredit   = $transactions->where('type', 'credit')->sum('amount');
+        $totalDebit    = $transactions->where('type', 'debit')->sum('amount');
+        $totalWithdrawn = $withdrawals->whereIn('status', ['approved','processed'])->sum('amount');
+        $period = ($from || $to)
+            ? (($from ?? 'Start') . ' — ' . ($to ?? 'Today'))
+            : 'All Time';
+
+        if ($format === 'excel') {
+            return $this->_statementExcel($user, $wallet, $transactions, $withdrawals, $period, $totalCredit, $totalDebit, $totalWithdrawn);
+        }
+
+        // PDF
+        $pdf = Pdf::loadView('admin.wallet.statement-pdf', compact(
+            'user', 'wallet', 'transactions', 'withdrawals',
+            'period', 'totalCredit', 'totalDebit', 'totalWithdrawn'
+        ))->setPaper('a4', 'portrait');
+
+        $filename = 'eSahlan_Statement_' . str_replace(' ', '_', $user->name) . '_' . now()->format('Ymd') . '.pdf';
+        return $pdf->download($filename);
+    }
+
+    private function _statementExcel($user, $wallet, $transactions, $withdrawals, $period, $totalCredit, $totalDebit, $totalWithdrawn)
+    {
+        $filename = 'eSahlan_Statement_' . str_replace(' ', '_', $user->name) . '_' . now()->format('Ymd') . '.xlsx';
+
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+
+        // ── Sheet 1: Transactions ──────────────────────────────────────────────
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Transactions');
+
+        // Header row styling
+        $headerFill = ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => '07003B']];
+        $headerFont = ['color' => ['rgb' => 'FFFFFF'], 'bold' => true, 'size' => 10];
+
+        // Company header
+        $sheet->mergeCells('A1:G1');
+        $sheet->setCellValue('A1', 'eSahlan — Financial Statement');
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14)->getColor()->setRGB('07003B');
+
+        $sheet->mergeCells('A2:G2');
+        $sheet->setCellValue('A2', 'Customer: ' . $user->name . ' | Phone: ' . $user->phone . ' | Period: ' . $period);
+        $sheet->getStyle('A2')->getFont()->setSize(10)->getColor()->setRGB('64748B');
+
+        $sheet->mergeCells('A3:G3');
+        $sheet->setCellValue('A3', 'Generated: ' . now()->format('d M Y H:i') . ' | Balance: $' . number_format($wallet?->balance ?? 0, 2));
+        $sheet->getStyle('A3')->getFont()->setSize(9)->getColor()->setRGB('64748B');
+
+        // Summary row
+        $sheet->setCellValue('A5', 'Total Credits'); $sheet->setCellValue('B5', '$' . number_format($totalCredit, 2));
+        $sheet->setCellValue('C5', 'Total Debits');  $sheet->setCellValue('D5', '$' . number_format($totalDebit, 2));
+        $sheet->setCellValue('E5', 'Net');           $sheet->setCellValue('F5', '$' . number_format($totalCredit - $totalDebit, 2));
+
+        // Transactions header
+        $headers = ['#', 'Date & Time', 'Type', 'Amount ($)', 'Balance After ($)', 'Channel', 'Note'];
+        $cols = ['A','B','C','D','E','F','G'];
+        foreach ($headers as $i => $h) {
+            $sheet->setCellValue($cols[$i] . '7', $h);
+            $sheet->getStyle($cols[$i] . '7')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setRGB('07003B');
+            $sheet->getStyle($cols[$i] . '7')->getFont()->setBold(true)->getColor()->setRGB('FFFFFF');
+        }
+
+        $row = 8;
+        foreach ($transactions as $i => $tx) {
+            $sheet->setCellValue('A' . $row, $i + 1);
+            $sheet->setCellValue('B' . $row, \Carbon\Carbon::parse($tx->created_at)->format('d M Y H:i'));
+            $sheet->setCellValue('C' . $row, strtoupper($tx->type));
+            $sheet->setCellValue('D' . $row, number_format($tx->amount, 2));
+            $sheet->setCellValue('E' . $row, number_format($tx->balance_after, 2));
+            $sheet->setCellValue('F' . $row, $tx->channel ?? 'Wallet');
+            $sheet->setCellValue('G' . $row, $tx->description ?? '');
+
+            // Color rows: credit=green tint, debit=red tint
+            $bgColor = $tx->type === 'credit' ? 'F0FDF4' : 'FFF1F2';
+            $sheet->getStyle('A' . $row . ':G' . $row)->getFill()
+                ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                ->getStartColor()->setRGB($bgColor);
+            $row++;
+        }
+
+        // Auto-width
+        foreach ($cols as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        // ── Sheet 2: Withdrawals ──────────────────────────────────────────────
+        $sheet2 = $spreadsheet->createSheet();
+        $sheet2->setTitle('Withdrawals');
+
+        $wHeaders = ['#', 'Date', 'Amount ($)', 'Method', 'Account', 'Status', 'Note'];
+        foreach ($wHeaders as $i => $h) {
+            $sheet2->setCellValue($cols[$i] . '1', $h);
+            $sheet2->getStyle($cols[$i] . '1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setRGB('07003B');
+            $sheet2->getStyle($cols[$i] . '1')->getFont()->setBold(true)->getColor()->setRGB('FFFFFF');
+        }
+        $row2 = 2;
+        foreach ($withdrawals as $i => $w) {
+            $sheet2->setCellValue('A' . $row2, $i + 1);
+            $sheet2->setCellValue('B' . $row2, \Carbon\Carbon::parse($w->created_at)->format('d M Y'));
+            $sheet2->setCellValue('C' . $row2, number_format($w->amount, 2));
+            $sheet2->setCellValue('D' . $row2, $w->method ?? '');
+            $sheet2->setCellValue('E' . $row2, $w->account_number ?? '');
+            $sheet2->setCellValue('F' . $row2, strtoupper($w->status ?? ''));
+            $sheet2->setCellValue('G' . $row2, $w->notes ?? '');
+            $row2++;
+        }
+        foreach ($cols as $col) { $sheet2->getColumnDimension($col)->setAutoSize(true); }
+
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $temp   = tempnam(sys_get_temp_dir(), 'stmt_');
+        $writer->save($temp);
+
+        return Response::download($temp, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ])->deleteFileAfterSend(true);
     }
 
     // ─── Wallet Resets ────────────────────────────────────────────────────────
