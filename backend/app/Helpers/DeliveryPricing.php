@@ -30,20 +30,18 @@ class DeliveryPricing
     {
         if (!$fromDistrictId || !$toDistrictId) return $default;
 
+        // Same-district deliveries are always $1.00 (regardless of zone table)
+        if ($fromDistrictId === $toDistrictId) {
+            return 1.00;
+        }
+
         $zone = DB::table('delivery_zone_pricing')
             ->where('from_district_id', $fromDistrictId)
             ->where('to_district_id', $toDistrictId)
             ->where('is_active', true)
             ->first();
 
-        $price = $zone ? (float) $zone->base_price : $default;
-
-        // Same-district deliveries are capped at $1.00
-        if ($fromDistrictId === $toDistrictId) {
-            $price = min($price, 1.00);
-        }
-
-        return $price;
+        return $zone ? (float) $zone->base_price : $default;
     }
 
     /**

@@ -2489,8 +2489,7 @@ class _CartPageState extends ConsumerState<_CartPage> {
   final _promoCtrl = TextEditingController();
   double _discount = 0;
   bool _promoApplied = false;
-  double? _deliveryFee;
-  bool _feeLoading = false;
+  double _deliveryFee = 0.0;
 
   @override
   void initState() {
@@ -2504,14 +2503,11 @@ class _CartPageState extends ConsumerState<_CartPage> {
     final vendorId = cart.isNotEmpty ? (cart.first.product['vendor_id'] as num?)?.toInt() : null;
     final districtId = user?.districtId;
     if (vendorId == null || districtId == null) return;
-    setState(() => _feeLoading = true);
     try {
       final r = await _svc.getEFoodDeliveryFee(vendorId: vendorId, districtId: districtId);
-      final fee = (r['data']?['delivery_fee'] as num?)?.toDouble() ?? 2.0;
-      if (mounted) setState(() { _deliveryFee = fee; _feeLoading = false; });
-    } catch (_) {
-      if (mounted) setState(() { _deliveryFee = 2.0; _feeLoading = false; });
-    }
+      final fee = (r['data']?['delivery_fee'] as num?)?.toDouble() ?? 0.0;
+      if (mounted) setState(() => _deliveryFee = fee);
+    } catch (_) {}
   }
 
   @override
@@ -2529,9 +2525,8 @@ class _CartPageState extends ConsumerState<_CartPage> {
     final cart = ref.watch(_cartProvider);
     final notifier = ref.read(_cartProvider.notifier);
     final subtotal = notifier.subtotal;
-    // deliveryFee is null while loading from zone pricing API
-    final deliveryFee = _deliveryFee; // null = still loading
-    final total = subtotal + (deliveryFee ?? 0) - _discount;
+    final deliveryFee = _deliveryFee;
+    final total = subtotal + deliveryFee - _discount;
 
     return Scaffold(
       backgroundColor: context.colors.scaffoldBg,
@@ -2590,19 +2585,12 @@ class _CartPageState extends ConsumerState<_CartPage> {
                   decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)]),
                   child: Column(children: [
                     _PriceRow(AppL10n.of(context).subtotal, '\$${subtotal.toStringAsFixed(2)}'),
-                    (_feeLoading || deliveryFee == null)
-                        ? Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                            Text(AppL10n.of(context).deliveryFee, style: const TextStyle(color: Colors.grey, fontSize: 13)),
-                            const SizedBox(width: 80, child: LinearProgressIndicator(minHeight: 2)),
-                          ]))
-                        : _PriceRow(AppL10n.of(context).deliveryFee, '\$${deliveryFee.toStringAsFixed(2)}'),
+                    _PriceRow(AppL10n.of(context).deliveryFee, '\$${deliveryFee.toStringAsFixed(2)}'),
                     if (_discount > 0) _PriceRow('Discount', '-\$${_discount.toStringAsFixed(2)}', color: Colors.green),
                     const Divider(height: 20),
                     Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                       Text('Total', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: context.colors.navyText)),
-                      deliveryFee == null
-                          ? const SizedBox(width: 80, child: LinearProgressIndicator(minHeight: 2))
-                          : Text('\$${total.toStringAsFixed(2)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: _primary)),
+                      Text('\$${total.toStringAsFixed(2)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: _primary)),
                     ]),
                   ]),
                 ),
@@ -2613,19 +2601,17 @@ class _CartPageState extends ConsumerState<_CartPage> {
         color: context.colors.cardBg,
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
         child: GestureDetector(
-          onTap: deliveryFee == null ? null : () => Navigator.push(context, MaterialPageRoute(builder: (_) => _CheckoutPage(
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => _CheckoutPage(
             subtotal: subtotal, deliveryFee: deliveryFee, discount: _discount,
           ))),
           child: Container(
             height: 56,
             decoration: BoxDecoration(
-              color: deliveryFee == null ? Colors.grey : _primary,
+              color: _primary,
               borderRadius: BorderRadius.circular(16),
-              boxShadow: deliveryFee == null ? [] : [BoxShadow(color: _primary.withValues(alpha: 0.4), blurRadius: 14, offset: const Offset(0, 6))],
+              boxShadow: [BoxShadow(color: _primary.withValues(alpha: 0.4), blurRadius: 14, offset: const Offset(0, 6))],
             ),
-            child: deliveryFee == null
-                ? const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)))
-                : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                     Text(AppL10n.of(context).checkout, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
                     const SizedBox(width: 8),
                     Text('\$${total.toStringAsFixed(2)}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16)),
@@ -2723,16 +2709,13 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
   int    _pointsToRedeem = 0;
   double _pointsDiscount = 0.0;
   double _deliveryFee = 0.0;
-  bool _feeLoading = false;
 
   double get _total => widget.subtotal + _deliveryFee - widget.discount - _pointsDiscount;
 
   @override
   void initState() {
     super.initState();
-    // Start loading — always fetch real zone price, never use cart's estimate
-    _deliveryFee = 0.0;
-    _feeLoading  = true;
+    _deliveryFee = widget.deliveryFee; // start with cart's fetched value
     WidgetsBinding.instance.addPostFrameCallback((_) => _initDistrict());
   }
 
@@ -2762,23 +2745,12 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
   Future<void> _fetchZoneFee(int districtId) async {
     final cart = ref.read(_cartProvider);
     final vendorId = cart.isNotEmpty ? (cart.first.product['vendor_id'] as num?)?.toInt() : null;
-    if (vendorId == null) {
-      // No vendor — fall back to cart's estimate
-      if (mounted) setState(() { _deliveryFee = widget.deliveryFee; _feeLoading = false; });
-      return;
-    }
-    setState(() => _feeLoading = true);
+    if (vendorId == null) return;
     try {
       final r = await _svc.getEFoodDeliveryFee(vendorId: vendorId, districtId: districtId);
       final fee = (r['data']?['delivery_fee'] as num?)?.toDouble();
-      if (mounted) setState(() {
-        _deliveryFee = fee ?? widget.deliveryFee;
-        _feeLoading = false;
-      });
-    } catch (_) {
-      // On error, fall back to cart's estimate
-      if (mounted) setState(() { _deliveryFee = widget.deliveryFee; _feeLoading = false; });
-    }
+      if (mounted && fee != null) setState(() => _deliveryFee = fee);
+    } catch (_) {}
   }
 
   Future<void> _pickDistrict() async {
@@ -2874,9 +2846,7 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
           decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)]),
           child: Column(children: [
             _PriceRow('${ref.read(_cartProvider.notifier).totalItems} Items', '\$${widget.subtotal.toStringAsFixed(2)}'),
-            _feeLoading
-                ? const Padding(padding: EdgeInsets.symmetric(vertical: 6), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('Delivery Fee', style: TextStyle(color: Colors.grey)), SizedBox(width: 60, height: 12, child: LinearProgressIndicator())]))
-                : _PriceRow(AppL10n.of(context).deliveryFee, '\$${_deliveryFee.toStringAsFixed(2)}'),
+            _PriceRow(AppL10n.of(context).deliveryFee, '\$${_deliveryFee.toStringAsFixed(2)}'),
             if (widget.discount > 0) _PriceRow('Discount', '-\$${widget.discount.toStringAsFixed(2)}', color: Colors.green),
             if (_pointsDiscount > 0) _PriceRow('Points ($_pointsToRedeem pts)', '-\$${_pointsDiscount.toStringAsFixed(2)}', color: const Color(0xFFF59E0B)),
             const Divider(height: 20),
