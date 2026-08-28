@@ -48,8 +48,12 @@ class _EShopCheckoutScreenState extends ConsumerState<EShopCheckoutScreen> {
   Future<void> _fetchDeliveryFee() async {
     if (_districtId == null) return;
     try {
-      final res = await _svc.getEshopDeliveryFee(_districtId!);
-      final fee = double.tryParse(res?['delivery_fee']?.toString() ?? '') ?? AppConstants.eshopDeliveryFee;
+      final cart = ref.read(eshopCartProvider);
+      final vendorId = cart.isNotEmpty ? (cart.first.product['vendor_id'] as num?)?.toInt() : null;
+      final res = await _svc.getEshopDeliveryFee(_districtId!, vendorId: vendorId);
+      // Backend returns both formats: {delivery_fee:X} and {data:{delivery_fee:X}}
+      final raw = res?['data']?['delivery_fee'] ?? res?['delivery_fee'];
+      final fee = double.tryParse('${raw ?? ''}') ?? AppConstants.eshopDeliveryFee;
       if (mounted) setState(() => _deliveryFee = fee);
     } catch (_) {}
   }

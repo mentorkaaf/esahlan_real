@@ -230,12 +230,22 @@ class EShopController extends Controller
         ]);
     }
 
-    // GET /eshop/delivery-fee?district_id=X
+    // GET /eshop/delivery-fee?district_id=X[&vendor_id=Y]
+    // Uses eParcel zone pricing: vendor district → customer district
     public function deliveryFee(Request $request)
     {
-        $districtId  = $request->integer('district_id') ?: null;
-        $fee         = \App\Helpers\DeliveryPricing::forShopOrLaundry($districtId, 2.00);
-        return response()->json(['success' => true, 'delivery_fee' => $fee]);
+        $districtId = $request->integer('district_id') ?: null;
+        $vendorId   = $request->integer('vendor_id') ?: null;
+
+        $vendorDistrictId = null;
+        if ($vendorId) {
+            $vendor = DB::table('vendors')->where('id', $vendorId)->value('district_id');
+            $vendorDistrictId = $vendor ? (int) $vendor : null;
+        }
+
+        // vendor district → customer district (falls back to base district if vendor has none)
+        $fee = \App\Helpers\DeliveryPricing::forShopOrLaundry($districtId, 2.00, $vendorDistrictId);
+        return response()->json(['success' => true, 'delivery_fee' => round($fee, 2), 'data' => ['delivery_fee' => round($fee, 2)]]);
     }
 
     // POST /eshop/order (auth)
@@ -297,7 +307,18 @@ class EShopController extends Controller
         }
 
         $customerDistrictId = $request->input('district_id') ?? ($request->delivery_address['district_id'] ?? null);
-        $deliveryFee = \App\Helpers\DeliveryPricing::forShopOrLaundry($customerDistrictId ? (int)$customerDistrictId : null, 2.00);
+
+        // Determine vendor from first product's vendor_id (needed for zone pricing)
+        $firstProduct = DB::table('products')->find($lines[0]['product_id']);
+        $vendor       = $firstProduct ? DB::table('vendors')->find($firstProduct->vendor_id) : null;
+
+        // Delivery fee: vendor district → customer district using eParcel zone pricing
+        $vendorDistrictId = $vendor?->district_id ? (int) $vendor->district_id : null;
+        $deliveryFee = \App\Helpers\DeliveryPricing::forShopOrLaundry(
+            $customerDistrictId ? (int) $customerDistrictId : null,
+            2.00,
+            $vendorDistrictId
+        );
         $total += $deliveryFee;
 
         // Points redeem
@@ -309,10 +330,6 @@ class EShopController extends Controller
                 return response()->json(['success' => false, 'message' => 'Insufficient wallet balance'], 422);
             }
         }
-
-        // Determine vendor from first product's vendor_id
-        $firstProduct = DB::table('products')->find($lines[0]['product_id']);
-        $vendor       = $firstProduct ? DB::table('vendors')->find($firstProduct->vendor_id) : null;
         $vendorId     = $vendor?->id ?? null;
         $moduleId     = $vendor?->module_id ?? null;
 

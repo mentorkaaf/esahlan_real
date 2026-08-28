@@ -989,7 +989,7 @@ class EFoodController extends Controller
     public function calculateDeliveryFee(Request $request)
     {
         $vendorId   = $request->input('vendor_id');
-        $districtId = $request->input('district_id');
+        $districtId = $request->integer('district_id') ?: null;
 
         if (!$vendorId || !$districtId) {
             return response()->json(['success' => false, 'message' => 'vendor_id and district_id required'], 422);
@@ -998,40 +998,25 @@ class EFoodController extends Controller
         $vendor = DB::table('vendors')->find($vendorId);
         if (!$vendor) return response()->json(['success' => false, 'message' => 'Vendor not found'], 404);
 
-        $fee = 0;
-        $source = 'free';
-        $vendorDistrictId = $vendor->district_id;
+        // Use zone pricing: vendor district → customer district (eParcel pricing table)
+        // If vendor has no district_id, DeliveryPricing falls back to base district (Hamarweyne)
+        $vendorDistrictId = $vendor->district_id ? (int) $vendor->district_id : null;
+        $fallback         = (float) ($vendor->delivery_fee ?? 2.0);
 
-        if ($vendorDistrictId && $districtId) {
-            $zone = DB::table('delivery_zone_pricing')
-                ->where('from_district_id', $vendorDistrictId)
-                ->where('to_district_id', $districtId)
-                ->where('is_active', true)
-                ->where(function ($q) {
-                    $q->where('module_id', 'eparcel')->orWhere('module_id', 'efood');
-                })
-                ->first();
-            if ($zone) {
-                $fee = (float) $zone->base_price;
-                $source = 'zone_pricing';
-            }
-        }
+        $fee = \App\Helpers\DeliveryPricing::forFood($vendorDistrictId, $districtId, $fallback);
 
-        if ($fee <= 0 && $vendor->delivery_fee > 0) {
-            $fee = (float) $vendor->delivery_fee;
-            $source = 'vendor';
-        }
-
-        $fromDistrict = DB::table('districts')->find($vendorDistrictId);
+        // Resolve district names for debug/display
+        $effectiveFromId = $vendorDistrictId ?: \App\Helpers\DeliveryPricing::baseDistrictId();
+        $fromDistrict = DB::table('districts')->find($effectiveFromId);
         $toDistrict   = DB::table('districts')->find($districtId);
 
         return response()->json([
             'success' => true,
             'data'    => [
-                'delivery_fee' => round($fee, 2),
-                'source'       => $source,
-                'from'         => $fromDistrict?->name,
-                'to'           => $toDistrict?->name,
+                'delivery_fee'      => round($fee, 2),
+                'from_district'     => $fromDistrict?->name,
+                'to_district'       => $toDistrict?->name,
+                'vendor_district_id' => $vendorDistrictId,
             ],
         ]);
     }

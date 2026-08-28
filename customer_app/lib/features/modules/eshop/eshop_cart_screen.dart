@@ -7,6 +7,8 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/network_image_widget.dart';
 import '../../../shared/widgets/app_button.dart';
+import '../../../core/api/module_api_service.dart';
+import '../../auth/presentation/providers/auth_provider.dart';
 import 'eshop_providers.dart';
 import '../../../core/l10n/app_strings.dart';
 
@@ -19,8 +21,28 @@ class EShopCartScreen extends ConsumerStatefulWidget {
 class _EShopCartScreenState extends ConsumerState<EShopCartScreen> {
   final _couponCtrl = TextEditingController();
   bool _validatingCoupon = false;
+  double _deliveryFee = AppConstants.eshopDeliveryFee;
+  final _svc = ModuleApiService.create();
 
-  static const double _deliveryFee = AppConstants.eshopDeliveryFee;
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _fetchDeliveryFee());
+  }
+
+  Future<void> _fetchDeliveryFee() async {
+    final cart = ref.read(eshopCartProvider);
+    final user = ref.read(authStateProvider).valueOrNull;
+    final districtId = user?.districtId;
+    if (districtId == null || cart.isEmpty) return;
+    final vendorId = (cart.first.product['vendor_id'] as num?)?.toInt();
+    try {
+      final res = await _svc.getEshopDeliveryFee(districtId, vendorId: vendorId);
+      final fee = (res?['data']?['delivery_fee'] ?? res?['delivery_fee']);
+      final parsed = double.tryParse('${fee ?? ''}') ?? AppConstants.eshopDeliveryFee;
+      if (mounted) setState(() => _deliveryFee = parsed);
+    } catch (_) {}
+  }
 
   @override
   void dispose() { _couponCtrl.dispose(); super.dispose(); }
@@ -43,7 +65,8 @@ class _EShopCartScreenState extends ConsumerState<EShopCartScreen> {
 
     final subtotal = cart.fold(0.0, (s, c) => s + c.lineTotal);
     final discount = coupon.calculateDiscount(subtotal);
-    final total = subtotal - discount + _deliveryFee;
+    final deliveryFee = _deliveryFee;
+    final total = subtotal - discount + deliveryFee;
 
     return Scaffold(
       backgroundColor: context.colors.scaffoldBg,

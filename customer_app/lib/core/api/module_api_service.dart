@@ -248,8 +248,11 @@ class ModuleApiService {
     try { await _dio.patch('/eshop/products/$productId/view'); } catch (_) {}
   }
 
-  Future<dynamic> getEshopDeliveryFee(int districtId) =>
-      _get('/eshop/delivery-fee', params: {'district_id': districtId});
+  Future<dynamic> getEshopDeliveryFee(int districtId, {int? vendorId}) =>
+      _get('/eshop/delivery-fee', params: {
+        'district_id': districtId,
+        if (vendorId != null) 'vendor_id': vendorId,
+      });
 
   // ═══════════════════════════════════════════════════════════════════
   // eWHOLESALE
