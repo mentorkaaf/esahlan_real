@@ -1,0 +1,4 @@
+app_identifier("com.esahlan.user")
+apple_id("mentorkaafi@gmail.com")
+team_id(ENV["APPLE_TEAM_ID"] || "")
+itc_team_id(ENV["APPLE_ITC_TEAM_ID"] || "")

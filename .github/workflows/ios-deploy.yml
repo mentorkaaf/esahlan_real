@@ -1,0 +1,78 @@
+name: iOS — Build & Upload to TestFlight
+
+on:
+  workflow_dispatch:          # Manual trigger (you press "Run workflow")
+  push:
+    tags:
+      - 'ios-v*'              # Auto-trigger: git tag ios-v1.0.0
+
+jobs:
+  build_ios:
+    name: Build & Upload iOS
+    runs-on: macos-14          # Apple Silicon Mac runner (free 2000 min/month)
+    timeout-minutes: 60
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ── 2. Flutter setup ─────────────────────────────────────────────────
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.5'
+          channel: 'stable'
+          cache: true
+
+      # ── 3. Flutter dependencies ──────────────────────────────────────────
+      - name: Flutter pub get
+        working-directory: customer_app
+        run: flutter pub get
+
+      # ── 4. GoogleService-Info.plist (from GitHub Secret) ─────────────────
+      - name: Write GoogleService-Info.plist
+        working-directory: customer_app/ios/Runner
+        run: |
+          echo "${{ secrets.GOOGLE_SERVICE_INFO_PLIST_BASE64 }}" | base64 --decode > GoogleService-Info.plist
+
+      # ── 5. Ruby + Fastlane ───────────────────────────────────────────────
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+          working-directory: customer_app/ios
+
+      # ── 6. Install certificates & profiles (via Fastlane Match) ──────────
+      - name: Install signing certificates
+        working-directory: customer_app/ios
+        env:
+          MATCH_PASSWORD:         ${{ secrets.MATCH_PASSWORD }}
+          MATCH_GIT_BASIC_AUTH:   ${{ secrets.MATCH_GIT_BASIC_AUTH }}
+          APP_STORE_CONNECT_KEY_ID:         ${{ secrets.ASC_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID:      ${{ secrets.ASC_ISSUER_ID }}
+          APP_STORE_CONNECT_KEY_CONTENT:    ${{ secrets.ASC_KEY_CONTENT }}
+        run: bundle exec fastlane match appstore --readonly
+
+      # ── 7. Build & Upload ────────────────────────────────────────────────
+      - name: Build iOS & Upload to TestFlight
+        working-directory: customer_app/ios
+        env:
+          MATCH_PASSWORD:                   ${{ secrets.MATCH_PASSWORD }}
+          MATCH_GIT_BASIC_AUTH:             ${{ secrets.MATCH_GIT_BASIC_AUTH }}
+          APP_STORE_CONNECT_KEY_ID:         ${{ secrets.ASC_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID:      ${{ secrets.ASC_ISSUER_ID }}
+          APP_STORE_CONNECT_KEY_CONTENT:    ${{ secrets.ASC_KEY_CONTENT }}
+          FLUTTER_BUILD_NAME:               ${{ github.ref_name || '1.0.0' }}
+          FLUTTER_BUILD_NUMBER:             ${{ github.run_number }}
+        run: bundle exec fastlane beta
+
+      # ── 8. Upload IPA as artifact (backup) ──────────────────────────────
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: esahlan-customer-${{ github.run_number }}.ipa
+          path: customer_app/build/ios/ipa/*.ipa
+          retention-days: 30
