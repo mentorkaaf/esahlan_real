@@ -2502,9 +2502,10 @@ class _CartPageState extends ConsumerState<_CartPage> {
 
   Future<void> _fetchDeliveryFee() async {
     final cart = ref.read(_cartProvider);
+    if (cart.isEmpty) return;
     final user = ref.read(authStateProvider).valueOrNull;
-    final districtId = user?.districtId;
-    if (districtId == null || cart.isEmpty) return;
+    // Fallback to Hamarweyne (4) if user has no district — same as backend default
+    final districtId = user?.districtId ?? 4;
     final vendorId = (cart.first.product['vendor_id'] as num?)?.toInt();
     if (vendorId == null) return;
     try {
@@ -2828,11 +2829,12 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
     if (user != null) {
       if (_nameCtrl.text.isEmpty)  _nameCtrl.text  = user.name;
       if (_phoneCtrl.text.isEmpty) _phoneCtrl.text = user.phone;
-      if (user.districtId != null) {
-        _districtId   = user.districtId;
-        _districtName = user.districtName;
-        _fetchZoneFee(user.districtId!);
-      }
+      // Use user's district or fallback to Hamarweyne (4) — same as backend default
+      final districtId   = user.districtId ?? 4;
+      final districtName = user.districtName ?? 'Hamarweyne';
+      _districtId   = districtId;
+      _districtName = districtName;
+      _fetchZoneFee(districtId);
       _districtInitialized = true;
       setState(() {});
     }
