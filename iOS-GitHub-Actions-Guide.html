@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="so">
+<head>
+<meta charset="UTF-8">
+<title>eSahlan — iOS App Store: Mac la'aanteed Submit Garee</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    font-size: 11pt;
+    line-height: 1.65;
+    color: #111827;
+    background: #fff;
+    padding: 0;
+  }
+
+  /* ── Print styles ── */
+  @media print {
+    body { font-size: 10pt; }
+    .no-print { display: none; }
+    .page-break { page-break-before: always; }
+    .card { break-inside: avoid; }
+    a { color: #1D4ED8; text-decoration: none; }
+    @page { margin: 18mm 16mm; size: A4; }
+  }
+
+  @media screen {
+    body { max-width: 800px; margin: 0 auto; padding: 32px 24px 60px; background: #F9FAFB; }
+  }
+
+  /* ── Print button ── */
+  .print-bar {
+    background: #1D4ED8;
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 10px;
+    margin-bottom: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .print-bar span { font-size: 13px; font-weight: 500; opacity: .9; }
+  .print-btn {
+    background: #fff;
+    color: #1D4ED8;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .print-btn:hover { background: #DBEAFE; }
+
+  /* ── Cover ── */
+  .cover {
+    background: linear-gradient(135deg, #1D4ED8 0%, #7C3AED 100%);
+    color: #fff;
+    border-radius: 14px;
+    padding: 36px 32px 32px;
+    margin-bottom: 28px;
+  }
+  .cover-logo {
+    width: 48px; height: 48px;
+    background: rgba(255,255,255,.2);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; font-weight: 800;
+    margin-bottom: 16px;
+  }
+  .cover h1 { font-size: 22pt; font-weight: 800; line-height: 1.2; margin-bottom: 8px; }
+  .cover p  { font-size: 11pt; opacity: .85; }
+  .cover-meta { margin-top: 20px; display: flex; gap: 20px; flex-wrap: wrap; }
+  .cover-pill {
+    background: rgba(255,255,255,.15);
+    border: 1px solid rgba(255,255,255,.25);
+    border-radius: 20px; padding: 4px 14px;
+    font-size: 10pt; font-weight: 600;
+  }
+
+  /* ── Section heading ── */
+  h2 {
+    font-size: 13pt; font-weight: 800;
+    color: #111827; margin: 28px 0 14px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid #E5E7EB;
+    display: flex; align-items: center; gap: 8px;
+  }
+  h2 .num {
+    width: 26px; height: 26px;
+    background: #1D4ED8; color: #fff;
+    border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 800; flex-shrink: 0;
+  }
+
+  /* ── Card ── */
+  .card {
+    background: #fff;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    padding: 18px 20px;
+    margin-bottom: 14px;
+  }
+  .card-title {
+    font-weight: 700; font-size: 11.5pt;
+    margin-bottom: 8px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card p, .card li { font-size: 10.5pt; color: #374151; margin-bottom: 4px; }
+  .card ul { padding-left: 18px; }
+  .card ol { padding-left: 18px; }
+  .card ol li { margin-bottom: 6px; }
+
+  /* ── Step ── */
+  .step-grid { display: grid; grid-template-columns: 28px 1fr; gap: 0 12px; margin-bottom: 10px; }
+  .step-num {
+    width: 28px; height: 28px;
+    background: #EFF6FF; color: #1D4ED8;
+    border: 2px solid #BFDBFE;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 800;
+    margin-top: 2px; flex-shrink: 0;
+  }
+  .step-content { padding-top: 3px; }
+  .step-content strong { font-size: 11pt; color: #111827; }
+  .step-content p, .step-content li { font-size: 10.5pt; color: #374151; margin-top: 3px; }
+  .step-content ul { padding-left: 16px; margin-top: 4px; }
+
+  /* ── Secret table ── */
+  table {
+    width: 100%; border-collapse: collapse;
+    margin: 12px 0; font-size: 10pt;
+  }
+  th {
+    background: #F3F4F6; font-weight: 700;
+    padding: 8px 12px; text-align: left;
+    border: 1px solid #E5E7EB;
+    font-size: 9.5pt; text-transform: uppercase;
+    letter-spacing: .04em; color: #6B7280;
+  }
+  td {
+    padding: 8px 12px; border: 1px solid #E5E7EB;
+    vertical-align: top;
+  }
+  tr:nth-child(even) td { background: #F9FAFB; }
+  code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9.5pt;
+    background: #F3F4F6; border: 1px solid #E5E7EB;
+    border-radius: 4px; padding: 1px 5px;
+    color: #1D4ED8;
+  }
+
+  /* ── Alert boxes ── */
+  .alert {
+    border-radius: 8px; padding: 12px 16px;
+    margin: 14px 0; font-size: 10.5pt;
+    display: flex; gap: 10px; align-items: flex-start;
+  }
+  .alert-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .alert.blue   { background: #EFF6FF; border: 1px solid #BFDBFE; color: #1E40AF; }
+  .alert.green  { background: #ECFDF5; border: 1px solid #A7F3D0; color: #065F46; }
+  .alert.orange { background: #FFFBEB; border: 1px solid #FDE68A; color: #78350F; }
+
+  /* ── Timeline ── */
+  .timeline { margin: 6px 0 0 4px; }
+  .tl-item { display: flex; gap: 12px; margin-bottom: 12px; }
+  .tl-dot {
+    width: 12px; height: 12px;
+    background: #1D4ED8; border-radius: 50%;
+    margin-top: 5px; flex-shrink: 0;
+  }
+  .tl-dot.green { background: #10B981; }
+  .tl-label { font-weight: 700; font-size: 10.5pt; }
+  .tl-desc  { font-size: 10pt; color: #4B5563; }
+
+  /* ── Footer ── */
+  .footer {
+    margin-top: 36px;
+    border-top: 1px solid #E5E7EB;
+    padding-top: 16px;
+    font-size: 9.5pt;
+    color: #9CA3AF;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<!-- Print bar (screen only) -->
+<div class="print-bar no-print">
+  <span>📄 PDF ahaan kaydso: Ctrl + P → "Save as PDF" → Save</span>
+  <button class="print-btn" onclick="window.print()">🖨️ Print / Save PDF</button>
+</div>
+
+<!-- ── COVER ── -->
+<div class="cover">
+  <div class="cover-logo">eS</div>
+  <h1>iOS App Store:<br>Mac la'aanteed Submit Garee</h1>
+  <p>GitHub Actions macOS runner + Fastlane automation — tallaabo kasta oo faahfaahsan</p>
+  <div class="cover-meta">
+    <span class="cover-pill">🍎 iOS — com.esahlan.user</span>
+    <span class="cover-pill">⚙️ GitHub Actions macos-14</span>
+    <span class="cover-pill">🚀 Fastlane Match + TestFlight</span>
+    <span class="cover-pill">📅 2026-08-28</span>
+  </div>
+</div>
+
+<!-- ── OVERVIEW ── -->
+<div class="alert blue">
+  <div class="alert-icon">💡</div>
+  <div><strong>Sababta ugu wanaagsan:</strong> Mac ma baahid. GitHub Actions-ku cloud-ka macOS runner bilaash ah buu isticmaalaa. Adiga oo Windows-ka fadhida, iOS build + TestFlight upload all-automatic ah ayuu u diri doonaa.</div>
+</div>
+
+<!-- ── STEP 1 ── -->
+<h2><span class="num">1</span> Apple Developer Program Enroll ($99/sanad)</h2>
+<div class="card">
+  <div class="card-title">🌐 developer.apple.com/enroll</div>
+  <ol>
+    <li>Safari ama Chrome ku fur: <strong>https://developer.apple.com/enroll</strong></li>
+    <li>Apple ID-gaaga ku gal (haddii aadan lahayn, create garee)</li>
+    <li>"Enroll as an Individual" dooro (haddii shirkad aad tahay: Organization)</li>
+    <li>$99 bixi — credit card ama Apple Pay</li>
+    <li><strong>24-48 saacadood</strong> gudaheed Apple approval soo dirtaa email-ka</li>
+  </ol>
+  <div class="alert orange" style="margin-top:12px">
+    <div class="alert-icon">⚠️</div>
+    <div>Approval-ka emaillka <strong>mentorkaafi@gmail.com</strong> u imaanaysaa. Hubi spam folder-ka.</div>
+  </div>
+</div>
+
+<!-- ── STEP 2 ── -->
+<h2><span class="num">2</span> App Store Connect API Key (GitHub Actions u baahan)</h2>
+<div class="card">
+  <div class="card-title">🔑 App Store Connect → Users & Access → Keys</div>
+  <ol>
+    <li>Fur: <strong>https://appstoreconnect.apple.com</strong></li>
+    <li>Users and Access → <strong>Keys</strong> tab</li>
+    <li>"+" → Name: <code>GitHub Actions</code> → Role: <strong>App Manager</strong> → Generate</li>
+    <li><strong>Download .p8 file</strong> — hal mar keliya la download garayn karaa, ka kaydi!</li>
+    <li>Note ku qor: <strong>Key ID</strong> (10 chars) + <strong>Issuer ID</strong> (UUID)</li>
+  </ol>
+  <div class="alert green" style="margin-top:12px">
+    <div class="alert-icon">✅</div>
+    <div>.p8 file-ka hubi in aad ku kaydsatay secure meelsha — lost hadduu noqdaa cusub waa la sameeyn karaa laakiin secrets waa in dib loo update gareeyo.</div>
+  </div>
+</div>
+
+<!-- ── STEP 3 ── -->
+<h2><span class="num">3</span> Private GitHub Repo (Fastlane Match Certificates)</h2>
+<div class="card">
+  <div class="card-title">📦 github.com → New Repository</div>
+  <ol>
+    <li>GitHub.com → "+" → New repository</li>
+    <li>Name: <code>esahlan-certificates</code></li>
+    <li>Visibility: <strong>Private</strong> (muhiim — certificates public ma noqon karaan)</li>
+    <li>Create repository → URL-ka kopyee: <code>https://github.com/mentorkaafi/esahlan-certificates</code></li>
+  </ol>
+  <p style="margin-top:8px;color:#6B7280;font-size:10pt;">Fastlane Match wuxuu halkaas ku kaydinayaa certificates iyo provisioning profiles si automatic ah. Adigu ma galin — automatic ayuu u shaqaynayaa.</p>
+</div>
+
+<!-- ── STEP 4 ── -->
+<h2><span class="num">4</span> GitHub Secrets ku Dar (6 Secret)</h2>
+<div class="card">
+  <div class="card-title">🔒 GitHub → esahlan_real → Settings → Secrets → Actions</div>
+  <p style="margin-bottom:12px">Path: <strong>github.com/mentorkaafi/esahlan_real → Settings → Secrets and variables → Actions → New repository secret</strong></p>
+
+  <table>
+    <tr>
+      <th>Secret Name</th>
+      <th>Maxay tahay + Sideed u hesho</th>
+    </tr>
+    <tr>
+      <td><code>ASC_KEY_ID</code></td>
+      <td>App Store Connect Key ID (10 chars). Step 2-da la helay.</td>
+    </tr>
+    <tr>
+      <td><code>ASC_ISSUER_ID</code></td>
+      <td>App Store Connect Issuer ID (UUID format). Step 2-da la helay.</td>
+    </tr>
+    <tr>
+      <td><code>ASC_KEY_CONTENT</code></td>
+      <td>.p8 file-ka content base64-encode garee:<br>
+        Windows PowerShell: <code>[Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\path\AuthKey_XXXX.p8"))</code>
+      </td>
+    </tr>
+    <tr>
+      <td><code>MATCH_PASSWORD</code></td>
+      <td>Password aad doranayso certificates encrypt-garaynta. Example: <code>eSahlan2026Match!</code>. Ku qor meelsha.</td>
+    </tr>
+    <tr>
+      <td><code>MATCH_GIT_BASIC_AUTH</code></td>
+      <td><code>username:token</code> → base64. Token: GitHub → Settings → Developer settings → Personal access tokens → Classic → repo scope.<br>
+        PowerShell: <code>[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes("mentorkaafi:YOUR_TOKEN"))</code>
+      </td>
+    </tr>
+    <tr>
+      <td><code>GOOGLE_SERVICE_INFO_PLIST_BASE64</code></td>
+      <td>GoogleService-Info.plist → base64:<br>
+        PowerShell: <code>[Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\...\GoogleService-Info.plist"))</code>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<!-- ── STEP 5 ── -->
+<h2><span class="num">5</span> Fastlane Match — Certificates Initialize (hal mar)</h2>
+<div class="card">
+  <div class="card-title">⚙️ GitHub Actions → "match init" run (hal mar keliya)</div>
+  <p>Marka ugu horreysa certificates-ka la sameeynayo, GitHub Actions workflow cusub oo kale waxaad u baahan tahay ama Mac computer friend kaa leh. Beddelka, waxaad samayn kartaa:</p>
+  <ol style="margin-top:8px">
+    <li>GitHub → Actions → workflow-ka → Run workflow</li>
+    <li>Marka u horreysa shaqeynayso, Fastlane Match wuxuu ku weydiinaayaa certificates cusub in la sameeyo — wuxuu automatic u samaynayaa</li>
+    <li>Haddii error soo baxdo "no certificates found": workflow log-ka fur, message-ka akhri</li>
+  </ol>
+  <div class="alert orange" style="margin-top:10px">
+    <div class="alert-icon">⚠️</div>
+    <div>Fastlane Match-ku wuxuu Apple Developer Portal-ka ku lognaan doonaa API key-ga adiga laga helay — tani ma baahna manual intervention.</div>
+  </div>
+</div>
+
+<!-- ── STEP 5: RUN ── -->
+<h2><span class="num">6</span> Workflow Run — TestFlight Upload</h2>
+<div class="card">
+  <div class="card-title">🚀 GitHub → Actions → iOS — Build & Upload to TestFlight</div>
+  <ol>
+    <li>Fur: <strong>github.com/mentorkaafi/esahlan_real</strong></li>
+    <li>Tab: <strong>Actions</strong></li>
+    <li>Left sidebar: <strong>"iOS — Build & Upload to TestFlight"</strong></li>
+    <li>Button: <strong>"Run workflow"</strong> → Branch: main → <strong>Run workflow</strong></li>
+    <li>⏱️ <strong>20-35 daqiiqo</strong> sug — Flutter build + Xcode archive + upload</li>
+    <li>Marka dhammaato: <strong>App Store Connect → TestFlight</strong> → build cusub muuqanaysaa</li>
+  </ol>
+  <div class="alert green" style="margin-top:12px">
+    <div class="alert-icon">✅</div>
+    <div>TestFlight-ka build soo gaadhay marka: App Store Connect → "Submit for Review" riix → Apple review 1-2 maalmood → <strong>App Store LIVE! 🎉</strong></div>
+  </div>
+</div>
+
+<!-- ── TIMELINE ── -->
+<div class="page-break"></div>
+<h2>📅 Qorshe — Goorma App Store LIVE</h2>
+<div class="card">
+  <div class="timeline">
+    <div class="tl-item">
+      <div class="tl-dot"></div>
+      <div>
+        <div class="tl-label">Maanta — Android</div>
+        <div class="tl-desc">app-release.aab ✅ diyaar (108MB). Play Console → Upload → Store listing → Submit</div>
+      </div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-dot"></div>
+      <div>
+        <div class="tl-label">Maanta — Apple Enroll</div>
+        <div class="tl-desc">developer.apple.com/enroll → $99 bixi → email confirmation sug</div>
+      </div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-dot"></div>
+      <div>
+        <div class="tl-label">Berri (1-2 maalmood)</div>
+        <div class="tl-desc">Apple approval email → App Store Connect API Key samee → 6 GitHub Secrets ku dar</div>
+      </div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-dot"></div>
+      <div>
+        <div class="tl-label">3aad Maalmood</div>
+        <div class="tl-desc">🚀 Play Store SUBMIT (review 1-3 cisho) + GitHub Actions "Run workflow" → TestFlight upload</div>
+      </div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-dot green"></div>
+      <div>
+        <div class="tl-label">5-7 Maalmood — 🎉 LIVE</div>
+        <div class="tl-desc">Play Store LIVE ✅ + App Store "Submit for Review" → 1-2 cisho → App Store LIVE ✅</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── BASE64 HELPER ── -->
+<h2>🔧 PowerShell — Base64 Commands (kopyee isticmaal)</h2>
+<div class="card">
+  <div class="card-title">Windows PowerShell — Secrets-ka samee</div>
+  <pre style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;padding:14px;font-family:'JetBrains Mono',monospace;font-size:9.5pt;line-height:1.8;overflow-x:auto"><span style="color:#6B7280"># 1. ASC_KEY_CONTENT — .p8 file → base64</span>
+[Convert]::ToBase64String(
+  [IO.File]::ReadAllBytes("C:\Users\CITYSIGN\Downloads\AuthKey_XXXXXXXX.p8")
+) | Set-Clipboard
+<span style="color:#10B981"># ← Clipboard-ga copy garayaa, GitHub Secret-ka paste garee</span>
+
+<span style="color:#6B7280"># 2. MATCH_GIT_BASIC_AUTH — username:token → base64</span>
+[Convert]::ToBase64String(
+  [Text.Encoding]::UTF8.GetBytes("mentorkaafi:ghp_YOUR_PERSONAL_ACCESS_TOKEN")
+) | Set-Clipboard
+
+<span style="color:#6B7280"># 3. GOOGLE_SERVICE_INFO_PLIST_BASE64</span>
+[Convert]::ToBase64String(
+  [IO.File]::ReadAllBytes("C:\Users\CITYSIGN\Desktop\esahlan-project\customer_app\ios\Runner\GoogleService-Info.plist")
+) | Set-Clipboard</pre>
+</div>
+
+<div class="footer">
+  eSahlan · iOS Submission Guide · Compiled 2026-08-28 · mentorkaafi@gmail.com
+</div>
+
+</body>
+</html>

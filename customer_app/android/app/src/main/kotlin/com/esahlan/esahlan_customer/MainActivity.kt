@@ -12,7 +12,7 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterFragmentActivity() {
 
-    private val USSD_CHANNEL = "com.esahlan.app/ussd"
+    private val USSD_CHANNEL = "com.esahlan.user/ussd"
     private val CALL_PERMISSION_CODE = 1001
     private var pendingUssdCode: String? = null
     private var pendingResult: MethodChannel.Result? = null

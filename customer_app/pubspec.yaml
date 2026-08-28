@@ -1,4 +1,4 @@
-name: com.esahlan.app
+name: com.esahlan.user
 description: eSahlan - Everything You Need, Simplified
 publish_to: 'none'
 version: 1.0.0+1
@@ -52,6 +52,8 @@ dependencies:
   # Maps & Location
   google_maps_flutter: ^2.10.0
   geolocator: ^13.0.2
+  flutter_polyline_points: ^2.1.0
+  http: ^1.2.2
   workmanager: ^0.9.0
   geocoding: ^3.0.0
 

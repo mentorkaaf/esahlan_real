@@ -1917,7 +1917,8 @@
       "Bash(ssh -i C:\\\\Users\\\\CITYSIGN\\\\.ssh\\\\esahlan root@168.144.117.91 \"ls /var/www/esahlan/backend/backend/storage/framework/views/ | xargs -I{} php -l /var/www/esahlan/backend/backend/storage/framework/views/{} 2>&1 | grep -v 'No syntax'\")",
       "Bash(ssh -i C:\\\\Users\\\\CITYSIGN\\\\.ssh\\\\esahlan root@168.144.117.91 \"grep -n '<form\\\\|</form\\\\|<\\\\/form' /var/www/esahlan/backend/backend/resources/views/admin/landing/index.blade.php\")",
       "Bash(ssh -i C:/Users/CITYSIGN/.ssh/esahlan root@168.144.117.91 \"cd /var/www/esahlan/backend/backend && git rev-parse --show-toplevel\")",
-      "PowerShell(ssh -i C:\\\\Users\\\\CITYSIGN\\\\.ssh\\\\esahlan root@168.144.117.91 \"cd /var/www/esahlan/backend/backend && git pull 2>&1 | tail -5 && git log --oneline -3\" 2>$null)"
+      "PowerShell(ssh -i C:\\\\Users\\\\CITYSIGN\\\\.ssh\\\\esahlan root@168.144.117.91 \"cd /var/www/esahlan/backend/backend && git pull 2>&1 | tail -5 && git log --oneline -3\" 2>$null)",
+      "Bash(ssh -i /c/Users/CITYSIGN/.ssh/esahlan root@168.144.117.91 \"sed -n '324,380p' /var/www/esahlan/backend/backend/app/Services/FcmService.php\")"
     ]
   }
 }

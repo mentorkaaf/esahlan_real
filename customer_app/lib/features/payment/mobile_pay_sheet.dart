@@ -11,7 +11,7 @@ import '../../core/theme/theme_x.dart';
 
 // ─── USSD Method Channel ──────────────────────────────────────────────────────
 
-const _ussdChannel = MethodChannel('com.esahlan.app/ussd');
+const _ussdChannel = MethodChannel('com.esahlan.user/ussd');
 
 Future<_UssdResult> _dialUssdInApp(String code) async {
   final encoded = code.replaceAll('#', '%23');

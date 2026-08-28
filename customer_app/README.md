@@ -20,7 +20,7 @@ Production Flutter app for Android and iOS — the primary customer-facing inter
 
 ## Package Name
 
-`com.esahlan.app`
+`com.esahlan.user`
 
 > **Important:** The package name contains dots. All imports must be **relative**, never `package:customer_app/...`.
 

@@ -18,6 +18,11 @@ class OrderModel {
   final Map<String, dynamic>? parcelDetails;
   final dynamic history;
   final OrderDriverModel? driver;
+  // Tracking coordinates
+  final double? pickupLat;
+  final double? pickupLng;
+  final double? deliveryLat;
+  final double? deliveryLng;
 
   const OrderModel({
     required this.id,
@@ -37,6 +42,10 @@ class OrderModel {
     this.parcelDetails,
     this.history,
     this.driver,
+    this.pickupLat,
+    this.pickupLng,
+    this.deliveryLat,
+    this.deliveryLng,
   });
 
   factory OrderModel.fromJson(Map<String, dynamic> j) => OrderModel(
@@ -64,6 +73,10 @@ class OrderModel {
         : null,
     history: j['history'],
     driver: j['driver'] is Map ? OrderDriverModel.fromJson(Map<String, dynamic>.from(j['driver'])) : null,
+    pickupLat:   (j['pickup_lat']   as num?)?.toDouble(),
+    pickupLng:   (j['pickup_lng']   as num?)?.toDouble(),
+    deliveryLat: (j['delivery_lat'] as num?)?.toDouble(),
+    deliveryLng: (j['delivery_lng'] as num?)?.toDouble(),
   );
 
   String get statusLabel {
@@ -94,6 +107,8 @@ class OrderDriverModel {
   final String? vehicleType;
   final double rating;
   final String? photo;
+  final double? lat;
+  final double? lng;
 
   const OrderDriverModel({
     required this.id,
@@ -102,6 +117,8 @@ class OrderDriverModel {
     this.vehicleType,
     this.rating = 5.0,
     this.photo,
+    this.lat,
+    this.lng,
   });
 
   factory OrderDriverModel.fromJson(Map<String, dynamic> j) => OrderDriverModel(
@@ -111,6 +128,8 @@ class OrderDriverModel {
     vehicleType: j['vehicle_type']?.toString(),
     rating: (j['rating'] as num?)?.toDouble() ?? 5.0,
     photo: j['photo']?.toString(),
+    lat: (j['lat'] as num?)?.toDouble(),
+    lng: (j['lng'] as num?)?.toDouble(),
   );
 }
 

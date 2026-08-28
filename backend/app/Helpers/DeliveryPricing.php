@@ -36,7 +36,14 @@ class DeliveryPricing
             ->where('is_active', true)
             ->first();
 
-        return $zone ? (float) $zone->base_price : $default;
+        $price = $zone ? (float) $zone->base_price : $default;
+
+        // Same-district deliveries are capped at $1.00
+        if ($fromDistrictId === $toDistrictId) {
+            $price = min($price, 1.00);
+        }
+
+        return $price;
     }
 
     /**
