@@ -17,6 +17,7 @@ import '../../payment/waafi_pay_sheet.dart';
 import '../../payment/mobile_pay_sheet.dart';
 import '../../payment/payment_method_section.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
+import '../../../shared/widgets/app_button.dart';
 import '../../../features/wallet/presentation/providers/wallet_provider.dart';
 import '../../ads/services/ad_service.dart';
 import '../../auth/data/models/district_model.dart';
@@ -2486,9 +2487,11 @@ class _CartPage extends ConsumerStatefulWidget {
 }
 
 class _CartPageState extends ConsumerState<_CartPage> {
-  final _promoCtrl = TextEditingController();
+  final _couponCtrl = TextEditingController();
+  bool _validatingCoupon = false;
   double _discount = 0;
-  bool _promoApplied = false;
+  bool _couponValid = false;
+  String? _couponMessage;
   double _deliveryFee = AppConstants.foodDeliveryFee;
 
   @override
@@ -2500,176 +2503,269 @@ class _CartPageState extends ConsumerState<_CartPage> {
   Future<void> _fetchDeliveryFee() async {
     final cart = ref.read(_cartProvider);
     final user = ref.read(authStateProvider).valueOrNull;
-    final vendorId = cart.isNotEmpty ? (cart.first.product['vendor_id'] as num?)?.toInt() : null;
     final districtId = user?.districtId;
-    if (vendorId == null || districtId == null) return;
+    if (districtId == null || cart.isEmpty) return;
+    final vendorId = (cart.first.product['vendor_id'] as num?)?.toInt();
+    if (vendorId == null) return;
     try {
       final r = await _svc.getEFoodDeliveryFee(vendorId: vendorId, districtId: districtId);
-      final fee = (r['data']?['delivery_fee'] as num?)?.toDouble() ?? 0.0;
-      if (mounted) setState(() => _deliveryFee = fee);
+      final fee = (r['data']?['delivery_fee'] as num?)?.toDouble()
+          ?? double.tryParse('${r?['delivery_fee'] ?? ''}');
+      if (mounted && fee != null) setState(() => _deliveryFee = fee);
     } catch (_) {}
   }
 
-  @override
-  void dispose() { _promoCtrl.dispose(); super.dispose(); }
-
-  void _applyPromo() async {
-    if (_promoCtrl.text.isEmpty) return;
-    // call API to apply coupon
-    setState(() { _discount = 2.0; _promoApplied = true; });
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Promo code applied! -\$2.00'), backgroundColor: Colors.green, behavior: SnackBarBehavior.floating));
+  Future<void> _applyCoupon() async {
+    final code = _couponCtrl.text.trim();
+    if (code.isEmpty) return;
+    setState(() => _validatingCoupon = true);
+    // TODO: wire to real coupon API
+    await Future.delayed(const Duration(milliseconds: 400));
+    if (mounted) setState(() {
+      _validatingCoupon = false;
+      _couponValid = false;
+      _discount = 0;
+      _couponMessage = 'Invalid or expired coupon code';
+    });
   }
 
   @override
+  void dispose() { _couponCtrl.dispose(); super.dispose(); }
+
+  @override
   Widget build(BuildContext context) {
+    final l = AppL10n.of(context);
     final cart = ref.watch(_cartProvider);
     final notifier = ref.read(_cartProvider.notifier);
     final subtotal = notifier.subtotal;
-    final deliveryFee = _deliveryFee;
-    final total = subtotal + deliveryFee - _discount;
+    final total = subtotal + _deliveryFee - _discount;
 
     return Scaffold(
       backgroundColor: context.colors.scaffoldBg,
       appBar: AppBar(
-        backgroundColor: context.colors.cardBg,
         elevation: 0,
-        leading: IconButton(icon: Icon(Icons.arrow_back_rounded, color: context.colors.navyText), onPressed: () => Navigator.pop(context)),
-        title: Text('Your Cart', style: TextStyle(color: context.colors.navyText, fontWeight: FontWeight.w700, fontSize: 18)),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Row(mainAxisSize: MainAxisSize.min, children: [
+          Text(l.myCart, style: const TextStyle(fontWeight: FontWeight.w800, fontFamily: 'Cairo')),
+          if (cart.isNotEmpty) ...[
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(color: _primary, borderRadius: BorderRadius.circular(12)),
+              child: Text('${cart.length}', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ]),
         actions: [
-          if (cart.isNotEmpty)
-            TextButton(onPressed: () => ref.read(_cartProvider.notifier).clear(), child: const Text('Clear', style: TextStyle(color: Colors.red))),
+          if (cart.isNotEmpty) TextButton(
+            onPressed: () => ref.read(_cartProvider.notifier).clear(),
+            child: Text(l.clearAll, style: const TextStyle(color: AppColors.error, fontWeight: FontWeight.w700)),
+          ),
         ],
       ),
       body: cart.isEmpty
           ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-              const Text('🛒', style: TextStyle(fontSize: 60)),
-              const SizedBox(height: 16),
-              Text(AppL10n.of(context).emptyCart, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: context.colors.navyText)),
+              Container(
+                width: 120, height: 120,
+                decoration: BoxDecoration(color: context.colors.surfaceBg, borderRadius: BorderRadius.circular(60)),
+                child: const Icon(Icons.shopping_bag_outlined, size: 60, color: AppColors.textGrey),
+              ),
+              const SizedBox(height: 20),
+              Text(l.emptyCart, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: context.colors.navyText)),
               const SizedBox(height: 8),
-              Text('Add items to get started', style: TextStyle(color: Colors.grey[500])),
+              Text(l.addProductsToStart, style: const TextStyle(color: AppColors.textGrey, fontSize: 14)),
+              const SizedBox(height: 24),
+              AppButton(label: l.browseProducts, width: 180, onPressed: () => Navigator.pop(context)),
             ]))
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                ...cart.map((item) => _CartItemTile(item: item)),
-                const SizedBox(height: 16),
-                // Promo code
-                Container(
-                  decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(14), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)]),
-                  child: Row(children: [
+          : ListView(padding: const EdgeInsets.fromLTRB(16, 16, 16, 120), children: [
+              // Cart items — swipe to delete
+              ...cart.map((item) => Dismissible(
+                key: Key(item.key),
+                direction: DismissDirection.endToStart,
+                background: Container(
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 20),
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(color: AppColors.error, borderRadius: BorderRadius.circular(14)),
+                  child: const Icon(Icons.delete_outline_rounded, color: Colors.white, size: 28),
+                ),
+                onDismissed: (_) => ref.read(_cartProvider.notifier).remove(item.key),
+                child: _CartItemTile(item: item),
+              )),
+
+              const SizedBox(height: 8),
+
+              // Coupon
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: context.colors.cardBg,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)],
+                ),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(l.couponCode, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: context.colors.navyText)),
+                  const SizedBox(height: 12),
+                  Row(children: [
                     Expanded(child: TextField(
-                      controller: _promoCtrl,
-                      decoration: const InputDecoration(
-                        hintText: 'Enter promo code',
-                        hintStyle: TextStyle(color: Colors.grey, fontSize: 13),
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.fromLTRB(14, 14, 0, 14),
-                        prefixIcon: Icon(Icons.local_offer_rounded, color: Colors.grey, size: 18),
+                      controller: _couponCtrl,
+                      textCapitalization: TextCapitalization.characters,
+                      decoration: InputDecoration(
+                        hintText: l.enterCouponCode,
+                        filled: true, fillColor: context.colors.scaffoldBg,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                        suffixIcon: _couponValid ? const Icon(Icons.check_circle_rounded, color: AppColors.success) : null,
                       ),
                     )),
-                    GestureDetector(
-                      onTap: _applyPromo,
-                      child: Container(
-                        margin: const EdgeInsets.all(6),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        decoration: BoxDecoration(color: _promoApplied ? Colors.green : _primary, borderRadius: BorderRadius.circular(10)),
-                        child: Text(_promoApplied ? 'Applied ✓' : 'Apply', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
-                      ),
+                    const SizedBox(width: 10),
+                    AppButton(
+                      label: l.apply,
+                      width: 80, height: 46,
+                      isLoading: _validatingCoupon,
+                      onPressed: _applyCoupon,
                     ),
                   ]),
+                  if (_couponMessage != null) Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(_couponMessage!, style: TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w600,
+                      color: _couponValid ? AppColors.success : AppColors.error,
+                    )),
+                  ),
+                ]),
+              ),
+
+              const SizedBox(height: 12),
+
+              // Order Summary
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: context.colors.cardBg,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)],
                 ),
-                const SizedBox(height: 16),
-                // Price breakdown
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)]),
-                  child: Column(children: [
-                    _PriceRow(AppL10n.of(context).subtotal, '\$${subtotal.toStringAsFixed(2)}'),
-                    _PriceRow(AppL10n.of(context).deliveryFee, '\$${deliveryFee.toStringAsFixed(2)}'),
-                    if (_discount > 0) _PriceRow('Discount', '-\$${_discount.toStringAsFixed(2)}', color: Colors.green),
-                    const Divider(height: 20),
-                    Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                      Text('Total', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: context.colors.navyText)),
-                      Text('\$${total.toStringAsFixed(2)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: _primary)),
-                    ]),
+                child: Column(children: [
+                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                    Text(l.orderSummaryLabel, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: context.colors.navyText)),
                   ]),
-                ),
-                const SizedBox(height: 100),
-              ],
-            ),
+                  const SizedBox(height: 16),
+                  _summaryRow(context, l.subtotal, '\$${subtotal.toStringAsFixed(2)}'),
+                  if (_discount > 0) _summaryRow(context, l.discount, '-\$${_discount.toStringAsFixed(2)}', valueColor: AppColors.success),
+                  _summaryRow(context, l.deliveryFee, '\$${_deliveryFee.toStringAsFixed(2)}'),
+                  const Divider(height: 20),
+                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                    Text(l.total, style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: context.colors.navyText)),
+                    Text('\$${total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: _primary)),
+                  ]),
+                ]),
+              ),
+            ]),
       bottomNavigationBar: cart.isEmpty ? null : Container(
-        color: context.colors.cardBg,
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
-        child: GestureDetector(
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => _CheckoutPage(
-            subtotal: subtotal, deliveryFee: deliveryFee, discount: _discount,
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        decoration: BoxDecoration(
+          color: context.colors.cardBg,
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 12, offset: const Offset(0, -2))],
+        ),
+        child: AppButton(
+          label: '${l.proceedCheckout}  \$${total.toStringAsFixed(2)}',
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => _CheckoutPage(
+            subtotal: subtotal, deliveryFee: _deliveryFee, discount: _discount,
           ))),
-          child: Container(
-            height: 56,
-            decoration: BoxDecoration(
-              color: _primary,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [BoxShadow(color: _primary.withValues(alpha: 0.4), blurRadius: 14, offset: const Offset(0, 6))],
-            ),
-            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Text(AppL10n.of(context).checkout, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
-                    const SizedBox(width: 8),
-                    Text('\$${total.toStringAsFixed(2)}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16)),
-                  ]),
-          ),
         ),
       ),
     );
   }
+
+  Widget _summaryRow(BuildContext context, String label, String value, {Color? valueColor}) => Padding(
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+      Text(label, style: const TextStyle(color: AppColors.textGrey, fontSize: 14)),
+      Text(value, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: valueColor ?? context.colors.navyText)),
+    ]),
+  );
 }
 
 class _CartItemTile extends ConsumerWidget {
   final _CartItem item;
-  const _CartItemTile({required this.item});
+  const _CartItemTile({super.key, required this.item});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final p = item.product;
+    final imageUrl = p['image'] ?? p['thumbnail'];
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(14), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)]),
+      decoration: BoxDecoration(
+        color: context.colors.cardBg,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)],
+      ),
       child: Row(children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(10),
-          child: p['image'] != null
-              ? NetImage(url: p['image'], width: 70, height: 70, fit: BoxFit.cover)
-              : Container(width: 70, height: 70, color: _primary.withValues(alpha: 0.1), child: const Center(child: Text('🍕', style: TextStyle(fontSize: 30)))),
+          child: imageUrl != null
+              ? NetImage(url: imageUrl, width: 72, height: 72, fit: BoxFit.cover,
+                  errorWidget: Container(width: 72, height: 72, color: context.colors.surfaceBg, child: const Icon(Icons.restaurant_menu_rounded, color: AppColors.divider)))
+              : Container(width: 72, height: 72, color: context.colors.surfaceBg, child: const Icon(Icons.restaurant_menu_rounded, color: AppColors.divider)),
         ),
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(p['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: context.colors.navyText)),
-          if (item.size != null) Text(item.size!, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-          const SizedBox(height: 4),
+          Text(p['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.colors.navyText), maxLines: 2, overflow: TextOverflow.ellipsis),
+          if (item.size != null) Text(item.size!, style: const TextStyle(fontSize: 11, color: AppColors.textGrey)),
+          const SizedBox(height: 8),
           Row(children: [
-            Text('\$${item.unitPrice.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: _primary)),
+            Text('\$${item.unitPrice.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: _primary)),
             if (item.hasDiscount) ...[
               const SizedBox(width: 6),
-              Text('\$${(item.originalPrice + item.addons.fold(0.0, (s, a) => s + (double.tryParse('${a['price'] ?? 0}') ?? 0))).toStringAsFixed(2)}',
-                  style: const TextStyle(fontSize: 11, color: Colors.grey,
-                      decoration: TextDecoration.lineThrough, decorationColor: Colors.grey)),
+              Text('\$${item.originalPrice.toStringAsFixed(2)}',
+                  style: const TextStyle(fontSize: 11, color: AppColors.textGrey,
+                      decoration: TextDecoration.lineThrough, decorationColor: AppColors.textGrey)),
             ],
+            const Spacer(),
+            _FoodQtyControl(
+              qty: item.qty,
+              onMinus: () => ref.read(_cartProvider.notifier).decrement(item.key),
+              onPlus:  () => ref.read(_cartProvider.notifier).increment(item.key),
+            ),
           ]),
         ])),
-        Row(children: [
-          GestureDetector(
-            onTap: () => ref.read(_cartProvider.notifier).decrement(item.key),
-            child: Container(width: 28, height: 28, decoration: BoxDecoration(color: context.colors.surfaceBg, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.shade200)), child: const Icon(Icons.remove_rounded, size: 16)),
-          ),
-          Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: Text('${item.qty}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15))),
-          GestureDetector(
-            onTap: () => ref.read(_cartProvider.notifier).increment(item.key),
-            child: Container(width: 28, height: 28, decoration: BoxDecoration(color: _primary, borderRadius: BorderRadius.circular(8)), child: Icon(Icons.add_rounded, size: 16, color: context.colors.cardBg)),
-          ),
-        ]),
       ]),
     );
   }
+}
+
+class _FoodQtyControl extends StatelessWidget {
+  final int qty;
+  final VoidCallback onMinus;
+  final VoidCallback onPlus;
+  const _FoodQtyControl({required this.qty, required this.onMinus, required this.onPlus});
+
+  @override
+  Widget build(BuildContext context) => Row(children: [
+    _btn(Icons.remove_rounded, onMinus, qty > 1, context),
+    SizedBox(width: 32, child: Text('$qty', textAlign: TextAlign.center,
+        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText))),
+    _btn(Icons.add_rounded, onPlus, true, context),
+  ]);
+
+  Widget _btn(IconData icon, VoidCallback fn, bool active, BuildContext context) => GestureDetector(
+    onTap: active ? fn : null,
+    child: Container(
+      width: 28, height: 28,
+      decoration: BoxDecoration(
+        color: active ? _primary : AppColors.surface,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Icon(icon, size: 14, color: active ? Colors.white : AppColors.textGrey),
+    ),
+  );
 }
 
 class _PriceRow extends StatelessWidget {
