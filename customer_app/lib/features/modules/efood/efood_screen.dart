@@ -2510,10 +2510,14 @@ class _CartPageState extends ConsumerState<_CartPage> {
     if (vendorId == null) return;
     try {
       final r = await _svc.getEFoodDeliveryFee(vendorId: vendorId, districtId: districtId);
+      debugPrint('[eFood Cart] delivery-fee response: $r');
       final fee = (r['data']?['delivery_fee'] as num?)?.toDouble()
           ?? double.tryParse('${r?['delivery_fee'] ?? ''}');
+      debugPrint('[eFood Cart] parsed fee: $fee (vendorId=$vendorId, districtId=$districtId)');
       if (mounted && fee != null) setState(() => _deliveryFee = fee);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[eFood Cart] _fetchDeliveryFee error: $e');
+    }
   }
 
   Future<void> _applyCoupon() async {
@@ -2846,9 +2850,13 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
     if (vendorId == null) return;
     try {
       final r = await _svc.getEFoodDeliveryFee(vendorId: vendorId, districtId: districtId);
+      debugPrint('[eFood Checkout] delivery-fee response: $r');
       final fee = (r['data']?['delivery_fee'] as num?)?.toDouble();
+      debugPrint('[eFood Checkout] parsed fee: $fee');
       if (mounted && fee != null) setState(() => _deliveryFee = fee);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[eFood Checkout] _fetchZoneFee error: $e');
+    }
   }
 
   Future<void> _pickDistrict() async {
