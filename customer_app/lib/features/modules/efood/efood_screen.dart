@@ -2489,7 +2489,7 @@ class _CartPageState extends ConsumerState<_CartPage> {
   final _promoCtrl = TextEditingController();
   double _discount = 0;
   bool _promoApplied = false;
-  double _deliveryFee = 0.0;
+  double _deliveryFee = AppConstants.foodDeliveryFee;
 
   @override
   void initState() {
