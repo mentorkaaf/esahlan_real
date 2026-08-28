@@ -323,7 +323,7 @@ class EFoodController extends Controller
             ->whereNull('products.deleted_at')      // exclude soft-deleted
             ->where('products.is_available', true)  // exclude unavailable
             ->select([
-                'products.id', 'products.name', 'products.description',
+                'products.id', 'products.vendor_id', 'products.name', 'products.description',
                 'products.price', 'products.compare_price', 'products.sale_price',
                 'products.thumbnail', 'products.image', 'products.is_featured',
                 'products.is_available', 'products.sort_order',
