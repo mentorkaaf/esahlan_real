@@ -85,6 +85,8 @@ class ModuleApiService {
   Future<dynamic> getFoodOrders()     => _get('/efood/orders');
   Future<dynamic> getFoodOrder(int id) => _get('/efood/orders/$id');
   Future<dynamic> trackFoodOrder(int id) => _get('/efood/orders/$id/track');
+  Future<dynamic> getEFoodDeliveryFee({required int vendorId, required int districtId}) =>
+      _get('/efood/delivery-fee', params: {'vendor_id': vendorId, 'district_id': districtId});
   Future<dynamic> getFoodFavorites()  => _get('/efood/favorites');
   Future<dynamic> toggleFoodFavorite(int restaurantId) => _post('/efood/favorites/toggle', {'restaurant_id': restaurantId});
   Future<dynamic> getRestaurantCoupons(int id)   => _get('/efood/restaurants/$id/coupons');

@@ -2489,6 +2489,30 @@ class _CartPageState extends ConsumerState<_CartPage> {
   final _promoCtrl = TextEditingController();
   double _discount = 0;
   bool _promoApplied = false;
+  double? _deliveryFee;
+  bool _feeLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _fetchDeliveryFee());
+  }
+
+  Future<void> _fetchDeliveryFee() async {
+    final cart = ref.read(_cartProvider);
+    final user = ref.read(authStateProvider).valueOrNull;
+    final vendorId = cart.isNotEmpty ? (cart.first.product['vendor_id'] as num?)?.toInt() : null;
+    final districtId = user?.districtId;
+    if (vendorId == null || districtId == null) return;
+    setState(() => _feeLoading = true);
+    try {
+      final r = await _svc.getEFoodDeliveryFee(vendorId: vendorId, districtId: districtId);
+      final fee = (r['data']?['delivery_fee'] as num?)?.toDouble() ?? 2.0;
+      if (mounted) setState(() { _deliveryFee = fee; _feeLoading = false; });
+    } catch (_) {
+      if (mounted) setState(() { _deliveryFee = 2.0; _feeLoading = false; });
+    }
+  }
 
   @override
   void dispose() { _promoCtrl.dispose(); super.dispose(); }
@@ -2505,9 +2529,8 @@ class _CartPageState extends ConsumerState<_CartPage> {
     final cart = ref.watch(_cartProvider);
     final notifier = ref.read(_cartProvider.notifier);
     final subtotal = notifier.subtotal;
-    const deliveryFee = AppConstants.foodDeliveryFee;
-    const tax = 0.90;
-    final total = subtotal + deliveryFee + tax - _discount;
+    final deliveryFee = _deliveryFee ?? AppConstants.foodDeliveryFee;
+    final total = subtotal + deliveryFee - _discount;
 
     return Scaffold(
       backgroundColor: context.colors.scaffoldBg,
@@ -2566,8 +2589,9 @@ class _CartPageState extends ConsumerState<_CartPage> {
                   decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)]),
                   child: Column(children: [
                     _PriceRow(AppL10n.of(context).subtotal, '\$${subtotal.toStringAsFixed(2)}'),
-                    _PriceRow(AppL10n.of(context).deliveryFee, '\$${deliveryFee.toStringAsFixed(2)}'),
-                    _PriceRow('Tax', '\$${tax.toStringAsFixed(2)}'),
+                    _feeLoading
+                        ? const Padding(padding: EdgeInsets.symmetric(vertical: 6), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('Delivery Fee', style: TextStyle(color: Colors.grey)), SizedBox(width: 60, height: 12, child: LinearProgressIndicator())]))
+                        : _PriceRow(AppL10n.of(context).deliveryFee, '\$${deliveryFee.toStringAsFixed(2)}'),
                     if (_discount > 0) _PriceRow('Discount', '-\$${_discount.toStringAsFixed(2)}', color: Colors.green),
                     const Divider(height: 20),
                     Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
@@ -2584,7 +2608,7 @@ class _CartPageState extends ConsumerState<_CartPage> {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
         child: GestureDetector(
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => _CheckoutPage(
-            subtotal: subtotal, deliveryFee: deliveryFee, tax: tax, discount: _discount,
+            subtotal: subtotal, deliveryFee: deliveryFee, discount: _discount,
           ))),
           child: Container(
             height: 56,
@@ -2592,7 +2616,7 @@ class _CartPageState extends ConsumerState<_CartPage> {
             child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
               Text(AppL10n.of(context).checkout, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
               const SizedBox(width: 8),
-              Text('\$${(subtotal + deliveryFee + tax - _discount).toStringAsFixed(2)}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16)),
+              Text('\$${total.toStringAsFixed(2)}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16)),
             ]),
           ),
         ),
@@ -2669,8 +2693,8 @@ class _PriceRow extends StatelessWidget {
 // ════════════════════════════════════════════════════════════════════
 
 class _CheckoutPage extends ConsumerStatefulWidget {
-  final double subtotal, deliveryFee, tax, discount;
-  const _CheckoutPage({required this.subtotal, required this.deliveryFee, required this.tax, required this.discount});
+  final double subtotal, deliveryFee, discount;
+  const _CheckoutPage({required this.subtotal, required this.deliveryFee, required this.discount});
 
   @override
   ConsumerState<_CheckoutPage> createState() => _CheckoutPageState();
@@ -2686,12 +2710,15 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
   final _phoneCtrl = TextEditingController();
   int    _pointsToRedeem = 0;
   double _pointsDiscount = 0.0;
+  double _deliveryFee = 0.0;
+  bool _feeLoading = false;
 
-  double get _total => widget.subtotal + widget.deliveryFee + widget.tax - widget.discount - _pointsDiscount;
+  double get _total => widget.subtotal + _deliveryFee - widget.discount - _pointsDiscount;
 
   @override
   void initState() {
     super.initState();
+    _deliveryFee = widget.deliveryFee;
     WidgetsBinding.instance.addPostFrameCallback((_) => _initDistrict());
   }
 
@@ -2711,9 +2738,24 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
       if (user.districtId != null) {
         _districtId   = user.districtId;
         _districtName = user.districtName;
+        _fetchZoneFee(user.districtId!);
       }
       _districtInitialized = true;
       setState(() {});
+    }
+  }
+
+  Future<void> _fetchZoneFee(int districtId) async {
+    final cart = ref.read(_cartProvider);
+    final vendorId = cart.isNotEmpty ? (cart.first.product['vendor_id'] as num?)?.toInt() : null;
+    if (vendorId == null) return;
+    setState(() => _feeLoading = true);
+    try {
+      final r = await _svc.getEFoodDeliveryFee(vendorId: vendorId, districtId: districtId);
+      final fee = (r['data']?['delivery_fee'] as num?)?.toDouble() ?? widget.deliveryFee;
+      if (mounted) setState(() { _deliveryFee = fee; _feeLoading = false; });
+    } catch (_) {
+      if (mounted) setState(() => _feeLoading = false);
     }
   }
 
@@ -2730,6 +2772,7 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
         onSelected: (d) {
           setState(() { _districtId = d.id; _districtName = d.name; });
           Navigator.pop(context);
+          _fetchZoneFee(d.id);
         },
       ),
     );
@@ -2786,7 +2829,7 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
 
         const SizedBox(height: 24),
         RedeemPointsBar(
-          orderTotal: widget.subtotal + widget.deliveryFee + widget.tax - widget.discount,
+          orderTotal: widget.subtotal + _deliveryFee - widget.discount,
           onChanged: (pts, disc) => setState(() { _pointsToRedeem = pts; _pointsDiscount = disc; }),
         ),
         const SizedBox(height: 8),
@@ -2809,8 +2852,9 @@ class _CheckoutPageState extends ConsumerState<_CheckoutPage> {
           decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)]),
           child: Column(children: [
             _PriceRow('${ref.read(_cartProvider.notifier).totalItems} Items', '\$${widget.subtotal.toStringAsFixed(2)}'),
-            _PriceRow(AppL10n.of(context).deliveryFee, '\$${widget.deliveryFee.toStringAsFixed(2)}'),
-            _PriceRow('Tax', '\$${widget.tax.toStringAsFixed(2)}'),
+            _feeLoading
+                ? const Padding(padding: EdgeInsets.symmetric(vertical: 6), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('Delivery Fee', style: TextStyle(color: Colors.grey)), SizedBox(width: 60, height: 12, child: LinearProgressIndicator())]))
+                : _PriceRow(AppL10n.of(context).deliveryFee, '\$${_deliveryFee.toStringAsFixed(2)}'),
             if (widget.discount > 0) _PriceRow('Discount', '-\$${widget.discount.toStringAsFixed(2)}', color: Colors.green),
             if (_pointsDiscount > 0) _PriceRow('Points ($_pointsToRedeem pts)', '-\$${_pointsDiscount.toStringAsFixed(2)}', color: const Color(0xFFF59E0B)),
             const Divider(height: 20),
@@ -3053,9 +3097,19 @@ class _TrackOrderPage extends ConsumerWidget {
     );
   }
 
+  String _statusLabel(String status) {
+    switch (status) {
+      case 'confirmed':  return 'Confirmed ✓';
+      case 'preparing':  return 'Preparing…';
+      case 'on_the_way': return 'On the Way 🛵';
+      case 'delivered':  return 'Delivered ✓';
+      default:           return 'Order Placed ✓';
+    }
+  }
+
   Widget _buildTracking(BuildContext context, dynamic data) {
-    final status = data?['status'] ?? 'on_the_way';
-    final eta = data?['eta'] ?? '20-25 min';
+    final status = data?['status'] ?? 'pending';
+    final orderNumber = data?['order_number'] ?? '#ES${orderId.toString().padLeft(6, '0')}';
     final rider = data?['rider'];
 
     final steps = [
@@ -3074,7 +3128,7 @@ class _TrackOrderPage extends ConsumerWidget {
         decoration: BoxDecoration(color: _secondary, borderRadius: BorderRadius.circular(20)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text('Order #ES${orderId.toString().padLeft(6, '0')}', style: const TextStyle(color: Colors.white70, fontSize: 13)),
+            Text('Order $orderNumber', style: const TextStyle(color: Colors.white70, fontSize: 13)),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
@@ -3082,8 +3136,8 @@ class _TrackOrderPage extends ConsumerWidget {
             ),
           ]),
           const SizedBox(height: 8),
-          const Text('Estimated Delivery', style: TextStyle(color: Colors.white60, fontSize: 12)),
-          Text(eta, style: const TextStyle(color: _primary, fontSize: 32, fontWeight: FontWeight.w900)),
+          const Text('Order Status', style: TextStyle(color: Colors.white60, fontSize: 12)),
+          Text(_statusLabel(status), style: const TextStyle(color: _primary, fontSize: 28, fontWeight: FontWeight.w900)),
           const SizedBox(height: 20),
           // Timeline
           Row(children: steps.asMap().entries.map((entry) {
@@ -3112,92 +3166,67 @@ class _TrackOrderPage extends ConsumerWidget {
 
       const SizedBox(height: 16),
 
-      // Map placeholder
-      Container(
-        height: 200,
-        decoration: BoxDecoration(
-          color: const Color(0xFFE8F5E9),
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 12)],
+      // Order confirmation info card
+      if (data == null)
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(18), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 12)]),
+          child: Row(children: [
+            Container(width: 56, height: 56, decoration: BoxDecoration(color: _primary.withValues(alpha: 0.1), shape: BoxShape.circle), child: const Center(child: CircularProgressIndicator(color: _primary, strokeWidth: 2.5))),
+            const SizedBox(width: 16),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Order Placed!', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText)),
+              const SizedBox(height: 4),
+              const Text('Loading order details…', style: TextStyle(color: Colors.grey, fontSize: 13)),
+            ])),
+          ]),
+        )
+      else
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(18), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 12)]),
+          child: Row(children: [
+            Container(
+              width: 56, height: 56,
+              decoration: BoxDecoration(color: _primary.withValues(alpha: 0.1), shape: BoxShape.circle),
+              child: const Icon(Icons.check_circle_rounded, color: _primary, size: 32),
+            ),
+            const SizedBox(width: 16),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Order Confirmed!', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.navyText)),
+              const SizedBox(height: 4),
+              Text('Your food is being prepared', style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+            ])),
+          ]),
         ),
-        child: Stack(children: [
-          // Map background pattern
-          ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: Container(
-              color: const Color(0xFFDCEDC8),
-              child: GridView.builder(
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 8),
-                itemCount: 80,
-                itemBuilder: (_, i) => Container(
-                  margin: const EdgeInsets.all(1),
-                  decoration: BoxDecoration(
-                    color: i % 7 == 0 ? const Color(0xFFBBDEFB).withValues(alpha: 0.4) : Colors.transparent,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
+
+      // Rider card (only if rider assigned)
+      if (rider != null) ...[
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(18), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 12)]),
+          child: Row(children: [
+            CircleAvatar(
+              radius: 28,
+              backgroundColor: _primary.withValues(alpha: 0.1),
+              child: const Icon(Icons.person_rounded, color: _primary, size: 30),
             ),
-          ),
-          // Route line
-          Center(child: CustomPaint(size: const Size(200, 120), painter: _RoutePainter())),
-          // Markers
-          Positioned(top: 40, left: 60, child: const Icon(Icons.location_pin, color: _primary, size: 32)),
-          Positioned(bottom: 40, right: 60, child: const Icon(Icons.home_rounded, color: _secondary, size: 32)),
-        ]),
-      ),
-
-      const SizedBox(height: 16),
-
-      // Rider card
-      Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(18), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 12)]),
-        child: Row(children: [
-          CircleAvatar(
-            radius: 28,
-            backgroundColor: _primary.withValues(alpha: 0.1),
-            child: const Icon(Icons.person_rounded, color: _primary, size: 30),
-          ),
-          const SizedBox(width: 12),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(rider?['name'] ?? 'Abdi Hassan', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: context.colors.navyText)),
-            const Text('Your Rider', style: TextStyle(fontSize: 12, color: Colors.grey)),
-            Row(children: [const Icon(Icons.star_rounded, color: Colors.amber, size: 14), Text(' ${rider?['rating'] ?? '4.8'}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12))]),
-          ])),
-          Row(children: [
-            _RiderBtn(icon: Icons.phone_rounded, onTap: () {}),
-            const SizedBox(width: 8),
-            _RiderBtn(icon: Icons.chat_rounded, onTap: () {}),
+            const SizedBox(width: 12),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(rider['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: context.colors.navyText)),
+              const Text('Your Rider', style: TextStyle(fontSize: 12, color: Colors.grey)),
+              if (rider['rating'] != null)
+                Row(children: [const Icon(Icons.star_rounded, color: Colors.amber, size: 14), Text(' ${rider['rating']}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12))]),
+            ])),
+            Row(children: [
+              _RiderBtn(icon: Icons.phone_rounded, onTap: () {}),
+              const SizedBox(width: 8),
+              _RiderBtn(icon: Icons.chat_rounded, onTap: () {}),
+            ]),
           ]),
-        ]),
-      ),
-
-      const SizedBox(height: 16),
-
-      // Arriving + Live Location
-      Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(color: context.colors.cardBg, borderRadius: BorderRadius.circular(18)),
-        child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Arriving in', style: TextStyle(color: Colors.grey, fontSize: 13)),
-            Text(data?['arriving_in'] ?? '8 min', style: const TextStyle(color: _primary, fontSize: 20, fontWeight: FontWeight.w800)),
-          ]),
-          GestureDetector(
-            onTap: () {},
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              decoration: BoxDecoration(
-                border: Border.all(color: _primary, width: 2),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Text('Live Location', style: TextStyle(color: _primary, fontWeight: FontWeight.w700, fontSize: 13)),
-            ),
-          ),
-        ]),
-      ),
+        ),
+      ],
     ]);
   }
 }
@@ -3219,23 +3248,6 @@ class _RiderBtn extends StatelessWidget {
       child: Icon(icon, color: _primary, size: 20),
     ),
   );
-}
-
-class _RoutePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = _primary
-      ..strokeWidth = 3
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-    final path = Path()
-      ..moveTo(size.width * 0.3, size.height * 0.2)
-      ..cubicTo(size.width * 0.3, size.height * 0.6, size.width * 0.7, size.height * 0.4, size.width * 0.7, size.height * 0.8);
-    canvas.drawPath(path, paint);
-  }
-  @override
-  bool shouldRepaint(_) => false;
 }
 
 // ════════════════════════════════════════════════════════════════════
