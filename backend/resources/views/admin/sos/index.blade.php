@@ -379,11 +379,11 @@ let alarmPlaying= false;
 let currentFilter= 'all';
 let sosMap, markers= {};
 
-// ── Google Maps init (called by Maps JS API callback) ────────────
+// ── Google Maps init ─────────────────────────────────────────────
 window.initSosMap = function() {
     sosMap = new google.maps.Map(document.getElementById('sosMap'), {
         zoom: 13,
-        center: { lat: 2.0469, lng: 45.3182 }, // Mogadishu default
+        center: { lat: 2.0469, lng: 45.3182 },
         mapTypeId: 'roadmap',
         styles: [
             { elementType:'geometry', stylers:[{color:'#1d2c4d'}] },
@@ -398,7 +398,6 @@ window.initSosMap = function() {
         mapTypeControl: false,
     });
 
-    // Plot existing active alerts
     @foreach($alerts->whereIn('status',['active','pending'])->where('latitude','!=',null) as $a)
     addMarker({{ $a->id }}, {{ $a->latitude }}, {{ $a->longitude }},
         '{{ addslashes($a->driver_name ?? "Driver #".$a->deliveryman_id) }}',
@@ -407,7 +406,6 @@ window.initSosMap = function() {
         true);
     @endforeach
 
-    // Fit map to markers if any
     fitMapToMarkers();
 };
 
@@ -432,10 +430,7 @@ function addMarker(id, lat, lng, name, phone, message, isActive) {
         animation: isActive ? google.maps.Animation.BOUNCE : null,
     });
 
-    // Stop bounce after 3s for active markers
-    if (isActive) {
-        setTimeout(function(){ marker.setAnimation(null); }, 3000);
-    }
+    if (isActive) { setTimeout(function(){ marker.setAnimation(null); }, 3000); }
 
     var infoContent =
         '<div style="font-family:sans-serif;min-width:200px;padding:4px;">' +
@@ -448,8 +443,6 @@ function addMarker(id, lat, lng, name, phone, message, isActive) {
 
     var info = new google.maps.InfoWindow({ content: infoContent });
     marker.addListener('click', function(){ info.open(sosMap, marker); });
-
-    // Auto-open for new active alerts
     if (isActive) { info.open(sosMap, marker); }
 
     markers[id] = marker;
@@ -461,8 +454,7 @@ function fitMapToMarkers() {
     if (!keys.length) return;
     if (keys.length === 1) {
         var pos = markers[keys[0]].getPosition();
-        sosMap.setCenter(pos);
-        sosMap.setZoom(15);
+        sosMap.setCenter(pos); sosMap.setZoom(15);
         return;
     }
     var bounds = new google.maps.LatLngBounds();
@@ -716,7 +708,7 @@ window.confirmResolve = function(id, btn) {
         if (acts) acts.remove();
         var rbox = document.getElementById('resolveBox-'+id);
         if (rbox) rbox.remove();
-        // Update map marker
+        // Update map marker to resolved (green)
         if (markers[id]) {
             markers[id].setIcon({ path:google.maps.SymbolPath.CIRCLE, fillColor:'#34C759', fillOpacity:1, strokeColor:'#fff', strokeWeight:2, scale:9 });
             markers[id].setAnimation(null);
@@ -738,7 +730,7 @@ window.confirmResolve = function(id, btn) {
 })();
 </script>
 
-{{-- Load Google Maps with callback --}}
+{{-- Google Maps JavaScript API --}}
 <script async defer
     src="https://maps.googleapis.com/maps/api/js?key={{ env('GOOGLE_MAPS_API_KEY') }}&callback=initSosMap">
 </script>
