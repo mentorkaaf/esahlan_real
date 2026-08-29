@@ -1163,7 +1163,25 @@ class DeliveryController extends Controller
             }
         }
 
-        // 3. Broadcast via Reverb to admin dashboard (real-time alarm)
+        // 3. Admin Alert email (admin/alerts system — toggleable from settings)
+        try {
+            $alertData = [
+                'Driver'   => $driverName,
+                'Phone'    => $driverPhone,
+                'Message'  => $message,
+            ];
+            if ($orderId) $alertData['Order ID'] = '#' . $orderId;
+            if ($lat && $lng) $alertData['Location'] = "https://maps.google.com/?q={$lat},{$lng}";
+            $alertData['Dashboard'] = url("/admin/sos/{$alertId}");
+
+            \App\Services\AdminAlertService::send(
+                'sos_alert',
+                "🆘 SOS EMERGENCY — {$driverName} ({$driverPhone})",
+                $alertData
+            );
+        } catch (\Throwable) {}
+
+        // 4. Broadcast via Reverb to admin dashboard (real-time alarm)
         try {
             event(new \App\Events\DriverSosAlert([
                 'alert_id'    => $alertId,
