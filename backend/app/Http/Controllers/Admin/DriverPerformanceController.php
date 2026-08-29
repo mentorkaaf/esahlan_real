@@ -33,7 +33,6 @@ class DriverPerformanceController extends Controller
                 'dm.accepted_orders_count',
                 'u.name',
                 'u.phone',
-                'u.image',
             )
             ->when($search, fn($q) => $q->where(function($q2) use ($search) {
                 $q2->where('u.name', 'like', "%{$search}%")
@@ -98,7 +97,6 @@ class DriverPerformanceController extends Controller
                 'id'              => $d->id,
                 'name'            => $d->name ?? 'Driver #' . $d->id,
                 'phone'           => $d->phone ?? '—',
-                'image'           => $d->image,
                 'vehicle_type'    => $d->vehicle_type ?? 'motorcycle',
                 'is_online'       => (bool) $d->is_online,
                 'avg_rating'      => $rating,
