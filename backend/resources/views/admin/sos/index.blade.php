@@ -510,11 +510,11 @@ loadScript('https://cdn.jsdelivr.net/npm/pusher-js@8.4.0/dist/web/pusher.min.js'
         try {
             var echo = new LaravelEcho.default({
                 broadcaster:       'reverb',
-                key:               '{{ config("broadcasting.connections.reverb.key") }}',
-                wsHost:            '{{ config("broadcasting.connections.reverb.host") }}',
-                wsPort:            {{ config('broadcasting.connections.reverb.port', 443) }},
-                wssPort:           {{ config('broadcasting.connections.reverb.port', 443) }},
-                forceTLS:          {{ config('broadcasting.connections.reverb.scheme', 'https') === 'https' ? 'true' : 'false' }},
+                key:               '{{ config('broadcasting.connections.reverb.key') }}',
+                wsHost:            '{{ config('broadcasting.connections.reverb.host') }}',
+                wsPort:            {{ config('broadcasting.connections.reverb.port', 6001) }},
+                wssPort:           {{ config('broadcasting.connections.reverb.port', 6001) }},
+                forceTLS:          false,
                 enabledTransports: ['ws', 'wss'],
                 disableStats:      true,
             });
