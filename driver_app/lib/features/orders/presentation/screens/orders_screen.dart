@@ -51,6 +51,13 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
       appBar: AppBar(
         backgroundColor: c.navyLight,
         title: Text('Orders', style: TextStyle(fontWeight: FontWeight.w800, color: c.text)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.sos_rounded, color: Colors.red),
+            tooltip: 'SOS Emergency',
+            onPressed: () => _showSosDialog(context),
+          ),
+        ],
         bottom: TabBar(controller: _tabs, indicatorColor: DC.orange, indicatorWeight: 3, labelColor: DC.orange, unselectedLabelColor: c.textMuted,
           tabs: const [Tab(text: 'Available'), Tab(text: 'My Deliveries')]),
       ),
@@ -59,6 +66,43 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
         const _ActiveTab(),
       ]),
     );
+  }
+
+  Future<void> _showSosDialog(BuildContext screenCtx) async {
+    final confirmed = await showDialog<bool>(
+      context: screenCtx,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1F2E),
+        title: const Text('SOS Emergency', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w800)),
+        content: const Text('Are you in danger? This will immediately alert all admins with your location.', style: TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(dialogCtx).pop(false), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.of(dialogCtx).pop(true),
+            child: const Text('SEND SOS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    ScaffoldMessenger.of(screenCtx).showSnackBar(
+      const SnackBar(content: Text('🆘 Sending SOS...'), backgroundColor: Colors.orange, duration: Duration(seconds: 3)),
+    );
+    try {
+      await ref.read(authRepoProvider).sendSOS();
+      if (mounted) {
+        ScaffoldMessenger.of(screenCtx).clearSnackBars();
+        ScaffoldMessenger.of(screenCtx).showSnackBar(
+          const SnackBar(content: Text('🆘 SOS sent! All admins alerted.'), backgroundColor: Colors.red, duration: Duration(seconds: 6)),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(screenCtx).clearSnackBars();
+        ScaffoldMessenger.of(screenCtx).showSnackBar(SnackBar(content: Text('SOS failed: $e'), backgroundColor: DC.error));
+      }
+    }
   }
 }
 
@@ -769,22 +813,21 @@ class _ActiveDeliveryState extends ConsumerState<_ActiveDeliveryPage> {
   Future<void> _sendSOS() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         backgroundColor: const Color(0xFF1A1F2E),
         title: const Text('SOS Emergency', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w800)),
         content: const Text('Are you in danger? This will immediately alert all admins with your location.', style: TextStyle(color: Colors.white70)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.of(dialogCtx).pop(false), child: const Text('Cancel')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.of(dialogCtx).pop(true),
             child: const Text('SEND SOS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
           ),
         ],
       ),
     );
     if (confirmed != true || !mounted) return;
-    // Show immediate feedback
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('🆘 Sending SOS...'), backgroundColor: Colors.orange, duration: Duration(seconds: 3)),
     );
