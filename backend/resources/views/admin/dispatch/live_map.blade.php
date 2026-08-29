@@ -84,7 +84,6 @@ function initMap() {
         center: { lat: 2.0469, lng: 45.3182 },  // Mogadishu default
         mapTypeId: 'roadmap',
         styles: [
-            { featureType:'poi', stylers:[{visibility:'off'}] },
             { featureType:'transit', stylers:[{visibility:'off'}] }
         ],
     });
