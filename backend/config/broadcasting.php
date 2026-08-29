@@ -52,6 +52,12 @@ return [
             'client_options' => [
                 // Guzzle client options: https://docs.guzzlephp.org/en/stable/request-options.html
             ],
+            // Public-facing values for JS clients (Nginx proxies WSS:443 → Reverb:8080)
+            'client' => [
+                'host'   => env('REVERB_HOST', 'localhost'),
+                'port'   => (int) env('REVERB_PORT', 443),
+                'scheme' => env('REVERB_SCHEME', 'https'),
+            ],
         ],
 
         'pusher' => [
