@@ -1,7 +1,7 @@
 @extends('admin.layouts.app')
 @section('title', 'Driver Performance')
 
-@push('css')
+@push('styles')
 <style>
 /* ── Driver Performance Enterprise Design ────────────────────── */
 :root {
@@ -228,7 +228,7 @@
 
 @endsection
 
-@push('js')
+@push('scripts')
 <script>
 (function(){
 'use strict';

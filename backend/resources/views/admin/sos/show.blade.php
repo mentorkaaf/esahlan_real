@@ -1,7 +1,7 @@
 @extends('admin.layouts.app')
 @section('title', 'SOS Alert #' . $alert->id)
 
-@push('css')
+@push('styles')
 <style>
 .detail-card {
     background: var(--surface); border: 1px solid var(--border);
@@ -167,7 +167,7 @@
 
 @endsection
 
-@push('js')
+@push('scripts')
 <script>
 const CSRF = '{{ csrf_token() }}';
 const ALERT_ID = {{ $alert->id }};

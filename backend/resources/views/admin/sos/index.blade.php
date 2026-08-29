@@ -1,7 +1,7 @@
 @extends('admin.layouts.app')
 @section('title', 'SOS Emergency Alerts')
 
-@push('css')
+@push('styles')
 <style>
 /* ── SOS Enterprise Design ──────────────────────────────────────── */
 :root {
@@ -318,7 +318,7 @@
 
 @endsection
 
-@push('js')
+@push('scripts')
 <script>
 (function(){
 'use strict';
