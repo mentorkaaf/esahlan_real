@@ -468,14 +468,13 @@ window.focusMap = function(lat, lng, name) {
     sosMap.setZoom(16);
 };
 
-// ── Reverb WebSocket ─────────────────────────────────────────────
-function loadScript(src, cb) {
-    var s = document.createElement('script');
-    s.src = src;
-    s.onload = cb;
-    s.onerror = function(){ cb && cb(true); };
-    document.head.appendChild(s);
-}
+// ── Reverb WebSocket (native — no library needed) ────────────────
+var REVERB_KEY  = '{{ config('broadcasting.connections.reverb.key') }}';
+var REVERB_HOST = '{{ config('broadcasting.connections.reverb.client.host') }}';
+var REVERB_PORT = {{ config('broadcasting.connections.reverb.client.port', 443) }};
+var REVERB_TLS  = {{ config('broadcasting.connections.reverb.client.scheme', 'https') === 'https' ? 'true' : 'false' }};
+
+var _ws = null, _wsRetry = 0;
 
 function setWsStatus(state) {
     var chip = document.getElementById('wsStatus');
@@ -495,48 +494,79 @@ function setWsStatus(state) {
     }
 }
 
-loadScript('https://cdn.jsdelivr.net/npm/pusher-js@8.4.0/dist/web/pusher.min.js', function(err) {
-    if (err) { setWsStatus('error'); return; }
-    loadScript('https://cdn.jsdelivr.net/npm/laravel-echo@1.16.1/dist/echo.iife.js', function(err2) {
-        if (err2) { setWsStatus('error'); return; }
-        try {
-            var echo = new LaravelEcho.default({
-                broadcaster:       'reverb',
-                key:               '{{ config('broadcasting.connections.reverb.key') }}',
-                wsHost:            '{{ config('broadcasting.connections.reverb.client.host') }}',
-                wsPort:            {{ config('broadcasting.connections.reverb.client.port', 443) }},
-                wssPort:           {{ config('broadcasting.connections.reverb.client.port', 443) }},
-                forceTLS:          {{ config('broadcasting.connections.reverb.client.scheme', 'https') === 'https' ? 'true' : 'false' }},
-                enabledTransports: ['ws', 'wss'],
-                disableStats:      true,
-            });
+function connectReverb() {
+    try {
+        var scheme = REVERB_TLS ? 'wss' : 'ws';
+        var url = scheme + '://' + REVERB_HOST + ':' + REVERB_PORT
+                + '/app/' + REVERB_KEY
+                + '?protocol=7&client=js&version=8.0&flash=false';
 
-            echo.channel('admin.sos').listen('.sos.alert', function(e) {
-                console.log('[SOS] Real-time alert:', e);
-                handleNewAlert({
-                    id:           e.alert_id,
-                    deliveryman_id: e.driver_id,
-                    driver_name:  e.driver_name,
-                    driver_phone: e.driver_phone,
-                    latitude:     e.lat,
-                    longitude:    e.lng,
-                    message:      e.message,
-                    order_id:     e.order_id,
-                    status:       'active',
-                });
-            });
+        _ws = new WebSocket(url);
 
-            echo.connector.pusher.connection.bind('state_change', function(s) {
-                if (s.current === 'connected')    setWsStatus('connected');
-                else if (s.current === 'failed' || s.current === 'disconnected') setWsStatus('error');
-            });
-            echo.connector.pusher.connection.bind('connected', function(){ setWsStatus('connected'); });
-        } catch(e) {
-            console.warn('[SOS] Echo init error:', e);
+        _ws.onopen = function() {
+            console.log('[SOS] Reverb connected');
+            _wsRetry = 0;
+            // Subscribe to public channel
+            _ws.send(JSON.stringify({
+                event: 'pusher:subscribe',
+                data:  { channel: 'admin.sos' }
+            }));
+        };
+
+        _ws.onmessage = function(e) {
+            try {
+                var msg = JSON.parse(e.data);
+                // Handle connection_established → mark live
+                if (msg.event === 'pusher:connection_established') {
+                    setWsStatus('connected');
+                    return;
+                }
+                // Handle subscription_succeeded
+                if (msg.event === 'pusher_internal:subscription_succeeded') {
+                    console.log('[SOS] Subscribed to admin.sos');
+                    return;
+                }
+                // Handle our SOS event
+                if (msg.event === 'sos.alert' && msg.channel === 'admin.sos') {
+                    var d = typeof msg.data === 'string' ? JSON.parse(msg.data) : msg.data;
+                    console.log('[SOS] Real-time alert:', d);
+                    handleNewAlert({
+                        id:            d.alert_id,
+                        deliveryman_id: d.driver_id,
+                        driver_name:   d.driver_name,
+                        driver_phone:  d.driver_phone,
+                        latitude:      d.lat,
+                        longitude:     d.lng,
+                        message:       d.message,
+                        order_id:      d.order_id,
+                        status:        'active',
+                    });
+                }
+            } catch(err) { console.warn('[SOS] WS parse error:', err); }
+        };
+
+        _ws.onclose = function(ev) {
+            console.warn('[SOS] WS closed', ev.code, ev.reason);
             setWsStatus('error');
-        }
-    });
-});
+            // Exponential back-off: 2s, 4s, 8s … max 30s
+            var delay = Math.min(2000 * Math.pow(2, _wsRetry), 30000);
+            _wsRetry++;
+            setTimeout(connectReverb, delay);
+        };
+
+        _ws.onerror = function(err) {
+            console.warn('[SOS] WS error:', err);
+            setWsStatus('error');
+        };
+
+    } catch(ex) {
+        console.warn('[SOS] WebSocket init failed:', ex);
+        setWsStatus('error');
+    }
+}
+
+// Connect after page is ready
+setTimeout(connectReverb, 500);
 
 // ── New alert handler (called from both WS and poll) ─────────────
 function handleNewAlert(alert) {
