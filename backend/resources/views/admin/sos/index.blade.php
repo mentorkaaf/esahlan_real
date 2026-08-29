@@ -386,16 +386,17 @@ window.initSosMap = function() {
         center: { lat: 2.0469, lng: 45.3182 },
         mapTypeId: 'roadmap',
         styles: [
-            { elementType:'geometry', stylers:[{color:'#1d2c4d'}] },
-            { elementType:'labels.text.fill', stylers:[{color:'#8ec3b9'}] },
-            { elementType:'labels.text.stroke', stylers:[{color:'#1a3646'}] },
-            { featureType:'road', elementType:'geometry', stylers:[{color:'#304a7d'}] },
-            { featureType:'water', elementType:'geometry', stylers:[{color:'#0e1626'}] },
+            { featureType:'transit', stylers:[{visibility:'off'}] },
         ],
         disableDefaultUI: false,
         zoomControl: true,
         streetViewControl: false,
-        mapTypeControl: false,
+        mapTypeControl: true,
+        mapTypeControlOptions: {
+            style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
+            position: google.maps.ControlPosition.TOP_LEFT,
+            mapTypeIds: ['roadmap', 'satellite'],
+        },
     });
 
     @foreach($alerts->whereIn('status',['active','pending'])->where('latitude','!=',null) as $a)
