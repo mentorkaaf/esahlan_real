@@ -12,6 +12,7 @@ import '../../../shared/widgets/wallet_pin_dialog.dart';
 import '../../ads/services/ad_service.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../rewards/redeem_points_bar.dart';
+import '../../auth/presentation/providers/auth_provider.dart';
 
 final _svc = ModuleApiService.create();
 final _laundryItemsProvider = FutureProvider((_) => _svc.getLaundryItems());
@@ -223,7 +224,7 @@ class _ELaundryScreenState extends ConsumerState<ELaundryScreen> {
         serviceType: _serviceType,
         items: items,
         qty: _qty,
-        total: total,
+        subtotal: total,
         onConfirm: (districtId, payMethod, waafiRef, pointsToRedeem) async {
           final selected = <Map<String, dynamic>>[];
           _qty.forEach((id, q) { if (q > 0) selected.add({'id': id, 'qty': q}); });
@@ -277,34 +278,71 @@ class _ServiceTypeCard extends StatelessWidget {
 }
 
 // ─── Full-screen order confirmation page ────────────────────────────────────
-class _OrderConfirmPage extends StatefulWidget {
+class _OrderConfirmPage extends ConsumerStatefulWidget {
   final String serviceType;
   final List items;
   final Map<int, int> qty;
-  final double total;
+  final double subtotal;
   final Future<void> Function(int districtId, String payMethod, String? waafiRef, int pointsToRedeem) onConfirm;
 
   const _OrderConfirmPage({required this.serviceType, required this.items,
-      required this.qty, required this.total, required this.onConfirm});
+      required this.qty, required this.subtotal, required this.onConfirm});
 
   @override
-  State<_OrderConfirmPage> createState() => _OrderConfirmPageState();
+  ConsumerState<_OrderConfirmPage> createState() => _OrderConfirmPageState();
 }
 
-class _OrderConfirmPageState extends State<_OrderConfirmPage> {
-  static const _districts = [
-    'Abdiaziz','Howlwadaag','Waaberi','Hamarweyne','Hamarjajab','Warta Nabadda',
-    'Deyniile','Dharkeynley','Wadajir','Hiliwaa','Hodan','Kaaraan','Daarusalaam',
-    'Kahda','Garasbaaley','Shibis','Shangaani','Gubadleey','Yaqshiid','Boondheere',
+class _OrderConfirmPageState extends ConsumerState<_OrderConfirmPage> {
+  // Districts from backend: ordered by sort_order (same list the API /eparcel/districts returns)
+  static const _districtNames = [
+    'Abdiaziz','Boondheere','Daarusalaam','Deyniile','Dharkeynley','Garasbaaley',
+    'Gubadleey','Hamarjajab','Hamarweyne','Hiliwaa','Hodan','Howlwadaag',
+    'Kaaraan','Kahda','Shangaani','Shibis','Waaberi','Wadajir','Warta Nabadda','Yaqshiid',
   ];
 
-  int    _districtId = 1;
-  String _payMethod  = 'wallet';
+  int     _districtId    = 1;
+  String  _payMethod     = 'wallet';
   String? _waafiRef;
-  bool   _loading    = false;
-  bool   _success    = false;
-  int    _pointsToRedeem = 0;
-  double _pointsDiscount = 0.0;
+  bool    _loading       = false;
+  bool    _success       = false;
+  int     _pointsToRedeem = 0;
+  double  _pointsDiscount = 0.0;
+  double  _deliveryFee   = 0.0;
+  bool    _feeLoading    = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Auto-fill user's registered district then load fee
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final userAsync = ref.read(authStateProvider);
+      final user = userAsync.valueOrNull;
+      if (user?.districtId != null && user!.districtId! > 0) {
+        setState(() => _districtId = user.districtId!);
+      }
+      await _loadDeliveryFee();
+    });
+  }
+
+  Future<void> _loadDeliveryFee() async {
+    if (!mounted) return;
+    setState(() => _feeLoading = true);
+    try {
+      final selected = <Map<String, dynamic>>[];
+      widget.qty.forEach((id, q) { if (q > 0) selected.add({'id': id, 'qty': q}); });
+      final res = await ModuleApiService.create().estimateLaundry({
+        'service_type': widget.serviceType,
+        'items': selected,
+        'pickup_district_id': _districtId,
+      });
+      final fee = double.tryParse(res?['data']?['delivery_fee']?.toString() ?? '0') ?? 0.0;
+      if (mounted) setState(() { _deliveryFee = fee; _feeLoading = false; });
+    } catch (_) {
+      if (mounted) setState(() => _feeLoading = false);
+    }
+  }
+
+  double get _grandTotal => widget.subtotal + _deliveryFee - _pointsDiscount;
 
   @override
   Widget build(BuildContext context) {
@@ -339,31 +377,81 @@ class _OrderConfirmPageState extends State<_OrderConfirmPage> {
                   Text(widget.serviceType == 'express' ? 'Express — 24 Hours' : 'Normal — 1-2 Days',
                       style: const TextStyle(fontSize: 12, color: AppColors.textGrey)),
                 ])),
-                Text('\$${widget.total.toStringAsFixed(2)}',
+                Text('\$${_grandTotal.toStringAsFixed(2)}',
                     style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: AppColors.primary)),
               ]),
               const SizedBox(height: 14),
               const Divider(),
-              const SizedBox(height: 10),
-              ...widget.items.where((it) => (widget.qty[it['id']] ?? 0) > 0).map((it) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                  Text(it['name'] ?? '', style: TextStyle(fontSize: 13, color: c.navyText)),
-                  Text('×${widget.qty[it['id']]}  \$${((it['price'] ?? 0) * (widget.qty[it['id']] ?? 0)).toStringAsFixed(2)}',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: c.navyText)),
+              const SizedBox(height: 6),
+
+              // Item lines
+              ...widget.items.where((it) => (widget.qty[it['id']] ?? 0) > 0).map((it) {
+                final price = widget.serviceType == 'express'
+                    ? _toD(it['express_price']) : _toD(it['normal_price']);
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                    Text(it['name'] ?? '', style: TextStyle(fontSize: 13, color: c.navyText)),
+                    Text('×${widget.qty[it['id']]}  \$${(price * (widget.qty[it['id']] ?? 0)).toStringAsFixed(2)}',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: c.navyText)),
+                  ]),
+                );
+              }),
+
+              const SizedBox(height: 4),
+              const Divider(),
+              const SizedBox(height: 6),
+
+              // Subtotal row
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                Text('Subtotal', style: TextStyle(fontSize: 13, color: c.mutedText)),
+                Text('\$${widget.subtotal.toStringAsFixed(2)}',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.navyText)),
+              ]),
+              const SizedBox(height: 6),
+
+              // Delivery fee row
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                Text('Delivery Fee', style: TextStyle(fontSize: 13, color: c.mutedText)),
+                _feeLoading
+                    ? const SizedBox(width: 60, height: 14, child: LinearProgressIndicator(minHeight: 2))
+                    : Text('\$${_deliveryFee.toStringAsFixed(2)}',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.navyText)),
+              ]),
+
+              if (_pointsDiscount > 0) ...[
+                const SizedBox(height: 6),
+                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                  Text('Points Discount', style: TextStyle(fontSize: 13, color: c.mutedText)),
+                  Text('-\$${_pointsDiscount.toStringAsFixed(2)}',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.success)),
                 ]),
-              )),
+              ],
+
+              const SizedBox(height: 8),
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                Text('Total', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: c.navyText)),
+                Text('\$${_grandTotal.toStringAsFixed(2)}',
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: AppColors.primary)),
+              ]),
             ]),
           ),
 
           const SizedBox(height: 22),
 
           // ── Pickup District ────────────────────────────────────────────
-          Text('Pickup District', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: c.navyText)),
+          Text('Your District', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: c.navyText)),
+          const SizedBox(height: 4),
+          Text('Delivery fee is calculated from Hamarweyne to your district.',
+              style: TextStyle(fontSize: 11, color: c.mutedText)),
           const SizedBox(height: 8),
           DropdownButtonFormField<int>(
             value: _districtId,
-            onChanged: (v) => setState(() => _districtId = v!),
+            onChanged: (v) {
+              if (v == null) return;
+              setState(() => _districtId = v);
+              _loadDeliveryFee();
+            },
             decoration: InputDecoration(
               filled: true, fillColor: c.inputFill,
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.divider)),
@@ -371,14 +459,14 @@ class _OrderConfirmPageState extends State<_OrderConfirmPage> {
               focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 2)),
               contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
             ),
-            items: _districts.asMap().entries.map((e) =>
+            items: _districtNames.asMap().entries.map((e) =>
                 DropdownMenuItem(value: e.key + 1, child: Text(e.value))).toList(),
           ),
 
           const SizedBox(height: 22),
 
           RedeemPointsBar(
-            orderTotal: widget.total,
+            orderTotal: widget.subtotal + _deliveryFee,
             onChanged: (pts, disc) => setState(() { _pointsToRedeem = pts; _pointsDiscount = disc; }),
           ),
 
@@ -399,19 +487,19 @@ class _OrderConfirmPageState extends State<_OrderConfirmPage> {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
           child: AppButton(
-            label: _loading ? 'Placing Order...' : 'Confirm Order',
+            label: _loading ? 'Placing Order...' : 'Confirm Order • \$${_grandTotal.toStringAsFixed(2)}',
             isLoading: _loading,
-            onPressed: _loading ? null : () async {
+            onPressed: (_loading || _feeLoading) ? null : () async {
               if (_payMethod == 'wallet') {
                 final ok = await showWalletPinDialog(context);
                 if (!ok) return;
               } else if (_payMethod == 'mobile_pay') {
-                final result = await showMobilePaySheet(context, amount: widget.total - _pointsDiscount, description: 'eLaundry Order');
+                final result = await showMobilePaySheet(context, amount: _grandTotal, description: 'eLaundry Order');
                 if (result?.success != true) return;
                 _waafiRef = result!.account != null ? 'mobile_pay_${result.account!.id}' : 'mobile_pay';
               } else {
                 final result = await showWaafiPaySheet(
-                  context, amount: widget.total - _pointsDiscount, type: 'order', description: 'eLaundry Order');
+                  context, amount: _grandTotal, type: 'order', description: 'eLaundry Order');
                 if (result?.success != true) return;
                 _waafiRef = result!.reference;
               }
