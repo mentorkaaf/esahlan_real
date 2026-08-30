@@ -150,7 +150,7 @@ class ELaundryController extends Controller
         $deliveryFee       = round($baseFee + $bonusAmount, 2);
         $totalWithDelivery = $total + $deliveryFee;
 
-        $order = DB::transaction(function () use ($request, $user, $total, $totalWithDelivery, $deliveryFee, $bonusAmount, $orderLines, $district, $isExpress, $dbItems, $loyalty) {
+        $order = DB::transaction(function () use ($request, $user, $total, $totalWithDelivery, $deliveryFee, $bonusAmount, $orderLines, $district, $isExpress, $dbItems, $loyalty, $selfPickup) {
             $order = Order::create([
                 'order_number'    => 'LDR-' . strtoupper(Str::random(8)),
                 'user_id'         => $user->id,
