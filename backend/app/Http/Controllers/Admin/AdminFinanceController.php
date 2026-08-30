@@ -9,49 +9,45 @@ use App\Models\Wallet;
 use App\Models\Order;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 
 class AdminFinanceController extends Controller
 {
     public function index()
     {
-        // ── GMV & Revenue ─────────────────────────────────────────────
-        $gmvTotal          = (float) Order::where('status', 'delivered')->sum('total_amount');
-        $deliveryFeesTotal = (float) Order::where('status', 'delivered')->sum('delivery_fee');
-        $bonusPaidTotal    = (float) Order::where('status', 'delivered')->sum('bonus_amount');
-        $discountsTotal    = (float) Order::where('status', 'delivered')
-                                ->selectRaw('SUM(COALESCE(discount_amount,0) + COALESCE(coupon_discount,0)) as total')
-                                ->value('total');
-        $commissionEarned  = (float) Commission::sum('commission_amount')
-                           + (float) Commission::sum('delivery_fee_commission');
+        // ── All heavy stats cached 90s (full-table scans) ─────────────
+        $cached = Cache::remember('admin:finance:stats', 90, function () {
+            $gmvTotal          = (float) Order::where('status', 'delivered')->sum('total_amount');
+            $deliveryFeesTotal = (float) Order::where('status', 'delivered')->sum('delivery_fee');
+            $bonusPaidTotal    = (float) Order::where('status', 'delivered')->sum('bonus_amount');
+            $discountsTotal    = (float) Order::where('status', 'delivered')
+                                    ->selectRaw('SUM(COALESCE(discount_amount,0) + COALESCE(coupon_discount,0)) as total')
+                                    ->value('total');
+            $commissionEarned  = (float) Commission::sum('commission_amount')
+                               + (float) Commission::sum('delivery_fee_commission');
+            $processedAmt      = (float) WithdrawalRequest::whereIn('status', ['approved','processed','completed'])->sum('amount');
+            $walletByType      = Wallet::selectRaw('owner_type, SUM(balance) as total, COUNT(*) as cnt')
+                ->groupBy('owner_type')->get()
+                ->keyBy(fn($r) => class_basename($r->owner_type));
+            $walletTotal       = (float) Wallet::sum('balance');
+            $revenueByModule   = Order::where('status', 'delivered')
+                ->selectRaw('module_slug, COUNT(*) as orders, SUM(total_amount) as gmv,
+                    SUM(delivery_fee) as delivery_fees, SUM(COALESCE(bonus_amount,0)) as bonus,
+                    SUM(commission) as commission,
+                    SUM(COALESCE(discount_amount,0)+COALESCE(coupon_discount,0)) as discounts')
+                ->groupBy('module_slug')->orderByDesc('gmv')->get();
 
-        // ── Withdrawals ────────────────────────────────────────────────
+            return compact('gmvTotal','deliveryFeesTotal','bonusPaidTotal','discountsTotal',
+                'commissionEarned','processedAmt','walletByType','walletTotal','revenueByModule');
+        });
+
+        extract($cached);
+
+        // ── Live (not cached — must be current) ───────────────────────
         $pendingAmt   = (float) WithdrawalRequest::where('status', 'pending')->sum('amount');
         $pendingCount = (int)   WithdrawalRequest::where('status', 'pending')->count();
-        $processedAmt = (float) WithdrawalRequest::whereIn('status', ['approved','processed','completed'])->sum('amount');
         $rejectedAmt  = (float) WithdrawalRequest::where('status', 'rejected')->sum('amount');
         $netRevenue   = round($commissionEarned - $processedAmt, 2);
-
-        // ── Wallet Balances by owner type ──────────────────────────────
-        $walletByType = Wallet::selectRaw('owner_type, SUM(balance) as total, COUNT(*) as cnt')
-            ->groupBy('owner_type')
-            ->get()
-            ->keyBy(fn($r) => class_basename($r->owner_type));
-        $walletTotal = (float) Wallet::sum('balance');
-
-        // ── Revenue by Module (this month) ────────────────────────────
-        $revenueByModule = Order::where('status', 'delivered')
-            ->selectRaw('
-                module_slug,
-                COUNT(*) as orders,
-                SUM(total_amount)   as gmv,
-                SUM(delivery_fee)   as delivery_fees,
-                SUM(COALESCE(bonus_amount,0)) as bonus,
-                SUM(commission)     as commission,
-                SUM(COALESCE(discount_amount,0)+COALESCE(coupon_discount,0)) as discounts
-            ')
-            ->groupBy('module_slug')
-            ->orderByDesc('gmv')
-            ->get();
 
         // ── Pending Withdrawals ────────────────────────────────────────
         $pendingWithdrawals = WithdrawalRequest::with('owner')
