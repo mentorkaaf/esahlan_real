@@ -13,6 +13,10 @@ final _dashProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) {
   return ref.read(authRepoProvider).dashboard();
 });
 
+final _bonusProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) {
+  return ref.read(authRepoProvider).bonusStatus();
+});
+
 final _nameProvider = FutureProvider.autoDispose<String>((ref) async {
   return ref.watch(driverNameProvider).valueOrNull ?? 'Driver';
 });
@@ -68,9 +72,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         data: (d) => _Body(
           d: d,
           driverName: ref.watch(driverNameProvider).valueOrNull ?? 'Driver',
+          bonus: ref.watch(_bonusProvider).valueOrNull ?? {'is_active': false},
           pulseCtrl: _pulseCtrl,
           pulseScale: _pulseScale,
-          onRefresh: () async => ref.invalidate(_dashProvider),
+          onRefresh: () async {
+            ref.invalidate(_dashProvider);
+            ref.invalidate(_bonusProvider);
+          },
           onToggle: () async {
             HapticFeedback.mediumImpact();
             final goingOnline = d['is_online'] != true;
@@ -89,6 +97,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 // ──────────────────────────────────────────────────────────────────────────────
 class _Body extends StatelessWidget {
   final Map<String, dynamic> d;
+  final Map<String, dynamic> bonus;
   final String driverName;
   final AnimationController pulseCtrl;
   final Animation<double> pulseScale;
@@ -97,6 +106,7 @@ class _Body extends StatelessWidget {
 
   const _Body({
     required this.d,
+    required this.bonus,
     required this.driverName,
     required this.pulseCtrl,
     required this.pulseScale,
@@ -146,6 +156,12 @@ class _Body extends StatelessWidget {
               todayOrders: todayOrders,
             ),
           ),
+
+          // ── PEAK BONUS BANNER ─────────────────────────────────────────────
+          if (bonus['is_active'] == true)
+            SliverToBoxAdapter(
+              child: _PeakBonusBanner(bonus: bonus),
+            ),
 
           // ── ONLINE TOGGLE ─────────────────────────────────────────────────
           SliverToBoxAdapter(
@@ -969,6 +985,69 @@ class _ErrorState extends StatelessWidget {
           ),
         ]),
       ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// PEAK BONUS BANNER
+// ──────────────────────────────────────────────────────────────────────────────
+class _PeakBonusBanner extends StatelessWidget {
+  final Map<String, dynamic> bonus;
+  const _PeakBonusBanner({required this.bonus});
+
+  @override
+  Widget build(BuildContext context) {
+    final amount = (bonus['bonus_amount'] as num?)?.toDouble() ?? 0;
+    final label  = (bonus['label'] as String?)  ?? 'Peak Hours';
+    final mins   = (bonus['ends_in_minutes'] as num?)?.toInt() ?? 0;
+    final hoursLeft  = mins ~/ 60;
+    final minsLeft   = mins % 60;
+    final timeStr = hoursLeft > 0 ? '${hoursLeft}h ${minsLeft}m' : '${minsLeft}m';
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF7C3AED), Color(0xFF4F46E5)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(color: const Color(0xFF7C3AED).withValues(alpha: 0.35), blurRadius: 16, offset: const Offset(0, 6)),
+        ],
+      ),
+      child: Row(children: [
+        // Fire icon badge
+        Container(
+          width: 44, height: 44,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Center(child: Text('🔥', style: TextStyle(fontSize: 22))),
+        ),
+        const SizedBox(width: 14),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14)),
+          const SizedBox(height: 2),
+          Text('+\$${amount.toStringAsFixed(2)} per delivery · ends in $timeStr',
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.80), fontSize: 12)),
+        ])),
+        const SizedBox(width: 8),
+        // Bonus amount chip
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.20),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Text('+\$${amount.toStringAsFixed(2)}',
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 15)),
+        ),
+      ]),
     );
   }
 }

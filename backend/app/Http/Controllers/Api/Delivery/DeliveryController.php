@@ -1233,6 +1233,45 @@ class DeliveryController extends Controller
         return response()->json(['success'=>true,'data'=>$result]);
     }
 
+    // ══════════════════════════════════════════════════════════════
+    // BONUS STATUS — current peak-pay bonus for the driver
+    // ══════════════════════════════════════════════════════════════
+    public function bonusStatus(Request $request)
+    {
+        $bonus = DB::table('delivery_bonus_settings')->where('is_active', true)->first();
+
+        if (!$bonus) {
+            return response()->json(['success' => true, 'data' => ['is_active' => false]]);
+        }
+
+        $now         = now();
+        $currentHour = (int) $now->format('G');  // 0–23
+        $currentDay  = (int) $now->format('N');  // 1=Mon…7=Sun
+
+        $days = array_filter(array_map('intval', explode(',', $bonus->days_of_week)));
+        $inDay  = in_array($currentDay, $days);
+        $inTime = $currentHour >= $bonus->start_hour && $currentHour < $bonus->end_hour;
+
+        if (!$inDay || !$inTime) {
+            // Bonus setting is on but outside schedule — return next window info
+            return response()->json(['success' => true, 'data' => [
+                'is_active'     => false,
+                'next_label'    => $bonus->label,
+                'next_amount'   => (float) $bonus->bonus_amount,
+                'next_start_hr' => $bonus->start_hour,
+            ]]);
+        }
+
+        $endsInMinutes = ($bonus->end_hour - $currentHour) * 60 - (int) $now->format('i');
+
+        return response()->json(['success' => true, 'data' => [
+            'is_active'       => true,
+            'bonus_amount'    => (float) $bonus->bonus_amount,
+            'label'           => $bonus->label,
+            'ends_in_minutes' => max(0, $endsInMinutes),
+        ]]);
+    }
+
     // AUTO-DISPATCH (static)
     public static function autoDispatch(Order $order): bool {
         $isTruck=in_array($order->module_slug,['emoving']);

@@ -160,6 +160,17 @@ class AuthRepository {
     }
   }
 
+  /// Returns current peak-pay bonus status.
+  /// { is_active, bonus_amount, label, ends_in_minutes } when active.
+  Future<Map<String, dynamic>> bonusStatus() async {
+    try {
+      final res = await _dio.get('/delivery/bonus');
+      return res.data['data'] as Map<String, dynamic>;
+    } catch (_) {
+      return {'is_active': false};
+    }
+  }
+
   Future<List<dynamic>> orderHistory({int page = 1}) async {
     try {
       final res = await _dio.get('/delivery/history', queryParameters: {'page': page});

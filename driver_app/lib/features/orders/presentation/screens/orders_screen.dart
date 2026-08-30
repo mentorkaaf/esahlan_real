@@ -19,6 +19,7 @@ import '../widgets/tracking_map_widget.dart';
 
 final _availableProvider = FutureProvider.autoDispose<List<dynamic>>((ref) => ref.read(authRepoProvider).availableOrders());
 final _activeProvider    = FutureProvider.autoDispose<List<dynamic>>((ref) => ref.read(authRepoProvider).activeOrders());
+final _ordersBonusProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) => ref.read(authRepoProvider).bonusStatus());
 
 class OrdersScreen extends ConsumerStatefulWidget {
   const OrdersScreen({super.key});
@@ -118,6 +119,10 @@ class _AvailableTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.dc;
     final orders = ref.watch(_availableProvider);
+    final bonusData = ref.watch(_ordersBonusProvider).valueOrNull ?? {'is_active': false};
+    final bonusActive = bonusData['is_active'] == true;
+    final bonusAmount = bonusActive ? (bonusData['bonus_amount'] as num?)?.toDouble() ?? 0 : 0.0;
+
     return orders.when(
       loading: () => const Center(child: CircularProgressIndicator(color: DC.orange)),
       error: (e, _) => Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -143,6 +148,7 @@ class _AvailableTab extends ConsumerWidget {
                 itemCount: list.length,
                 itemBuilder: (_, i) => _NewOrderCard(
                   order: list[i],
+                  bonusAmount: bonusAmount,
                   onAccept: () async {
                     try {
                       await ref.read(authRepoProvider).acceptOrder((list[i]['id'] as num).toInt());
@@ -174,9 +180,10 @@ class _AvailableTab extends ConsumerWidget {
 
 class _NewOrderCard extends StatelessWidget {
   final Map<String, dynamic> order;
+  final double bonusAmount;
   final VoidCallback onAccept;
   final VoidCallback onDecline;
-  const _NewOrderCard({required this.order, required this.onAccept, required this.onDecline});
+  const _NewOrderCard({required this.order, this.bonusAmount = 0, required this.onAccept, required this.onDecline});
 
   static const _moduleLabels = {'efood': 'eFood Delivery', 'eshop': 'eShop Delivery', 'eparcel': 'eParcel Delivery', 'egrocery': 'eGrocery Delivery', 'elaundry': 'eLaundry Pickup', 'emoving': 'eMoving Service'};
 
@@ -224,6 +231,21 @@ class _NewOrderCard extends StatelessWidget {
               Text(_moduleLabels[module] ?? 'Delivery', style: TextStyle(color: c.text, fontWeight: FontWeight.w700, fontSize: 14)),
               Text('Order #${o['order_number'] ?? ''}', style: TextStyle(color: c.textMuted, fontSize: 11)),
             ])),
+            // Peak Bonus chip
+            if (bonusAmount > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(colors: [Color(0xFF7C3AED), Color(0xFF4F46E5)]),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  const Text('🔥', style: TextStyle(fontSize: 11)),
+                  const SizedBox(width: 3),
+                  Text('+\$${bonusAmount.toStringAsFixed(2)}',
+                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800)),
+                ]),
+              ),
           ]),
         ),
 
@@ -626,9 +648,15 @@ class _ActiveDeliveryState extends ConsumerState<_ActiveDeliveryPage> {
     final status = o['status']?.toString() ?? '';
     final vLat = double.tryParse('${vendor?['lat'] ?? 0}') ?? 0;
     final vLng = double.tryParse('${vendor?['lng'] ?? 0}') ?? 0;
+    // Customer delivery coordinates (from API or real-time share)
+    final cLatApi = double.tryParse('${customer?['lat'] ?? 0}') ?? 0;
+    final cLngApi = double.tryParse('${customer?['lng'] ?? 0}') ?? 0;
+    final cLat = _customerLoc?.latitude  ?? (cLatApi != 0 ? cLatApi : 0);
+    final cLng = _customerLoc?.longitude ?? (cLngApi != 0 ? cLngApi : 0);
     final addr = o['delivery_address'];
     final district = customer?['district']?.toString() ?? (addr is Map ? (addr['district'] ?? addr['city'] ?? '') : '');
-    final hasLoc = vLat != 0 && vLng != 0;
+    final hasLoc  = vLat != 0 && vLng != 0;
+    final hasCust = cLat != 0 && cLng != 0;
 
     // Multi-step: pending/confirmed/preparing/ready_for_pickup → picked_up → out_for_delivery → delivered
     final isPrePickup = status != 'picked_up' && status != 'out_for_delivery';
@@ -762,22 +790,72 @@ class _ActiveDeliveryState extends ConsumerState<_ActiveDeliveryPage> {
                   : Text(actionLabel, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
             )),
             const SizedBox(height: 8),
-            // Navigate button — pickup phase navigates to vendor, delivery phase navigates to customer
+            // Navigate button — pickup phase → vendor, delivery phase → customer
             if (isPickup) SizedBox(width: double.infinity, height: 44, child: OutlinedButton.icon(
-              onPressed: hasLoc ? () => launchUrl(Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$vLat,$vLng&travelmode=driving')) : null,
+              onPressed: hasLoc
+                  ? () => _showNavDialog(context, vLat, vLng, 'Pickup Location')
+                  : null,
               icon: const Icon(Icons.navigation_rounded, size: 18),
               label: const Text('Navigate to Pickup'),
               style: OutlinedButton.styleFrom(foregroundColor: DC.orange, side: const BorderSide(color: DC.orange)),
             ))
             else SizedBox(width: double.infinity, height: 44, child: OutlinedButton.icon(
-              onPressed: hasLoc ? () => launchUrl(Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$vLat,$vLng&travelmode=driving')) : null,
+              onPressed: hasCust
+                  ? () => _showNavDialog(context, cLat, cLng, 'Customer Location')
+                  : null,
               icon: const Icon(Icons.navigation_rounded, size: 18),
-              label: const Text('Navigate to Customer'),
+              label: Text(hasCust ? 'Navigate to Customer' : 'Customer location unavailable'),
               style: OutlinedButton.styleFrom(foregroundColor: DC.success, side: const BorderSide(color: DC.success)),
             )),
           ]),
         ),
       ]),
+    );
+  }
+
+  /// Shows a bottom sheet to choose navigation app (Google Maps / Waze).
+  void _showNavDialog(BuildContext ctx, double lat, double lng, String destLabel) {
+    final gmUrl   = 'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving';
+    final wazeUrl = 'https://waze.com/ul?ll=$lat,$lng&navigate=yes';
+
+    showModalBottomSheet(
+      context: ctx,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        margin: const EdgeInsets.all(12),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A2235),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 16),
+          Text('Navigate to $destLabel', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
+          const SizedBox(height: 20),
+          // Google Maps
+          _NavAppTile(
+            icon: '🗺️',
+            label: 'Google Maps',
+            color: const Color(0xFF4285F4),
+            onTap: () {
+              Navigator.pop(ctx);
+              launchUrl(Uri.parse(gmUrl), mode: LaunchMode.externalApplication);
+            },
+          ),
+          const SizedBox(height: 10),
+          // Waze
+          _NavAppTile(
+            icon: '🧙',
+            label: 'Waze',
+            color: const Color(0xFF00D4B5),
+            onTap: () {
+              Navigator.pop(ctx);
+              launchUrl(Uri.parse(wazeUrl), mode: LaunchMode.externalApplication);
+            },
+          ),
+        ]),
+      ),
     );
   }
 
@@ -846,6 +924,40 @@ class _ActiveDeliveryState extends ConsumerState<_ActiveDeliveryPage> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('SOS failed: $e'), backgroundColor: DC.error));
       }
     }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Navigation App Tile (inside nav chooser bottom sheet)
+// ─────────────────────────────────────────────────────────────────────────────
+class _NavAppTile extends StatelessWidget {
+  final String icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+  const _NavAppTile({required this.icon, required this.label, required this.color, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.10),
+          border: Border.all(color: color.withValues(alpha: 0.30)),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(children: [
+          Text(icon, style: const TextStyle(fontSize: 24)),
+          const SizedBox(width: 14),
+          Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 15)),
+          const Spacer(),
+          Icon(Icons.arrow_forward_ios_rounded, color: color.withValues(alpha: 0.60), size: 16),
+        ]),
+      ),
+    );
   }
 }
 

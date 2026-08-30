@@ -938,6 +938,7 @@ Route::prefix('v1')->group(function () {
             Route::post('sos',       [DeliveryController::class, 'sos']);
             Route::get('heatmap',    [DeliveryController::class, 'heatmap']);
             Route::get('challenges', [DeliveryController::class, 'challenges']);
+            Route::get('bonus',      [DeliveryController::class, 'bonusStatus']);
         });
 
         // ─── VENDOR ───────────────────────────────────────────────

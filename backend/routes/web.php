@@ -1201,6 +1201,10 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
         Route::get('/sos/{id}', [SosController::class, 'show'])->name('sos.show');
         Route::post('/sos/{id}/resolve', [SosController::class, 'resolve'])->name('sos.resolve');
 
+        // Driver Bonus / Peak Pay Settings
+        Route::get('/drivers/bonus', [\App\Http\Controllers\Admin\AdminDriverBonusController::class, 'index'])->name('drivers.bonus');
+        Route::post('/drivers/bonus', [\App\Http\Controllers\Admin\AdminDriverBonusController::class, 'update'])->name('drivers.bonus.update');
+
         // Driver Performance
         Route::get('/drivers/performance', [DriverPerformanceController::class, 'index'])->name('drivers.performance');
         Route::get('/drivers/performance/data', [DriverPerformanceController::class, 'data'])->name('drivers.performance.data');
