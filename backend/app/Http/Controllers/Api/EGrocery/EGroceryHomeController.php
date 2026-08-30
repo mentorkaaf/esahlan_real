@@ -185,13 +185,15 @@ class EGroceryHomeController extends Controller
             $zone = EGroceryDeliveryZone::where('is_active', true)->first();
         }
 
+        $bonusAmount = \App\Services\DeliveryBonusService::getActiveBonusAmount();
+
         return $zone ? [
-            'delivery_fee' => (float) $zone->delivery_fee,
+            'delivery_fee' => round((float) $zone->delivery_fee + $bonusAmount, 2),
             'min_order'    => (float) $zone->min_order,
             'free_over'    => $zone->free_over ? (float) $zone->free_over : null,
             'zone_name'    => $zone->name,
         ] : [
-            'delivery_fee' => 2.00,
+            'delivery_fee' => round(2.00 + $bonusAmount, 2),
             'min_order'    => 0.00,
             'free_over'    => null,
             'zone_name'    => null,

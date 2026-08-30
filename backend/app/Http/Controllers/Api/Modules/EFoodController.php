@@ -1010,12 +1010,17 @@ class EFoodController extends Controller
         $fromDistrict = DB::table('districts')->find($effectiveFromId);
         $toDistrict   = DB::table('districts')->find($districtId);
 
+        // Add Peak Pay Bonus if active
+        $bonusAmount = \App\Services\DeliveryBonusService::getActiveBonusAmount();
+
         return response()->json([
             'success' => true,
             'data'    => [
-                'delivery_fee'      => round($fee, 2),
-                'from_district'     => $fromDistrict?->name,
-                'to_district'       => $toDistrict?->name,
+                'delivery_fee'       => round($fee + $bonusAmount, 2),
+                'base_delivery_fee'  => round($fee, 2),
+                'bonus_amount'       => $bonusAmount,
+                'from_district'      => $fromDistrict?->name,
+                'to_district'        => $toDistrict?->name,
                 'vendor_district_id' => $vendorDistrictId,
             ],
         ]);

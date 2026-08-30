@@ -68,12 +68,22 @@ class EParcelController extends Controller
             ->where('is_active', true)
             ->first();
 
-        if (!$zone) {
+        // Same-district fallback: $1.00 flat fee when no zone is configured
+        $basePrice = null;
+        if ($zone) {
+            $basePrice = (float) $zone->base_price;
+        } elseif ((int)$request->pickup_district_id === (int)$request->delivery_district_id) {
+            $basePrice = 1.00;
+        } else {
             return response()->json([
                 'success' => false,
                 'message' => 'No pricing available for this route. Please contact support.',
             ], 422);
         }
+
+        // Add Peak Pay Bonus if active
+        $bonusAmount = \App\Services\DeliveryBonusService::getActiveBonusAmount();
+        $total       = round($basePrice + $bonusAmount, 2);
 
         $fromDistrict = DB::table('districts')->find($request->pickup_district_id);
         $toDistrict   = DB::table('districts')->find($request->delivery_district_id);
@@ -81,7 +91,7 @@ class EParcelController extends Controller
         return response()->json([
             'success' => true,
             'data'    => [
-                'total'         => round($zone->base_price, 2),
+                'total'         => $total,
                 'from_district' => $fromDistrict?->name,
                 'to_district'   => $toDistrict?->name,
                 'currency'      => 'USD',
@@ -114,14 +124,19 @@ class EParcelController extends Controller
             ->where('is_active', true)
             ->first();
 
-        if (!$zone) {
+        // Same-district fallback: $1.00 when no zone is configured
+        if ($zone) {
+            $basePrice = (float) $zone->base_price;
+        } elseif ((int)$request->input('pickup_address.district_id') === (int)$request->input('delivery_address.district_id')) {
+            $basePrice = 1.00;
+        } else {
             return response()->json([
                 'success' => false,
                 'message' => 'No pricing available for this route.',
             ], 422);
         }
 
-        $totalAmount = round($zone->base_price, 2);
+        $totalAmount = round($basePrice, 2);
 
         // Points redeem
         $loyalty     = LoyaltyService::processOrderRequest($request, $user->id, $totalAmount, 'eparcel');
