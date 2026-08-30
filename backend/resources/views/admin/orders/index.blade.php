@@ -88,16 +88,16 @@ function initDriversMap() {
         streetViewControl: false,
     });
 
-    // Vehicle marker: SVG pin icon (emoji causes garbled text on some browsers)
+    // Motorcycle/bike icon — circular badge, no pin shape
     function vehicleMarkerIcon(vehicle, statusColor) {
+        var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 44 44">'
+            + '<circle cx="22" cy="22" r="20" fill="' + statusColor + '" stroke="#ffffff" stroke-width="2.5"/>'
+            + '<path fill="#ffffff" transform="translate(6,6) scale(1.33)" d="M19 8c-.6 0-1.1.1-1.6.3L15.5 6H17V4h-3l-1.5-2H9L7.5 4H5v1.5L3.3 7.7C2.5 8.1 2 9 2 10c0 1.7 1.3 3 3 3s3-1.3 3-3c0-.4-.1-.8-.2-1.1L9.2 8h5.6l1 1.3C15.3 9.8 15 10.4 15 11c0 1.7 1.3 3 3 3s3-1.3 3-3-1.3-3-2-3zm-14 3.5c-.8 0-1.5-.7-1.5-1.5S4.2 8.5 5 8.5c.6 0 1.1.3 1.3.8L5.5 10H5v1h.5c-.2.3-.3.5-.5.5zm13 0c-.8 0-1.5-.7-1.5-1.5s.7-1.5 1.5-1.5 1.5.7 1.5 1.5-.7 1.5-1.5 1.5z"/>'
+            + '</svg>';
         return {
-            path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
-            fillColor: statusColor,
-            fillOpacity: 1,
-            strokeColor: '#fff',
-            strokeWeight: 2,
-            scale: 1.6,
-            anchor: new google.maps.Point(12, 22),
+            url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg),
+            scaledSize: new google.maps.Size(44, 44),
+            anchor: new google.maps.Point(22, 22),
         };
     }
     function vehicleLabel(v) {
