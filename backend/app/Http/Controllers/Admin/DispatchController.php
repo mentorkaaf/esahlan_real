@@ -259,10 +259,9 @@ class DispatchController extends Controller
         $dm = Deliveryman::with('user:id,name')->find($deliverymanId);
         if (!$dm) return response()->json(['success' => false, 'message' => 'Driver not found'], 404);
 
-        $fcmToken = DB::table('fcm_tokens')
-            ->where('user_id', $dm->user_id)
-            ->orderByDesc('updated_at')
-            ->value('token');
+        $fcmToken = DB::table('users')
+            ->where('id', $dm->user_id)
+            ->value('fcm_token');
 
         if (!$fcmToken) {
             return response()->json(['success' => false, 'message' => 'No FCM token for this driver'], 404);
