@@ -213,7 +213,12 @@ class DispatchController extends Controller
             ->get()
             ->map(function ($d) {
                 $activeOrder = null;
+                $activeOrdersCount = 0;
                 if ($d->status === 'busy') {
+                    $activeOrdersCount = DB::table('orders')
+                        ->where('deliveryman_id', $d->id)
+                        ->whereIn('status', ['out_for_delivery', 'ready_for_pickup', 'confirmed'])
+                        ->count();
                     $activeOrder = DB::table('orders')
                         ->where('deliveryman_id', $d->id)
                         ->whereIn('status', ['out_for_delivery', 'ready_for_pickup'])
@@ -241,9 +246,10 @@ class DispatchController extends Controller
                     'last_seen'    => \Carbon\Carbon::parse($d->last_location_at)->diffForHumans(),
                     'last_seen_at' => $d->last_location_at,
                     'is_online'    => (bool) $d->is_online,
-                    'is_stale'     => $d->last_location_at && \Carbon\Carbon::parse($d->last_location_at)->diffInMinutes(now()) > 5,
-                    'rating'       => round($d->rating ?? 5, 1),
-                    'order'        => $activeOrder,
+                    'is_stale'           => $d->last_location_at && \Carbon\Carbon::parse($d->last_location_at)->diffInMinutes(now()) > 5,
+                    'rating'             => round($d->rating ?? 5, 1),
+                    'order'              => $activeOrder,
+                    'active_orders_count'=> $activeOrdersCount,
                 ];
             });
 

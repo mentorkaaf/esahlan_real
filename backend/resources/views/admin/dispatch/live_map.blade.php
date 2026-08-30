@@ -221,9 +221,13 @@ function renderDrivers(drivers) {
         return;
     }
     list.innerHTML = drivers.map(function(d) {
+        var isBusy = d.status === 'busy';
+        var ordersBadge = (isBusy && d.active_orders_count > 0)
+            ? '<span style="margin-left:5px;background:#f97316;color:#fff;border-radius:20px;padding:1px 7px;font-size:10px;font-weight:800;">' + d.active_orders_count + ' order' + (d.active_orders_count > 1 ? 's' : '') + '</span>'
+            : '';
         return '<div class="dp-item" onclick="panTo(' + d.latitude + ',' + d.longitude + ',' + d.id + ')">' +
             '<div style="display:flex;align-items:center;justify-content:space-between;">' +
-            '<div class="dp-name">' + stripEmoji(d.name) + '</div>' +
+            '<div class="dp-name">' + stripEmoji(d.name) + ordersBadge + '</div>' +
             '<span class="dp-badge ' + d.status + '">' + d.status + '</span>' +
             '</div>' +
             '<div class="dp-meta">' +
