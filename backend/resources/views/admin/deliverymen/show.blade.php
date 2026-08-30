@@ -69,7 +69,7 @@
         <div class="card-body">
             @forelse($deliveryman->documents ?? [] as $doc)
             <div style="display:flex;align-items:center;gap:12px;padding:12px;border:1.5px solid #f0f1f5;border-radius:12px;margin-bottom:10px;">
-                @php $docUrl = url('/api/v1/img/' . $doc->file_path); @endphp
+                @php $docUrl = asset('storage/' . $doc->file_path); @endphp
                 {{-- Thumbnail — click opens lightbox --}}
                 <div onclick="openDocPreview('{{ $docUrl }}', '{{ ucwords(str_replace('_',' ',$doc->type)) }}')"
                      style="flex-shrink:0;cursor:zoom-in;position:relative;width:70px;height:70px;">
