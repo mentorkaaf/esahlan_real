@@ -59,8 +59,8 @@ class AdminReportController extends Controller
 
         // ── Top Vendors ───────────────────────────────────────────────
         $topVendors = (clone $base)
-            ->where('status', '!=', 'cancelled')
-            ->whereNotNull('vendor_id')
+            ->where('orders.status', '!=', 'cancelled')
+            ->whereNotNull('orders.vendor_id')
             ->join('vendors', 'orders.vendor_id', '=', 'vendors.id')
             ->selectRaw('vendors.name as vendor_name, orders.module_slug, COUNT(*) as orders, SUM(orders.total_amount) as revenue, SUM(COALESCE(orders.commission,0)) as commission')
             ->groupBy('orders.vendor_id', 'vendors.name', 'orders.module_slug')

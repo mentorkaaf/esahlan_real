@@ -19,8 +19,8 @@ class AdminFinanceController extends Controller
         $deliveryFeesTotal = (float) Order::where('status', 'delivered')->sum('delivery_fee');
         $bonusPaidTotal    = (float) Order::where('status', 'delivered')->sum('bonus_amount');
         $discountsTotal    = (float) Order::where('status', 'delivered')
-                                ->selectRaw('SUM(COALESCE(discount_amount,0) + COALESCE(coupon_discount,0))')
-                                ->value(DB::raw('SUM(COALESCE(discount_amount,0) + COALESCE(coupon_discount,0))'));
+                                ->selectRaw('SUM(COALESCE(discount_amount,0) + COALESCE(coupon_discount,0)) as total')
+                                ->value('total');
         $commissionEarned  = (float) Commission::sum('commission_amount')
                            + (float) Commission::sum('delivery_fee_commission');
 
