@@ -1243,13 +1243,15 @@ class DeliveryController extends Controller
             20 => [2.0700, 45.3500],  // Boondheere
         ];
 
-        // Active order counts per pickup district (last 4h)
+        // Active order counts per vendor district (last 4h)
+        // We join vendors to get their district_id (pickup location = vendor location)
         $ordersByDistrict = DB::table('orders')
-            ->where('created_at', '>=', now()->subHours(4))
-            ->whereIn('status', ['pending','confirmed','preparing','ready_for_pickup','out_for_delivery'])
-            ->whereNotNull('district_id')
-            ->select('district_id', DB::raw('COUNT(*) as order_count'))
-            ->groupBy('district_id')
+            ->join('vendors', 'orders.vendor_id', '=', 'vendors.id')
+            ->where('orders.created_at', '>=', now()->subHours(4))
+            ->whereIn('orders.status', ['pending','confirmed','preparing','ready_for_pickup','out_for_delivery'])
+            ->whereNotNull('vendors.district_id')
+            ->select('vendors.district_id', DB::raw('COUNT(*) as order_count'))
+            ->groupBy('vendors.district_id')
             ->pluck('order_count', 'district_id');
 
         // Active delivery bonus
