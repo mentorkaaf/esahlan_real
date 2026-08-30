@@ -636,18 +636,32 @@ class FcmService
         $payload = [
             'message' => [
                 'token' => $fcmToken,
+                'notification' => [
+                    'title' => '📍 Location Request',
+                    'body'  => 'Admin is requesting your current location. Please open the app.',
+                ],
                 'data'  => [
                     'type' => 'request_location',
                     'ts'   => (string) time(),
                 ],
                 'android' => [
-                    'priority'        => 'high',   // HIGH: wakes app even when killed
+                    'priority'        => 'high',
                     'direct_boot_ok'  => true,
-                    'ttl'             => '30s',    // expires fast — stale ping useless
+                    'ttl'             => '30s',
+                    'notification'    => [
+                        'sound'        => 'default',
+                        'channel_id'   => 'location_request',
+                    ],
                 ],
                 'apns' => [
-                    'headers' => ['apns-priority' => '5'],
-                    'payload' => ['aps' => ['content-available' => 1]],
+                    'headers' => ['apns-priority' => '10'],
+                    'payload' => [
+                        'aps' => [
+                            'alert'             => ['title' => '📍 Location Request', 'body' => 'Admin is requesting your current location.'],
+                            'sound'             => 'default',
+                            'content-available' => 1,
+                        ],
+                    ],
                 ],
             ],
         ];
