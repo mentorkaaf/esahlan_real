@@ -729,6 +729,9 @@
         <a href="{{ route('admin.drivers.performance') }}" class="nav-link {{ request()->routeIs('admin.drivers.performance*') ? 'active' : '' }}">
             <div class="nav-icon"><i class="fas fa-chart-bar"></i></div><span class="nav-text">Driver Performance</span>
         </a>
+        <a href="{{ route('admin.drivers.bonus') }}" class="nav-link {{ request()->routeIs('admin.drivers.bonus*') ? 'active' : '' }}">
+            <div class="nav-icon"><i class="fas fa-fire"></i></div><span class="nav-text">Peak Pay Bonus</span>
+        </a>
 
         {{-- ══ MODULE DATA ══ --}}
         <div class="nav-link nav-toggle-btn {{ request()->is('admin/module-data*') || request()->is('admin/eshop*') ? 'open active' : '' }}"
