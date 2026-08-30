@@ -70,14 +70,27 @@
             @forelse($deliveryman->documents ?? [] as $doc)
             <div style="display:flex;align-items:center;gap:12px;padding:12px;border:1.5px solid #f0f1f5;border-radius:12px;margin-bottom:10px;">
                 @php $docUrl = url('/api/v1/img/' . $doc->file_path); @endphp
-                <a href="{{ $docUrl }}" target="_blank" style="flex-shrink:0;">
-                    <img src="{{ $docUrl }}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;border:1px solid #e0e0e0;" onerror="this.style.display='none'">
-                </a>
+                {{-- Thumbnail — click opens lightbox --}}
+                <div onclick="openDocPreview('{{ $docUrl }}', '{{ ucwords(str_replace('_',' ',$doc->type)) }}')"
+                     style="flex-shrink:0;cursor:zoom-in;position:relative;width:70px;height:70px;">
+                    <img src="{{ $docUrl }}"
+                         style="width:70px;height:70px;object-fit:cover;border-radius:10px;border:2px solid #e0e0e0;transition:border-color .2s;"
+                         onmouseover="this.style.borderColor='#3B82F6'" onmouseout="this.style.borderColor='#e0e0e0'"
+                         onerror="this.parentElement.innerHTML='<div style=\'width:70px;height:70px;border-radius:10px;border:2px dashed #e0e0e0;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:22px;cursor:pointer;\'>📄</div>'">
+                    <div style="position:absolute;bottom:3px;right:3px;background:rgba(0,0,0,0.55);border-radius:4px;padding:1px 4px;font-size:9px;color:#fff;">
+                        <i class="fas fa-search-plus"></i>
+                    </div>
+                </div>
                 <div style="flex:1;">
                     <div style="font-weight:700;font-size:13px;color:#07003B;">{{ ucwords(str_replace('_',' ',$doc->type)) }}</div>
                     <div style="font-size:11px;color:#8A8A9A;">Uploaded {{ $doc->created_at->diffForHumans() }}</div>
                     @php $dsc = ['pending'=>'badge-warning','approved'=>'badge-success','rejected'=>'badge-danger'][$doc->status] ?? 'badge-secondary'; @endphp
                     <span class="badge {{ $dsc }}" style="margin-top:4px;">{{ ucfirst($doc->status) }}</span>
+                    <div style="margin-top:6px;">
+                        <a href="{{ $docUrl }}" target="_blank" style="font-size:11px;color:#3B82F6;text-decoration:none;">
+                            <i class="fas fa-external-link-alt"></i> Open full size
+                        </a>
+                    </div>
                 </div>
                 @if($doc->status === 'pending')
                 <div style="display:flex;gap:4px;flex-direction:column;">
@@ -98,6 +111,40 @@
             @endforelse
         </div>
     </div>
+
+    {{-- Document Preview Lightbox --}}
+    <div id="docLightbox" onclick="closeDocPreview()"
+         style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:14px;">
+        <div onclick="event.stopPropagation()" style="position:relative;max-width:90vw;max-height:85vh;">
+            <img id="docLightboxImg" src="" alt=""
+                 style="max-width:90vw;max-height:80vh;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,0.6);object-fit:contain;">
+            <button onclick="closeDocPreview()"
+                    style="position:absolute;top:-14px;right:-14px;width:36px;height:36px;border-radius:50%;border:none;background:#fff;color:#222;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.3);">✕</button>
+        </div>
+        <div id="docLightboxTitle" style="color:#fff;font-size:14px;font-weight:700;letter-spacing:.5px;"></div>
+        <a id="docLightboxOpen" href="#" target="_blank"
+           style="color:#93c5fd;font-size:12px;text-decoration:none;" onclick="event.stopPropagation()">
+            <i class="fas fa-external-link-alt"></i> Open full size
+        </a>
+    </div>
+
+    @push('scripts')
+    <script>
+    function openDocPreview(url, title) {
+        document.getElementById('docLightboxImg').src    = url;
+        document.getElementById('docLightboxTitle').textContent = title;
+        document.getElementById('docLightboxOpen').href  = url;
+        const lb = document.getElementById('docLightbox');
+        lb.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    }
+    function closeDocPreview() {
+        document.getElementById('docLightbox').style.display = 'none';
+        document.body.style.overflow = '';
+    }
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDocPreview(); });
+    </script>
+    @endpush
 </div>
 
 {{-- Recent Deliveries --}}
