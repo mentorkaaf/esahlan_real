@@ -127,69 +127,94 @@ class _HeatmapScreenState extends ConsumerState<HeatmapScreen> {
     _           => (const Color(0xFFFF8A00), Colors.white),
   };
 
-  // ── Vendor marker: store icon + name + order count badge ─────────────────
+  // ── Vendor marker: store circle + name pill + count badge ────────────────
   Future<BitmapDescriptor> _buildVendorIcon(String name, int count, Color zoneColor) async {
-    const double w = 200, iconSize = 44, badgeSize = 26;
-    // Truncate long names
-    final shortName = name.length > 16 ? '${name.substring(0, 14)}…' : name;
+    // Scale factor — multiply everything by 3 for sharp hi-DPI rendering
+    const double s = 3.0;
 
-    final tp = TextPainter(
-      text: TextSpan(text: shortName,
-          style: const TextStyle(color: Color(0xFF1a1a2e), fontSize: 13,
-              fontWeight: FontWeight.w700)),
+    final shortName = name.length > 18 ? '${name.substring(0, 16)}…' : name;
+
+    // Measure name text at 3× scale
+    final nameTp = TextPainter(
+      text: TextSpan(
+        text: shortName,
+        style: TextStyle(color: Colors.white, fontSize: 13 * s, fontWeight: FontWeight.w800),
+      ),
       textDirection: TextDirection.ltr,
-    )..layout(maxWidth: w - 16);
+    )..layout();
 
-    final totalH = iconSize + 6 + tp.height + badgeSize * 0.5 + 10;
+    // Pill width = name + padding
+    final pillW  = nameTp.width + 24 * s;
+    final pillH  = 28 * s;
+    final circleR = 30 * s; // icon circle radius
+    final badgeR  = 13 * s; // count badge radius
+    final canvasW = (pillW > circleR * 2 + badgeR ? pillW + badgeR : circleR * 2 + badgeR * 2 + 4 * s);
+    final canvasH = circleR * 2 + 6 * s + pillH + 4 * s;
+
+    final cx = canvasW / 2;
+    final cy = circleR;
+
     final recorder = ui.PictureRecorder();
     final canvas   = Canvas(recorder);
 
-    // ── Store icon circle ──────────────────────────────────────────────────
-    final cx = w / 2, cy = iconSize / 2;
-    // Shadow
-    canvas.drawCircle(Offset(cx, cy + 2),
-        iconSize / 2 + 1, Paint()..color = Colors.black.withOpacity(0.18));
-    // White background
-    canvas.drawCircle(Offset(cx, cy), iconSize / 2,
-        Paint()..color = Colors.white);
-    // Colored ring
-    canvas.drawCircle(Offset(cx, cy), iconSize / 2,
-        Paint()..color = zoneColor..style = PaintingStyle.stroke..strokeWidth = 3);
+    // ── Shadow ────────────────────────────────────────────────────────────
+    canvas.drawCircle(Offset(cx, cy + 3 * s), circleR + 2 * s,
+        Paint()..color = Colors.black.withOpacity(0.20)
+                ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6));
 
-    // 🏪 store emoji as text
-    final iconTp = TextPainter(
-      text: const TextSpan(text: '🏪', style: TextStyle(fontSize: 22)),
+    // ── White circle background ───────────────────────────────────────────
+    canvas.drawCircle(Offset(cx, cy), circleR, Paint()..color = Colors.white);
+
+    // ── Colored border ring ───────────────────────────────────────────────
+    canvas.drawCircle(Offset(cx, cy), circleR,
+        Paint()..color = zoneColor..style = PaintingStyle.stroke..strokeWidth = 4 * s);
+
+    // ── Store emoji 🏪 ────────────────────────────────────────────────────
+    final emojiTp = TextPainter(
+      text: TextSpan(text: '🏪', style: TextStyle(fontSize: 28 * s)),
       textDirection: TextDirection.ltr,
     )..layout();
-    iconTp.paint(canvas, Offset(cx - iconTp.width / 2, cy - iconTp.height / 2));
+    emojiTp.paint(canvas, Offset(cx - emojiTp.width / 2, cy - emojiTp.height / 2));
 
-    // ── Order count badge (top-right of circle) ────────────────────────────
-    final bx = cx + iconSize / 2 - 2, by = cy - iconSize / 2 + 2;
-    canvas.drawCircle(Offset(bx, by), badgeSize / 2,
-        Paint()..color = zoneColor);
+    // ── Count badge (top-right) ───────────────────────────────────────────
+    final bx = cx + circleR - badgeR * 0.3;
+    final by = cy - circleR + badgeR * 0.3;
+    canvas.drawCircle(Offset(bx, by), badgeR,
+        Paint()..color = Colors.white);
+    canvas.drawCircle(Offset(bx, by), badgeR,
+        Paint()..color = zoneColor..style = PaintingStyle.stroke..strokeWidth = 2 * s);
     final countTp = TextPainter(
       text: TextSpan(text: '$count',
-          style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w900)),
+          style: TextStyle(color: zoneColor, fontSize: 13 * s, fontWeight: FontWeight.w900)),
       textDirection: TextDirection.ltr,
     )..layout();
     countTp.paint(canvas, Offset(bx - countTp.width / 2, by - countTp.height / 2));
 
-    // ── Vendor name label below icon ──────────────────────────────────────
-    final labelY = iconSize + 6.0;
-    // White pill background
-    final labelRect = RRect.fromLTRBR(
-      cx - tp.width / 2 - 6, labelY - 2,
-      cx + tp.width / 2 + 6, labelY + tp.height + 2,
-      const Radius.circular(6),
+    // ── Name pill below circle ────────────────────────────────────────────
+    final pillX = cx - pillW / 2;
+    final pillY = cy + circleR + 6 * s;
+    final pillRect = RRect.fromLTRBR(
+      pillX, pillY, pillX + pillW, pillY + pillH,
+      Radius.circular(pillH / 2),
     );
-    canvas.drawRRect(labelRect,
-        Paint()..color = Colors.white..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2));
-    canvas.drawRRect(labelRect, Paint()..color = Colors.white);
-    tp.paint(canvas, Offset(cx - tp.width / 2, labelY));
+    // Pill shadow
+    canvas.drawRRect(pillRect,
+        Paint()..color = Colors.black.withOpacity(0.18)
+                ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4));
+    // Pill background
+    canvas.drawRRect(pillRect, Paint()..color = zoneColor);
+    // Name text
+    nameTp.paint(canvas,
+        Offset(cx - nameTp.width / 2, pillY + (pillH - nameTp.height) / 2));
 
-    final img  = await recorder.endRecording().toImage(w.toInt(), totalH.toInt());
+    // Render at 3× then Flutter scales down = crisp result
+    final img  = await recorder.endRecording()
+        .toImage(canvasW.ceil(), canvasH.ceil());
     final data = await img.toByteData(format: ui.ImageByteFormat.png);
-    return BitmapDescriptor.fromBytes(data!.buffer.asUint8List());
+    return BitmapDescriptor.fromBytes(
+      data!.buffer.asUint8List(),
+      size: Size(canvasW / s, canvasH / s), // logical pixels
+    );
   }
 
   @override
