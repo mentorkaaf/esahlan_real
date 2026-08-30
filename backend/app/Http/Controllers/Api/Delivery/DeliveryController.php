@@ -1219,50 +1219,32 @@ class DeliveryController extends Controller
         $dm = $this->dm($request);
         if (!$dm) return response()->json(['success'=>false],404);
 
-        // Mogadishu district centroids (lat, lng)
-        $centroids = [
-            1  => [2.0784, 45.3418],  // Abdiaziz
-            2  => [2.0650, 45.3320],  // Howlwadaag
-            3  => [2.0530, 45.3250],  // Waaberi
-            4  => [2.0469, 45.3417],  // Hamarweyne
-            5  => [2.0280, 45.3370],  // Hamarjajab
-            6  => [2.0600, 45.3590],  // Warta Nabadda
-            7  => [2.1300, 45.2800],  // Deyniile
-            8  => [2.0900, 45.3100],  // Dharkeynley
-            9  => [2.0780, 45.3100],  // Wadajir
-            10 => [2.0350, 45.3050],  // Hiliwaa
-            11 => [2.0600, 45.3200],  // Hodan
-            12 => [2.1050, 45.3250],  // Kaaraan
-            13 => [2.0780, 45.2900],  // Daarusalaam
-            14 => [2.1700, 45.2900],  // Kahda
-            15 => [2.0500, 45.2800],  // Garasbaaley
-            16 => [2.0550, 45.3350],  // Shibis
-            17 => [2.0450, 45.3300],  // Shangaani
-            18 => [2.0400, 45.3170],  // Gubadleey
-            19 => [2.0900, 45.3600],  // Yaqshiid
-            20 => [2.0700, 45.3500],  // Boondheere
-        ];
-
-        // Active order counts per vendor district (last 4h)
-        // We join vendors to get their district_id (pickup location = vendor location)
-        $ordersByDistrict = DB::table('orders')
+        // Group active orders by district — use REAL vendor lat/lng average as zone center
+        $rows = DB::table('orders')
             ->join('vendors', 'orders.vendor_id', '=', 'vendors.id')
+            ->join('districts', 'vendors.district_id', '=', 'districts.id')
             ->where('orders.created_at', '>=', now()->subHours(4))
             ->whereIn('orders.status', ['pending','confirmed','preparing','ready_for_pickup','out_for_delivery'])
             ->whereNotNull('vendors.district_id')
-            ->select('vendors.district_id', DB::raw('COUNT(*) as order_count'))
-            ->groupBy('vendors.district_id')
-            ->pluck('order_count', 'district_id');
+            ->whereNotNull('vendors.latitude')
+            ->whereNotNull('vendors.longitude')
+            ->select(
+                'vendors.district_id',
+                'districts.name as district_name',
+                DB::raw('COUNT(*) as order_count'),
+                DB::raw('AVG(vendors.latitude)  as center_lat'),
+                DB::raw('AVG(vendors.longitude) as center_lng')
+            )
+            ->groupBy('vendors.district_id', 'districts.name')
+            ->get();
 
         // Active delivery bonus
-        $bonus = DB::table('delivery_bonus_settings')->where('is_active', true)->first();
+        $bonus       = DB::table('delivery_bonus_settings')->where('is_active', true)->first();
         $bonusAmount = $bonus ? (float)$bonus->bonus_amount : 0;
 
         $zones = [];
-        foreach ($centroids as $districtId => [$lat, $lng]) {
-            $count = (int)($ordersByDistrict[$districtId] ?? 0);
-            if ($count === 0) continue; // skip empty zones
-
+        foreach ($rows as $row) {
+            $count = (int) $row->order_count;
             $level = match(true) {
                 $count >= 5 => 'very_busy',
                 $count >= 2 => 'busy',
@@ -1270,18 +1252,19 @@ class DeliveryController extends Controller
             };
 
             $zones[] = [
-                'district_id'  => $districtId,
-                'lat'          => $lat,
-                'lng'          => $lng,
-                'order_count'  => $count,
-                'level'        => $level,
-                'bonus_amount' => $bonusAmount,
-                'label'        => match($level) {
+                'district_id'   => $row->district_id,
+                'district_name' => $row->district_name,
+                'lat'           => (float) $row->center_lat,
+                'lng'           => (float) $row->center_lng,
+                'order_count'   => $count,
+                'level'         => $level,
+                'bonus_amount'  => $bonusAmount,
+                'label'         => match($level) {
                     'very_busy' => 'Very Busy',
                     'busy'      => 'Busy',
                     default     => 'Active',
                 } . ($bonusAmount > 0 ? ' +$' . number_format($bonusAmount, 2) : ''),
-                'radius_m'     => match($level) {
+                'radius_m'      => match($level) {
                     'very_busy' => 1800,
                     'busy'      => 1400,
                     default     => 1000,
