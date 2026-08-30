@@ -225,13 +225,14 @@ class _ELaundryScreenState extends ConsumerState<ELaundryScreen> {
         items: items,
         qty: _qty,
         subtotal: total,
-        onConfirm: (districtId, payMethod, waafiRef, pointsToRedeem) async {
+        onConfirm: (districtId, payMethod, waafiRef, pointsToRedeem, selfPickup) async {
           final selected = <Map<String, dynamic>>[];
           _qty.forEach((id, q) { if (q > 0) selected.add({'id': id, 'qty': q}); });
           await _svc.placeLaundryOrder({
             'service_type': _serviceType,
             'items': selected,
-            'pickup_district_id': districtId,
+            if (!selfPickup) 'pickup_district_id': districtId,
+            'self_pickup': selfPickup,
             'payment_method': payMethod,
             if (waafiRef != null) 'payment_reference': waafiRef,
             if (pointsToRedeem > 0) 'points_to_redeem': pointsToRedeem,
@@ -283,7 +284,8 @@ class _OrderConfirmPage extends ConsumerStatefulWidget {
   final List items;
   final Map<int, int> qty;
   final double subtotal;
-  final Future<void> Function(int districtId, String payMethod, String? waafiRef, int pointsToRedeem) onConfirm;
+  // districtId=0 means self pickup
+  final Future<void> Function(int districtId, String payMethod, String? waafiRef, int pointsToRedeem, bool selfPickup) onConfirm;
 
   const _OrderConfirmPage({required this.serviceType, required this.items,
       required this.qty, required this.subtotal, required this.onConfirm});
@@ -293,38 +295,57 @@ class _OrderConfirmPage extends ConsumerStatefulWidget {
 }
 
 class _OrderConfirmPageState extends ConsumerState<_OrderConfirmPage> {
-  // Districts from backend: ordered by sort_order (same list the API /eparcel/districts returns)
-  static const _districtNames = [
-    'Abdiaziz','Boondheere','Daarusalaam','Deyniile','Dharkeynley','Garasbaaley',
-    'Gubadleey','Hamarjajab','Hamarweyne','Hiliwaa','Hodan','Howlwadaag',
-    'Kaaraan','Kahda','Shangaani','Shibis','Waaberi','Wadajir','Warta Nabadda','Yaqshiid',
-  ];
+  // Districts fetched from API — list of {id, name}
+  List<Map<String, dynamic>> _districts = [];
+  bool _districtsLoading = true;
 
-  int     _districtId    = 1;
-  String  _payMethod     = 'wallet';
+  int     _districtId     = 0; // 0 = not yet loaded
+  bool    _selfPickup     = false;
+  String  _payMethod      = 'wallet';
   String? _waafiRef;
-  bool    _loading       = false;
-  bool    _success       = false;
+  bool    _loading        = false;
+  bool    _success        = false;
   int     _pointsToRedeem = 0;
   double  _pointsDiscount = 0.0;
-  double  _deliveryFee   = 0.0;
-  bool    _feeLoading    = false;
+  double  _deliveryFee    = 0.0;
+  bool    _feeLoading     = false;
 
   @override
   void initState() {
     super.initState();
-    // Auto-fill user's registered district then load fee
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final userAsync = ref.read(authStateProvider);
-      final user = userAsync.valueOrNull;
-      if (user?.districtId != null && user!.districtId! > 0) {
-        setState(() => _districtId = user.districtId!);
-      }
+      await _loadDistricts();
       await _loadDeliveryFee();
     });
   }
 
+  Future<void> _loadDistricts() async {
+    try {
+      final res = await ModuleApiService.create().getDistricts();
+      final list = (res?['data'] as List? ?? res as List? ?? []) as List;
+      final districts = list.map<Map<String, dynamic>>((d) => {
+        'id': d['id'] is int ? d['id'] : int.tryParse(d['id'].toString()) ?? 0,
+        'name': d['name']?.toString() ?? '',
+      }).where((d) => d['id'] != 0).toList();
+
+      // Auto-fill user's registered district
+      final user = ref.read(authStateProvider).valueOrNull;
+      int defaultId = districts.isNotEmpty ? (districts.first['id'] as int) : 1;
+      if (user?.districtId != null && user!.districtId! > 0) {
+        final found = districts.any((d) => d['id'] == user.districtId);
+        if (found) defaultId = user.districtId!;
+      }
+      if (mounted) setState(() { _districts = districts; _districtId = defaultId; _districtsLoading = false; });
+    } catch (_) {
+      if (mounted) setState(() => _districtsLoading = false);
+    }
+  }
+
   Future<void> _loadDeliveryFee() async {
+    if (_selfPickup) {
+      if (mounted) setState(() => _deliveryFee = 0.0);
+      return;
+    }
     if (!mounted) return;
     setState(() => _feeLoading = true);
     try {
@@ -334,6 +355,7 @@ class _OrderConfirmPageState extends ConsumerState<_OrderConfirmPage> {
         'service_type': widget.serviceType,
         'items': selected,
         'pickup_district_id': _districtId,
+        'self_pickup': false,
       });
       final fee = double.tryParse(res?['data']?['delivery_fee']?.toString() ?? '0') ?? 0.0;
       if (mounted) setState(() { _deliveryFee = fee; _feeLoading = false; });
@@ -439,29 +461,83 @@ class _OrderConfirmPageState extends ConsumerState<_OrderConfirmPage> {
 
           const SizedBox(height: 22),
 
-          // ── Pickup District ────────────────────────────────────────────
-          Text('Your District', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: c.navyText)),
-          const SizedBox(height: 4),
-          Text('Delivery fee is calculated from Hamarweyne to your district.',
-              style: TextStyle(fontSize: 11, color: c.mutedText)),
+          // ── Delivery Type ──────────────────────────────────────────────
+          Text('Delivery Type', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: c.navyText)),
           const SizedBox(height: 8),
-          DropdownButtonFormField<int>(
-            value: _districtId,
-            onChanged: (v) {
-              if (v == null) return;
-              setState(() => _districtId = v);
-              _loadDeliveryFee();
-            },
-            decoration: InputDecoration(
-              filled: true, fillColor: c.inputFill,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.divider)),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.divider)),
-              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 2)),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          Row(children: [
+            Expanded(
+              child: GestureDetector(
+                onTap: () { setState(() { _selfPickup = false; }); _loadDeliveryFee(); },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    color: !_selfPickup ? AppColors.primary.withValues(alpha: 0.10) : c.inputFill,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: !_selfPickup ? AppColors.primary : c.borderColor, width: !_selfPickup ? 2 : 1),
+                  ),
+                  child: Column(children: [
+                    Icon(Icons.local_shipping_rounded, color: !_selfPickup ? AppColors.primary : c.mutedText, size: 22),
+                    const SizedBox(height: 4),
+                    Text('Home Pickup', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: !_selfPickup ? AppColors.primary : c.mutedText)),
+                    Text('We collect & return', style: TextStyle(fontSize: 10, color: c.mutedText)),
+                  ]),
+                ),
+              ),
             ),
-            items: _districtNames.asMap().entries.map((e) =>
-                DropdownMenuItem(value: e.key + 1, child: Text(e.value))).toList(),
-          ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: GestureDetector(
+                onTap: () { setState(() { _selfPickup = true; _deliveryFee = 0.0; }); },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    color: _selfPickup ? AppColors.primary.withValues(alpha: 0.10) : c.inputFill,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: _selfPickup ? AppColors.primary : c.borderColor, width: _selfPickup ? 2 : 1),
+                  ),
+                  child: Column(children: [
+                    Icon(Icons.storefront_rounded, color: _selfPickup ? AppColors.primary : c.mutedText, size: 22),
+                    const SizedBox(height: 4),
+                    Text('Self Pickup', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: _selfPickup ? AppColors.primary : c.mutedText)),
+                    Text('No delivery fee', style: TextStyle(fontSize: 10, color: c.mutedText)),
+                  ]),
+                ),
+              ),
+            ),
+          ]),
+
+          // ── District (only when home pickup) ──────────────────────────
+          if (!_selfPickup) ...[
+            const SizedBox(height: 16),
+            Text('Your District', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: c.navyText)),
+            const SizedBox(height: 4),
+            Text('Delivery = Hamarweyne ↔ your district (round trip: pickup + return).',
+                style: TextStyle(fontSize: 11, color: c.mutedText)),
+            const SizedBox(height: 8),
+            _districtsLoading
+              ? const LinearProgressIndicator(minHeight: 2)
+              : DropdownButtonFormField<int>(
+                  value: _districts.any((d) => d['id'] == _districtId) ? _districtId : (_districts.isNotEmpty ? _districts.first['id'] as int : null),
+                  onChanged: (v) {
+                    if (v == null) return;
+                    setState(() => _districtId = v);
+                    _loadDeliveryFee();
+                  },
+                  decoration: InputDecoration(
+                    filled: true, fillColor: c.inputFill,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.divider)),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.divider)),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 2)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                  ),
+                  items: _districts.map((d) => DropdownMenuItem<int>(
+                    value: d['id'] as int,
+                    child: Text(d['name'] as String),
+                  )).toList(),
+                ),
+          ],
 
           const SizedBox(height: 22),
 
@@ -505,7 +581,7 @@ class _OrderConfirmPageState extends ConsumerState<_OrderConfirmPage> {
               }
               setState(() => _loading = true);
               try {
-                await widget.onConfirm(_districtId, _payMethod, _waafiRef, _pointsToRedeem);
+                await widget.onConfirm(_districtId, _payMethod, _waafiRef, _pointsToRedeem, _selfPickup);
                 if (mounted) setState(() { _loading = false; _success = true; });
               } catch (e) {
                 if (mounted) {

@@ -30,56 +30,61 @@ class ELaundryController extends Controller
     public function estimate(Request $request)
     {
         $v = Validator::make($request->all(), [
-            'service_type' => 'required|in:normal,express,mobile_pay',
-            'items'        => 'required|array|min:1',
-            'items.*.id'   => 'required|exists:laundry_items,id',
-            'items.*.qty'  => 'required|integer|min:1',
+            'service_type'       => 'required|in:normal,express,mobile_pay',
+            'items'              => 'required|array|min:1',
+            'items.*.id'         => 'required|exists:laundry_items,id',
+            'items.*.qty'        => 'required|integer|min:1',
+            'pickup_district_id' => 'nullable|exists:districts,id',
+            'self_pickup'        => 'nullable|boolean',
         ]);
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
 
-        $isExpress   = $request->service_type === 'express';
-        $priceField  = $isExpress ? 'express_price' : 'normal_price';
-        $itemIds     = array_column($request->items, 'id');
-        $dbItems     = DB::table('laundry_items')->whereIn('id', $itemIds)->get()->keyBy('id');
+        $isExpress  = $request->service_type === 'express';
+        $priceField = $isExpress ? 'express_price' : 'normal_price';
+        $itemIds    = array_column($request->items, 'id');
+        $dbItems    = DB::table('laundry_items')->whereIn('id', $itemIds)->get()->keyBy('id');
 
-        $lines       = [];
-        $total       = 0;
-
+        $lines = [];
+        $total = 0;
         foreach ($request->items as $reqItem) {
             $dbItem = $dbItems[$reqItem['id']] ?? null;
             if (!$dbItem) continue;
-            $price = $dbItem->{$priceField};
-            $sub   = $price * $reqItem['qty'];
-            $total += $sub;
-            $lines[] = [
-                'name'     => $dbItem->name,
-                'qty'      => $reqItem['qty'],
-                'price'    => $price,
-                'subtotal' => $sub,
-            ];
+            $price   = $dbItem->{$priceField};
+            $sub     = $price * $reqItem['qty'];
+            $total  += $sub;
+            $lines[] = ['name' => $dbItem->name, 'qty' => $reqItem['qty'], 'price' => $price, 'subtotal' => $sub];
         }
 
-        // Derive ETA from the first item's days/hours setting
-        $firstItem    = $dbItems->first();
-        $etaLabel     = $isExpress
+        $firstItem = $dbItems->first();
+        $etaLabel  = $isExpress
             ? ($firstItem ? $firstItem->express_hours . ' hours' : '24 hours')
             : ($firstItem ? $firstItem->normal_days   . ' days'  : '1-2 days');
 
-        // Include delivery fee + bonus in estimate so customer sees accurate total
-        $deliveryFee = \App\Helpers\DeliveryPricing::forShopOrLaundry(
-            $request->pickup_district_id ? (int)$request->pickup_district_id : null, 0
-        );
-        $bonusAmount = \App\Services\DeliveryBonusService::getActiveBonusAmount();
-        $totalWithDelivery = round($total + $deliveryFee + $bonusAmount, 2);
+        // Self-pickup → no delivery fee.
+        // Otherwise: Hamarweyne (base) → customer district, × 2 (round trip: pickup + return).
+        $selfPickup  = filter_var($request->input('self_pickup', false), FILTER_VALIDATE_BOOLEAN);
+        if ($selfPickup) {
+            $baseDelivery = 0.0;
+        } else {
+            $oneWay      = \App\Helpers\DeliveryPricing::forShopOrLaundry(
+                $request->pickup_district_id ? (int)$request->pickup_district_id : null, 0
+            );
+            $baseDelivery = $oneWay * 2; // round trip
+        }
+        $bonusAmount       = $selfPickup ? 0.0 : \App\Services\DeliveryBonusService::getActiveBonusAmount();
+        $deliveryFee       = round($baseDelivery + $bonusAmount, 2);
+        $totalWithDelivery = round($total + $deliveryFee, 2);
 
         return response()->json([
             'success' => true,
             'data'    => [
                 'service_type'  => $request->service_type,
                 'delivery_days' => $etaLabel,
+                'self_pickup'   => $selfPickup,
                 'lines'         => $lines,
                 'subtotal'      => round($total, 2),
-                'delivery_fee'  => round($deliveryFee + $bonusAmount, 2),
+                'delivery_fee'  => $deliveryFee,
+                'bonus_amount'  => $bonusAmount,
                 'total'         => $totalWithDelivery,
             ],
         ]);
@@ -88,23 +93,26 @@ class ELaundryController extends Controller
     // POST /elaundry/order (auth)
     public function createOrder(Request $request)
     {
+        $selfPickup = filter_var($request->input('self_pickup', false), FILTER_VALIDATE_BOOLEAN);
+
         $v = Validator::make($request->all(), [
             'service_type'       => 'required|in:normal,express,mobile_pay',
             'items'              => 'required|array|min:1',
             'items.*.id'         => 'required|exists:laundry_items,id',
             'items.*.qty'        => 'required|integer|min:1',
-            'pickup_district_id' => 'required|exists:districts,id',
+            'pickup_district_id' => $selfPickup ? 'nullable' : 'required|exists:districts,id',
             'pickup_address'     => 'nullable|string',
             'delivery_address'   => 'nullable|string',
             'payment_method'     => 'required|in:wallet,cod,mobile_pay',
+            'self_pickup'        => 'nullable|boolean',
         ]);
         if ($v->fails()) return response()->json(['success' => false, 'errors' => $v->errors()], 422);
 
-        $user      = $request->user();
-        $isExpress = $request->service_type === 'express';
+        $user       = $request->user();
+        $isExpress  = $request->service_type === 'express';
         $priceField = $isExpress ? 'express_price' : 'normal_price';
-        $itemIds   = array_column($request->items, 'id');
-        $dbItems   = DB::table('laundry_items')->whereIn('id', $itemIds)->get()->keyBy('id');
+        $itemIds    = array_column($request->items, 'id');
+        $dbItems    = DB::table('laundry_items')->whereIn('id', $itemIds)->get()->keyBy('id');
 
         $total = 0;
         $orderLines = [];
@@ -127,10 +135,19 @@ class ELaundryController extends Controller
             }
         }
 
-        $district    = DB::table('districts')->find($request->pickup_district_id);
-        $baseFee     = \App\Helpers\DeliveryPricing::forShopOrLaundry($request->pickup_district_id ? (int)$request->pickup_district_id : null, 0);
-        $bonusAmount = \App\Services\DeliveryBonusService::getActiveBonusAmount();
-        $deliveryFee = round($baseFee + $bonusAmount, 2);
+        $district = $selfPickup ? null : DB::table('districts')->find($request->pickup_district_id);
+
+        // Self-pickup: no delivery fee.
+        // Otherwise: Hamarweyne → customer district × 2 (round trip: pickup clothes + return).
+        if ($selfPickup) {
+            $baseFee     = 0.0;
+            $bonusAmount = 0.0;
+        } else {
+            $oneWay      = \App\Helpers\DeliveryPricing::forShopOrLaundry((int)$request->pickup_district_id, 0);
+            $baseFee     = $oneWay * 2;
+            $bonusAmount = \App\Services\DeliveryBonusService::getActiveBonusAmount();
+        }
+        $deliveryFee       = round($baseFee + $bonusAmount, 2);
         $totalWithDelivery = $total + $deliveryFee;
 
         $order = DB::transaction(function () use ($request, $user, $total, $totalWithDelivery, $deliveryFee, $bonusAmount, $orderLines, $district, $isExpress, $dbItems, $loyalty) {
@@ -141,7 +158,7 @@ class ELaundryController extends Controller
                 'status'          => 'pending',
                 'payment_method'  => $request->payment_method,
                 'payment_status'  => $request->payment_method === 'wallet' ? 'paid' : 'unpaid',
-                'delivery_address'=> ['address' => $request->delivery_address ?? $request->pickup_address, 'district' => $district?->name],
+                'delivery_address'=> ['address' => $request->delivery_address ?? $request->pickup_address, 'district' => $district?->name ?? 'Self Pickup'],
                 'subtotal'        => $total,
                 'delivery_fee'    => $deliveryFee,
                 'bonus_amount'    => $bonusAmount,  // already included in delivery_fee — prevent double-add by hook
@@ -151,8 +168,9 @@ class ELaundryController extends Controller
                 'note'            => json_encode([
                     'service_type'   => $request->service_type,
                     'items'          => $orderLines,
+                    'self_pickup'    => $selfPickup,
                     'pickup_address' => $request->pickup_address,
-                    'district'       => $district?->name,
+                    'district'       => $selfPickup ? 'Self Pickup' : $district?->name,
                     'eta'            => $isExpress
                         ? ($dbItems->first() ? $dbItems->first()->express_hours . ' hours' : '24 hours')
                         : ($dbItems->first() ? $dbItems->first()->normal_days   . ' days'  : '1-2 days'),
@@ -167,7 +185,7 @@ class ELaundryController extends Controller
             ]);
 
             if ($request->payment_method === 'wallet') {
-                $user->wallet->decrement('balance', $total);
+                $user->wallet->decrement('balance', $totalWithDelivery);
             }
 
             return $order;
