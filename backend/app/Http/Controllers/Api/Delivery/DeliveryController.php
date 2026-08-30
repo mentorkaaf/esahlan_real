@@ -456,6 +456,21 @@ class DeliveryController extends Controller
                     'created_at'     => now(),
                 ]);
 
+                // Peak Pay Bonus — credit driver if order carried a bonus
+                $bonusAmount = (float) ($order->bonus_amount ?? 0);
+                if ($bonusAmount > 0) {
+                    $bonusWallet = Wallet::getOrCreateFor('App\\Models\\User', $request->user()->id);
+                    $bonusWallet->credit($bonusAmount, "🔥 Peak Pay Bonus: #{$order->order_number}", 'App\\Models\\Order', $order->id);
+                    DB::table('deliveryman_earnings')->insert([
+                        'deliveryman_id' => $dm->id,
+                        'order_id'       => $order->id,
+                        'type'           => 'bonus',
+                        'amount'         => $bonusAmount,
+                        'note'           => "Peak Pay Bonus — Order #{$order->order_number}",
+                        'created_at'     => now(),
+                    ]);
+                }
+
                 // Settle commission record — use commission table as fallback if vendor_id not set on order
                 $commissionRow = DB::table('commissions')
                     ->where('order_id', $order->id)

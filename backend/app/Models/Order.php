@@ -17,7 +17,7 @@ class Order extends Model
         'tax_amount','discount_amount','coupon_discount','total_amount','commission','wallet_used',
         'notes','note','scheduled_at','placed_at','confirmed_at','ready_at','dispatched_at',
         'picked_up_at','delivered_at','cancelled_at','cancellation_reason',
-        'refund_amount','coupon_id','delivery_address','meta',
+        'refund_amount','coupon_id','delivery_address','meta','bonus_amount',
     ];
 
     protected $casts = [
@@ -27,7 +27,7 @@ class Order extends Model
         'picked_up_at'=>'datetime','delivered_at'=>'datetime','cancelled_at'=>'datetime',
         'subtotal'=>'float','delivery_fee'=>'float','tax_amount'=>'float',
         'discount_amount'=>'float','coupon_discount'=>'float','total_amount'=>'float',
-        'wallet_used'=>'float','refund_amount'=>'float',
+        'wallet_used'=>'float','refund_amount'=>'float','bonus_amount'=>'float',
     ];
 
     protected static function boot(): void
@@ -37,6 +37,16 @@ class Order extends Model
         static::creating(function ($order) {
             $order->uuid         = (string) Str::uuid();
             $order->order_number = 'ESH-' . strtoupper(Str::random(8));
+
+            // Peak Pay Bonus — add to delivery_fee if bonus is active and order has a delivery fee
+            if (!isset($order->bonus_amount) || $order->bonus_amount == 0) {
+                $bonusAmount = \App\Services\DeliveryBonusService::getActiveBonusAmount();
+                if ($bonusAmount > 0 && ($order->delivery_fee ?? 0) > 0) {
+                    $order->bonus_amount = $bonusAmount;
+                    $order->delivery_fee = round(($order->delivery_fee ?? 0) + $bonusAmount, 2);
+                    $order->total_amount = round(($order->total_amount ?? 0) + $bonusAmount, 2);
+                }
+            }
         });
 
         // Admin email alert — fires for ANY order from ANY controller/module
