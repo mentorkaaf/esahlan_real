@@ -1219,23 +1219,22 @@ class DeliveryController extends Controller
         $dm = $this->dm($request);
         if (!$dm) return response()->json(['success'=>false],404);
 
-        // Group active orders by district — use REAL vendor lat/lng average as zone center
+        // Per-vendor active order counts — real location, real name
         $rows = DB::table('orders')
             ->join('vendors', 'orders.vendor_id', '=', 'vendors.id')
-            ->join('districts', 'vendors.district_id', '=', 'districts.id')
             ->where('orders.created_at', '>=', now()->subHours(4))
             ->whereIn('orders.status', ['pending','confirmed','preparing','ready_for_pickup','out_for_delivery'])
-            ->whereNotNull('vendors.district_id')
             ->whereNotNull('vendors.latitude')
             ->whereNotNull('vendors.longitude')
             ->select(
-                'vendors.district_id',
-                'districts.name as district_name',
-                DB::raw('COUNT(*) as order_count'),
-                DB::raw('AVG(vendors.latitude)  as center_lat'),
-                DB::raw('AVG(vendors.longitude) as center_lng')
+                'vendors.id as vendor_id',
+                'vendors.name as vendor_name',
+                'vendors.logo',
+                'vendors.latitude',
+                'vendors.longitude',
+                DB::raw('COUNT(*) as order_count')
             )
-            ->groupBy('vendors.district_id', 'districts.name')
+            ->groupBy('vendors.id', 'vendors.name', 'vendors.logo', 'vendors.latitude', 'vendors.longitude')
             ->get();
 
         // Active delivery bonus
@@ -1252,22 +1251,23 @@ class DeliveryController extends Controller
             };
 
             $zones[] = [
-                'district_id'   => $row->district_id,
-                'district_name' => $row->district_name,
-                'lat'           => (float) $row->center_lat,
-                'lng'           => (float) $row->center_lng,
-                'order_count'   => $count,
-                'level'         => $level,
-                'bonus_amount'  => $bonusAmount,
-                'label'         => match($level) {
+                'vendor_id'    => $row->vendor_id,
+                'vendor_name'  => $row->vendor_name,
+                'logo'         => $row->logo ? asset('storage/' . $row->logo) : null,
+                'lat'          => (float) $row->latitude,
+                'lng'          => (float) $row->longitude,
+                'order_count'  => $count,
+                'level'        => $level,
+                'bonus_amount' => $bonusAmount,
+                'label'        => match($level) {
                     'very_busy' => 'Very Busy',
                     'busy'      => 'Busy',
                     default     => 'Active',
                 } . ($bonusAmount > 0 ? ' +$' . number_format($bonusAmount, 2) : ''),
-                'radius_m'      => match($level) {
-                    'very_busy' => 1800,
-                    'busy'      => 1400,
-                    default     => 1000,
+                'radius_m'     => match($level) {
+                    'very_busy' => 900,
+                    'busy'      => 650,
+                    default     => 450,
                 },
             ];
         }

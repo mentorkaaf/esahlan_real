@@ -8,15 +8,18 @@ import '../../../../core/theme/driver_colors.dart';
 
 // ── Data model ────────────────────────────────────────────────────────────────
 class _Zone {
-  final int    districtId;
+  final int    vendorId;
+  final String vendorName;
+  final String? logo;
   final double lat, lng;
   final int    orderCount;
   final String level; // active | busy | very_busy
   final double bonusAmount;
   final String label;
   final int    radiusM;
-  const _Zone({required this.districtId, required this.lat, required this.lng,
-    required this.orderCount, required this.level, required this.bonusAmount,
+  const _Zone({required this.vendorId, required this.vendorName, this.logo,
+    required this.lat, required this.lng, required this.orderCount,
+    required this.level, required this.bonusAmount,
     required this.label, required this.radiusM});
 }
 
@@ -26,7 +29,9 @@ final _zonesProvider = FutureProvider.autoDispose<List<_Zone>>((ref) async {
   return raw.map((z) {
     final m = z as Map<String, dynamic>;
     return _Zone(
-      districtId:  (m['district_id'] as num).toInt(),
+      vendorId:    (m['vendor_id'] as num).toInt(),
+      vendorName:  m['vendor_name'] as String? ?? 'Store',
+      logo:        m['logo'] as String?,
       lat:         (m['lat'] as num).toDouble(),
       lng:         (m['lng'] as num).toDouble(),
       orderCount:  (m['order_count'] as num).toInt(),
@@ -72,22 +77,22 @@ class _HeatmapScreenState extends ConsumerState<HeatmapScreen> {
     final circles = <Circle>{};
     for (final z in zones) {
       final colors = _zoneColors(z.level);
-      // Outer glow circle
+      // Outer glow
       circles.add(Circle(
-        circleId: CircleId('glow_${z.districtId}'),
+        circleId: CircleId('glow_${z.vendorId}'),
         center:   LatLng(z.lat, z.lng),
-        radius:   z.radiusM.toDouble() * 1.3,
-        fillColor:   colors.$1.withOpacity(0.10),
+        radius:   z.radiusM.toDouble() * 1.4,
+        fillColor:   colors.$1.withOpacity(0.08),
         strokeColor: colors.$1.withOpacity(0.0),
         strokeWidth: 0,
       ));
-      // Main fill circle
+      // Main circle
       circles.add(Circle(
-        circleId: CircleId('zone_${z.districtId}'),
+        circleId: CircleId('zone_${z.vendorId}'),
         center:   LatLng(z.lat, z.lng),
         radius:   z.radiusM.toDouble(),
-        fillColor:   colors.$1.withOpacity(0.30),
-        strokeColor: colors.$1.withOpacity(0.75),
+        fillColor:   colors.$1.withOpacity(0.25),
+        strokeColor: colors.$1.withOpacity(0.70),
         strokeWidth: 2,
       ));
     }
@@ -99,17 +104,16 @@ class _HeatmapScreenState extends ConsumerState<HeatmapScreen> {
     final markers = <Marker>{};
     for (final z in zones) {
       final colors = _zoneColors(z.level);
-      final icon = await _buildLabelIcon(z.label, colors.$1, colors.$2);
+      final icon = await _buildVendorIcon(z.vendorName, z.orderCount, colors.$1);
       markers.add(Marker(
-        markerId: MarkerId('label_${z.districtId}'),
+        markerId: MarkerId('vendor_${z.vendorId}'),
         position: LatLng(z.lat, z.lng),
         icon:     icon,
-        anchor:   const Offset(0.5, 0.5),
-        flat:     true,
-        zIndex:   2,
+        anchor:   const Offset(0.5, 1.0),
+        zIndex:   3,
         infoWindow: InfoWindow(
-          title: z.label,
-          snippet: '${z.orderCount} active orders nearby',
+          title: z.vendorName,
+          snippet: '${z.orderCount} active order${z.orderCount > 1 ? 's' : ''} · ${z.label}',
         ),
       ));
     }
@@ -123,32 +127,67 @@ class _HeatmapScreenState extends ConsumerState<HeatmapScreen> {
     _           => (const Color(0xFFFF8A00), Colors.white),
   };
 
-  // ── Draw label bitmap (pill with text) ────────────────────────────────────
-  Future<BitmapDescriptor> _buildLabelIcon(String text, Color bg, Color fg) async {
+  // ── Vendor marker: store icon + name + order count badge ─────────────────
+  Future<BitmapDescriptor> _buildVendorIcon(String name, int count, Color zoneColor) async {
+    const double w = 200, iconSize = 44, badgeSize = 26;
+    // Truncate long names
+    final shortName = name.length > 16 ? '${name.substring(0, 14)}…' : name;
+
+    final tp = TextPainter(
+      text: TextSpan(text: shortName,
+          style: const TextStyle(color: Color(0xFF1a1a2e), fontSize: 13,
+              fontWeight: FontWeight.w700)),
+      textDirection: TextDirection.ltr,
+    )..layout(maxWidth: w - 16);
+
+    final totalH = iconSize + 6 + tp.height + badgeSize * 0.5 + 10;
     final recorder = ui.PictureRecorder();
     final canvas   = Canvas(recorder);
 
-    const double pw = 160, ph = 44, r = 22;
-    final bgPaint  = Paint()..color = bg;
-    final rect     = RRect.fromLTRBR(0, 0, pw, ph, const Radius.circular(r));
-    canvas.drawRRect(rect, bgPaint);
+    // ── Store icon circle ──────────────────────────────────────────────────
+    final cx = w / 2, cy = iconSize / 2;
+    // Shadow
+    canvas.drawCircle(Offset(cx, cy + 2),
+        iconSize / 2 + 1, Paint()..color = Colors.black.withOpacity(0.18));
+    // White background
+    canvas.drawCircle(Offset(cx, cy), iconSize / 2,
+        Paint()..color = Colors.white);
+    // Colored ring
+    canvas.drawCircle(Offset(cx, cy), iconSize / 2,
+        Paint()..color = zoneColor..style = PaintingStyle.stroke..strokeWidth = 3);
 
-    // Signal bars icon (3 bars)
-    final barPaint = Paint()..color = fg;
-    for (int i = 0; i < 3; i++) {
-      final bh = 6.0 + i * 5.0;
-      canvas.drawRect(Rect.fromLTWH(12 + i * 8.0, ph/2 - bh/2, 5, bh), barPaint);
-    }
-
-    final tp = TextPainter(
-      text: TextSpan(text: text,
-          style: TextStyle(color: fg, fontSize: 17, fontWeight: FontWeight.w800,
-              letterSpacing: -0.3)),
+    // 🏪 store emoji as text
+    final iconTp = TextPainter(
+      text: const TextSpan(text: '🏪', style: TextStyle(fontSize: 22)),
       textDirection: TextDirection.ltr,
-    )..layout(maxWidth: pw - 46);
-    tp.paint(canvas, Offset(42, (ph - tp.height) / 2));
+    )..layout();
+    iconTp.paint(canvas, Offset(cx - iconTp.width / 2, cy - iconTp.height / 2));
 
-    final img  = await recorder.endRecording().toImage(pw.toInt(), ph.toInt());
+    // ── Order count badge (top-right of circle) ────────────────────────────
+    final bx = cx + iconSize / 2 - 2, by = cy - iconSize / 2 + 2;
+    canvas.drawCircle(Offset(bx, by), badgeSize / 2,
+        Paint()..color = zoneColor);
+    final countTp = TextPainter(
+      text: TextSpan(text: '$count',
+          style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w900)),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    countTp.paint(canvas, Offset(bx - countTp.width / 2, by - countTp.height / 2));
+
+    // ── Vendor name label below icon ──────────────────────────────────────
+    final labelY = iconSize + 6.0;
+    // White pill background
+    final labelRect = RRect.fromLTRBR(
+      cx - tp.width / 2 - 6, labelY - 2,
+      cx + tp.width / 2 + 6, labelY + tp.height + 2,
+      const Radius.circular(6),
+    );
+    canvas.drawRRect(labelRect,
+        Paint()..color = Colors.white..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2));
+    canvas.drawRRect(labelRect, Paint()..color = Colors.white);
+    tp.paint(canvas, Offset(cx - tp.width / 2, labelY));
+
+    final img  = await recorder.endRecording().toImage(w.toInt(), totalH.toInt());
     final data = await img.toByteData(format: ui.ImageByteFormat.png);
     return BitmapDescriptor.fromBytes(data!.buffer.asUint8List());
   }
