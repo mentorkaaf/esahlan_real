@@ -244,8 +244,10 @@ class EShopController extends Controller
         }
 
         // vendor district → customer district (falls back to base district if vendor has none)
-        $fee = \App\Helpers\DeliveryPricing::forShopOrLaundry($districtId, 2.00, $vendorDistrictId);
-        return response()->json(['success' => true, 'delivery_fee' => round($fee, 2), 'data' => ['delivery_fee' => round($fee, 2)]]);
+        $fee         = \App\Helpers\DeliveryPricing::forShopOrLaundry($districtId, 2.00, $vendorDistrictId);
+        $bonusAmount = \App\Services\DeliveryBonusService::getActiveBonusAmount();
+        $total       = round($fee + $bonusAmount, 2);
+        return response()->json(['success' => true, 'delivery_fee' => $total, 'data' => ['delivery_fee' => $total]]);
     }
 
     // POST /eshop/order (auth)

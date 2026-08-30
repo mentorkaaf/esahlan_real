@@ -301,6 +301,9 @@ class EGroceryOrderController extends Controller
 
                 // Mirror to main orders table (for admin dashboard / analytics / orders page)
                 try {
+                    // $deliveryFee already includes bonus from egDeliveryFee(); pass bonus_amount
+                    // explicitly so the Order model hook does not double-add.
+                    $mirrorBonus = \App\Services\DeliveryBonusService::getActiveBonusAmount();
                     Order::create([
                         'order_number'    => $orderNo,
                         'user_id'         => $user->id,
@@ -311,6 +314,7 @@ class EGroceryOrderController extends Controller
                         'payment_method'  => $request->payment_method ?? 'cash',
                         'subtotal'        => $subtotal,
                         'delivery_fee'    => $deliveryFee,
+                        'bonus_amount'    => $mirrorBonus,  // already in delivery_fee — prevent hook double-add
                         'discount_amount' => $discount,
                         'total_amount'    => $total,
                         'delivery_address'=> [],
@@ -549,13 +553,19 @@ class EGroceryOrderController extends Controller
 
     private function egDeliveryFee(?int $districtId): float
     {
-        if (!$districtId) return self::EG_DEFAULT_FEE;
-        $row = DB::table('delivery_zone_pricing')
-            ->where('module_id', 'eparcel')
-            ->where('from_district_id', self::EG_BASE_DISTRICT)
-            ->where('to_district_id', $districtId)
-            ->where('is_active', true)
-            ->first();
-        return $row ? (float) $row->base_price : self::EG_DEFAULT_FEE;
+        if (!$districtId) {
+            $base = self::EG_DEFAULT_FEE;
+        } else {
+            $row = DB::table('delivery_zone_pricing')
+                ->where('module_id', 'eparcel')
+                ->where('from_district_id', self::EG_BASE_DISTRICT)
+                ->where('to_district_id', $districtId)
+                ->where('is_active', true)
+                ->first();
+            $base = $row ? (float) $row->base_price : self::EG_DEFAULT_FEE;
+        }
+        // Add Peak Pay Bonus if active
+        $bonus = \App\Services\DeliveryBonusService::getActiveBonusAmount();
+        return round($base + $bonus, 2);
     }
 }

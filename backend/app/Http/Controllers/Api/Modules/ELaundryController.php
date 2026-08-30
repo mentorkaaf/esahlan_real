@@ -65,13 +65,22 @@ class ELaundryController extends Controller
             ? ($firstItem ? $firstItem->express_hours . ' hours' : '24 hours')
             : ($firstItem ? $firstItem->normal_days   . ' days'  : '1-2 days');
 
+        // Include delivery fee + bonus in estimate so customer sees accurate total
+        $deliveryFee = \App\Helpers\DeliveryPricing::forShopOrLaundry(
+            $request->pickup_district_id ? (int)$request->pickup_district_id : null, 0
+        );
+        $bonusAmount = \App\Services\DeliveryBonusService::getActiveBonusAmount();
+        $totalWithDelivery = round($total + $deliveryFee + $bonusAmount, 2);
+
         return response()->json([
             'success' => true,
             'data'    => [
                 'service_type'  => $request->service_type,
                 'delivery_days' => $etaLabel,
                 'lines'         => $lines,
-                'total'         => round($total, 2),
+                'subtotal'      => round($total, 2),
+                'delivery_fee'  => round($deliveryFee + $bonusAmount, 2),
+                'total'         => $totalWithDelivery,
             ],
         ]);
     }
@@ -118,11 +127,13 @@ class ELaundryController extends Controller
             }
         }
 
-        $district = DB::table('districts')->find($request->pickup_district_id);
-        $deliveryFee = \App\Helpers\DeliveryPricing::forShopOrLaundry($request->pickup_district_id ? (int)$request->pickup_district_id : null, 0);
+        $district    = DB::table('districts')->find($request->pickup_district_id);
+        $baseFee     = \App\Helpers\DeliveryPricing::forShopOrLaundry($request->pickup_district_id ? (int)$request->pickup_district_id : null, 0);
+        $bonusAmount = \App\Services\DeliveryBonusService::getActiveBonusAmount();
+        $deliveryFee = round($baseFee + $bonusAmount, 2);
         $totalWithDelivery = $total + $deliveryFee;
 
-        $order = DB::transaction(function () use ($request, $user, $total, $totalWithDelivery, $deliveryFee, $orderLines, $district, $isExpress, $dbItems, $loyalty) {
+        $order = DB::transaction(function () use ($request, $user, $total, $totalWithDelivery, $deliveryFee, $bonusAmount, $orderLines, $district, $isExpress, $dbItems, $loyalty) {
             $order = Order::create([
                 'order_number'    => 'LDR-' . strtoupper(Str::random(8)),
                 'user_id'         => $user->id,
@@ -133,6 +144,7 @@ class ELaundryController extends Controller
                 'delivery_address'=> ['address' => $request->delivery_address ?? $request->pickup_address, 'district' => $district?->name],
                 'subtotal'        => $total,
                 'delivery_fee'    => $deliveryFee,
+                'bonus_amount'    => $bonusAmount,  // already included in delivery_fee — prevent double-add by hook
                 'total_amount'    => $totalWithDelivery,
                 'points_used'     => $loyalty['points_used'],
                 'points_discount' => $loyalty['points_discount'],
