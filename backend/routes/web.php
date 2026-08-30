@@ -396,6 +396,8 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::post('/settings', [AdminDeliverymanController::class, 'saveSettings'])->name('settings');
             Route::post('/documents/{document}/approve', [AdminDeliverymanController::class, 'approveDocument'])->name('document.approve');
             Route::post('/documents/{document}/reject', [AdminDeliverymanController::class, 'rejectDocument'])->name('document.reject');
+            Route::post('/{deliveryman}/documents/bulk-approve', [AdminDeliverymanController::class, 'bulkApproveDocuments'])->name('documents.bulk-approve');
+            Route::post('/{deliveryman}/documents/bulk-reject', [AdminDeliverymanController::class, 'bulkRejectDocuments'])->name('documents.bulk-reject');
         });
 
         // Modules

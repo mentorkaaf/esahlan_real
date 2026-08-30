@@ -65,7 +65,23 @@
 
     {{-- Documents Card --}}
     <div class="card">
-        <div class="card-header"><div class="card-header-title"><div class="card-header-icon" style="background:rgba(59,130,246,0.1);color:#3B82F6;"><i class="fas fa-folder"></i></div> Documents</div></div>
+        <div class="card-header">
+            <div class="card-header-title"><div class="card-header-icon" style="background:rgba(59,130,246,0.1);color:#3B82F6;"><i class="fas fa-folder"></i></div> Documents</div>
+            @if($deliveryman->documents->where('status','pending')->count() > 0)
+            <div style="display:flex;gap:8px;margin-left:auto;">
+                <form action="{{ route('admin.deliverymen.documents.bulk-approve', $deliveryman->id) }}" method="POST" style="margin:0;"
+                      onsubmit="return confirm('Approve all pending documents?')">
+                    @csrf
+                    <button class="btn btn-sm btn-success"><i class="fas fa-check-double"></i> Approve All</button>
+                </form>
+                <form action="{{ route('admin.deliverymen.documents.bulk-reject', $deliveryman->id) }}" method="POST" style="margin:0;"
+                      onsubmit="return confirm('Reject all pending documents?')">
+                    @csrf
+                    <button class="btn btn-sm btn-danger"><i class="fas fa-times-circle"></i> Reject All</button>
+                </form>
+            </div>
+            @endif
+        </div>
         <div class="card-body">
             @forelse($deliveryman->documents ?? [] as $doc)
             <div style="display:flex;align-items:center;gap:12px;padding:12px;border:1.5px solid #f0f1f5;border-radius:12px;margin-bottom:10px;">

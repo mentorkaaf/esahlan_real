@@ -265,4 +265,18 @@ class AdminDeliverymanController extends Controller
         $document->update(['status' => 'rejected', 'reviewed_by' => auth()->id(), 'reviewed_at' => now()]);
         return back()->with('success', 'Document rejected.');
     }
+
+    public function bulkApproveDocuments(Deliveryman $deliveryman)
+    {
+        $count = $deliveryman->documents()->where('status', 'pending')
+            ->update(['status' => 'approved', 'reviewed_by' => auth()->id(), 'reviewed_at' => now()]);
+        return back()->with('success', "All {$count} pending documents approved.");
+    }
+
+    public function bulkRejectDocuments(Deliveryman $deliveryman)
+    {
+        $count = $deliveryman->documents()->where('status', 'pending')
+            ->update(['status' => 'rejected', 'reviewed_by' => auth()->id(), 'reviewed_at' => now()]);
+        return back()->with('success', "All {$count} pending documents rejected.");
+    }
 }
