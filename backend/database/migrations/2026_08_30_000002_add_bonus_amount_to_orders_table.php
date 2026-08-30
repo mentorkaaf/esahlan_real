@@ -19,8 +19,12 @@ return new class extends Migration
 
         // Add to global_orders if it exists
         if (Schema::hasTable('global_orders') && !Schema::hasColumn('global_orders', 'bonus_amount')) {
-            Schema::table('global_orders', function (Blueprint $table) {
-                $table->decimal('bonus_amount', 8, 2)->default(0)->after('delivery_fee');
+            $hasFee = Schema::hasColumn('global_orders', 'delivery_fee');
+            Schema::table('global_orders', function (Blueprint $table) use ($hasFee) {
+                $col = $table->decimal('bonus_amount', 8, 2)->default(0);
+                if ($hasFee) {
+                    $col->after('delivery_fee');
+                }
             });
         }
     }
