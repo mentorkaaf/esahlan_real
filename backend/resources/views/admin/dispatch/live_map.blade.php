@@ -163,7 +163,7 @@ function renderDrivers(drivers) {
         var isStale = d.is_stale || false;
         // Green=online+fresh, Orange=busy, Grey=stale/offline
         var fillColor = isBusy ? '#f97316' : isStale ? '#9ca3af' : '#22c55e';
-        var icon = makeBikeMarkerIcon(fillColor, isStale ? 0.55 : 1);
+        var icon = makeBikeMarkerIcon(fillColor, isStale ? 0.75 : 1);
 
         if (driverMarkers[d.id]) {
             driverMarkers[d.id].setPosition(pos);
@@ -233,7 +233,7 @@ function renderDrivers(drivers) {
             '<div class="dp-meta">' +
             (d.order ? '📦 #' + d.order.order_number + ' &nbsp;·&nbsp; ' : '') +
             (d.vehicle_type ? vehicleIcon(d.vehicle_type) : '') + ' &nbsp;·&nbsp; ' +
-            (d.is_stale ? '<span style="color:#f97316">⚠ ' + d.last_seen + '</span>' : d.last_seen) +
+            (d.is_stale ? '<span style="color:#ef4444;font-weight:700;">⚠ Last seen ' + d.last_seen + '</span>' : '<span style="color:#22c55e;">● ' + d.last_seen + '</span>') +
             '</div>' +
         '</div>';
     }).join('');
