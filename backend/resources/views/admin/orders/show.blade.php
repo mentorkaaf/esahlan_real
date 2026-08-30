@@ -938,6 +938,57 @@ $tz = \App\Helpers\AppSettings::timezone();
 </div>
 
 {{-- â•â•â•â•â•â• ESHOP / Default: Items Table â•â•â•â•â•â• --}}
+
+{{-- ELAUNDRY: Items from note JSON --}}
+@elseif($slug === 'elaundry')
+<div class="items-modern">
+    <div class="items-header">
+        <div class="items-header-icon" style="background:#E0F7FA;">
+            <i class="fas fa-tshirt" style="color:#00838F;"></i>
+        </div>
+        <div class="items-header-title">Laundry Items</div>
+        @if(!empty($note['self_pickup']))
+        <span style="margin-left:auto;background:#E8F5E9;color:#2E7D32;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;">
+            <i class="fas fa-store"></i> Self Pickup
+        </span>
+        @elseif(!empty($note['district']))
+        <span style="margin-left:auto;font-size:12px;color:#888;">
+            <i class="fas fa-map-marker-alt"></i> {{ $note['district'] }} &nbsp;·&nbsp; Round Trip
+        </span>
+        @endif
+    </div>
+    <table class="items-table" style="width:100%;">
+        <thead><tr><th>Item</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead>
+        <tbody>
+            @forelse($note['items'] ?? [] as $li)
+            <tr>
+                <td style="font-weight:600;color:#1a1a2e;">{{ $li['name'] ?? '—' }}</td>
+                <td><span style="background:#F5F5F5;border-radius:6px;padding:2px 8px;font-weight:700;">{{ $li['qty'] ?? 1 }}</span></td>
+                <td>${{ number_format($li['price'] ?? 0, 2) }}</td>
+                <td style="font-weight:700;color:#1a1a2e;">${{ number_format($li['sub'] ?? 0, 2) }}</td>
+            </tr>
+            @empty
+            <tr><td colspan="4" style="text-align:center;padding:28px;color:#aaa;">
+                <i class="fas fa-tshirt" style="font-size:24px;display:block;margin-bottom:8px;"></i>No items recorded
+            </td></tr>
+            @endforelse
+        </tbody>
+    </table>
+    <div class="items-total-row">
+        <table class="items-total-table">
+            <tr><td>Subtotal</td><td style="text-align:right;">${{ number_format($order->subtotal,2) }}</td></tr>
+            @if($order->delivery_fee > 0)
+            <tr><td>Delivery Fee <span style="font-size:11px;color:#888;">(round trip)</span></td><td style="text-align:right;">${{ number_format($order->delivery_fee,2) }}</td></tr>
+            @else
+            <tr><td>Delivery</td><td style="text-align:right;color:#2E7D32;font-weight:700;">Self Pickup — Free</td></tr>
+            @endif
+            @if(($order->points_discount ?? 0) > 0)
+            <tr><td>Points Discount</td><td style="text-align:right;color:#2E7D32;">-${{ number_format($order->points_discount,2) }}</td></tr>
+            @endif
+            <tr class="total-row"><td style="font-weight:800;">Total</td><td style="text-align:right;font-weight:900;font-size:18px;color:#FF8A00;">${{ number_format($order->total_amount,2) }}</td></tr>
+        </table>
+    </div>
+</div>
 @else
 <div class="items-modern">
     <div class="items-header">
