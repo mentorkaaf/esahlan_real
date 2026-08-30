@@ -116,7 +116,7 @@
 </div>
 
 <div class="bonus-card">
-    <form method="POST" action="{{ route('drivers.bonus.update') }}">
+    <form method="POST" action="{{ route('admin.drivers.bonus.update') }}">
         @csrf
 
         {{-- Active Toggle --}}
