@@ -17,19 +17,30 @@ class AdminVendorController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Vendor::with(['module', 'district', 'user'])
-            ->when($request->module_id, fn($q) => $q->where('module_id', $request->module_id))
-            ->when($request->approved, fn($q) => $q->where('is_approved', $request->approved === '1'))
-            ->when($request->search, fn($q) => $q->where(function ($s) use ($request) {
-                $s->where('name', 'like', "%{$request->search}%")
-                  ->orWhere('phone', 'like', "%{$request->search}%");
-            }))
-            ->latest();
+        $modules = Module::where('is_active', true)->orderBy('name')->get();
 
-        $vendors = $query->paginate(20);
-        $modules = Module::where('is_active', true)->get();
+        // When searching/filtering → flat paginated list
+        $isFiltering = $request->hasAny(['search', 'module_id', 'status']);
 
-        return view('admin.vendors.index', compact('vendors', 'modules'));
+        if ($isFiltering) {
+            $query = Vendor::with(['module', 'district', 'user'])
+                ->when($request->module_id, fn($q) => $q->where('module_id', $request->module_id))
+                ->when($request->status, fn($q) => $q->where('is_active', $request->status === 'active'))
+                ->when($request->search, fn($q) => $q->where(function ($s) use ($request) {
+                    $s->where('name', 'like', "%{$request->search}%")
+                      ->orWhere('phone', 'like', "%{$request->search}%");
+                }))
+                ->latest();
+            $vendors        = $query->paginate(30);
+            $vendorsByModule = null;
+        } else {
+            // Grouped by module — all vendors, no pagination
+            $allVendors = Vendor::with(['module', 'district', 'user'])->latest()->get();
+            $vendorsByModule = $allVendors->groupBy(fn($v) => $v->module?->name ?? 'Other');
+            $vendors = null;
+        }
+
+        return view('admin.vendors.index', compact('vendors', 'modules', 'vendorsByModule', 'isFiltering'));
     }
 
     public function show(Vendor $vendor)

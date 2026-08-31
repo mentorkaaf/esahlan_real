@@ -19,6 +19,7 @@
 <div class="alert alert-danger alert-dismissible fade show mb-3">{{ session('error') }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
 @endif
 
+{{-- Filter bar --}}
 <div class="card">
     <div class="filter-bar">
         <form method="GET" style="display:flex;gap:10px;flex-wrap:wrap;width:100%;align-items:center;">
@@ -39,138 +40,112 @@
                 <option value="active"   {{ request('status')==='active'   ?'selected':'' }}>Active</option>
                 <option value="inactive" {{ request('status')==='inactive' ?'selected':'' }}>Inactive</option>
             </select>
-            @if(request()->hasAny(['search','module_id','status']))
+            @if($isFiltering)
             <a href="{{ route('admin.vendors.index') }}" class="btn btn-outline btn-sm"><i class="fas fa-times"></i> Clear</a>
             @endif
         </form>
     </div>
 </div>
 
-{{-- Bulk action form --}}
+@if($isFiltering)
+{{-- ══════════════════════════════════════════════════════════════════ --}}
+{{-- FILTERED VIEW — flat table with pagination                        --}}
+{{-- ══════════════════════════════════════════════════════════════════ --}}
 <form id="bulk-form" method="POST" action="{{ route('admin.vendors.bulk-destroy') }}">
     @csrf @method('DELETE')
     <div id="bulk-toolbar" style="display:none;align-items:center;gap:10px;padding:10px 16px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:12px;margin-bottom:12px;">
         <span id="bulk-count" style="font-weight:700;color:#ef4444;font-size:13px;"></span>
         <span style="color:var(--text-muted);font-size:13px;">vendors selected</span>
-        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Delete selected vendors? This cannot be undone.')">
+        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Delete selected vendors?')">
             <i class="fas fa-trash me-1"></i> Delete Selected
         </button>
         <button type="button" class="btn btn-outline btn-sm" onclick="clearSelection()">Cancel</button>
     </div>
-
     <div class="card">
         <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;">
             <div class="card-header-title">
-                <div class="card-header-icon" style="background:rgba(139,92,246,0.1);color:var(--purple);">
-                    <i class="fas fa-store"></i>
-                </div>
-                Vendors
-                <span class="badge badge-purple" style="margin-left:4px;">{{ $vendors->total() }}</span>
+                <div class="card-header-icon" style="background:rgba(139,92,246,0.1);color:var(--purple);"><i class="fas fa-store"></i></div>
+                Results <span class="badge badge-purple" style="margin-left:4px;">{{ $vendors->total() }}</span>
             </div>
         </div>
-        <div class="table-wrap">
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width:36px;">
-                            <input type="checkbox" id="check-all" onchange="toggleAll(this)" style="width:16px;height:16px;cursor:pointer;">
-                        </th>
-                        <th>Vendor</th>
-                        <th>Module</th>
-                        <th>District</th>
-                        <th>Rating</th>
-                        <th>Status</th>
-                        <th>Featured</th>
-                        <th>Joined</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($vendors as $vendor)
-                    <tr id="row-{{ $vendor->id }}">
-                        <td>
-                            <input type="checkbox" name="ids[]" value="{{ $vendor->id }}" class="row-check" onchange="updateBulkBar()" style="width:16px;height:16px;cursor:pointer;">
-                        </td>
-                        <td>
-                            <div style="display:flex;align-items:center;gap:10px;">
-                                @if(!empty($vendor->logo_url) && !str_contains(($vendor->logo_url??''),'null'))
-                                    <img src="{{ $vendor->logo_url }}" style="width:38px;height:38px;border-radius:9px;object-fit:cover;flex-shrink:0;border:1px solid var(--border);">
-                                @else
-                                    <div class="avatar avatar-sm avatar-purple">{{ strtoupper(substr($vendor->name,0,1)) }}</div>
-                                @endif
-                                <div>
-                                    <div style="font-weight:700;font-size:13px;">{{ $vendor->name }}</div>
-                                    <div style="font-size:11px;color:var(--text-muted);">{{ $vendor->phone }}</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td><span class="badge badge-dark">{{ $vendor->module?->name ?? '—' }}</span></td>
-                        <td style="font-size:12.5px;color:var(--text-muted);">{{ $vendor->district?->name ?? '—' }}</td>
-                        <td>
-                            <span style="color:#f59e0b;font-size:13px;">★</span>
-                            <span style="font-weight:700;font-size:13px;">{{ number_format($vendor->rating??0,1) }}</span>
-                            <span style="font-size:11px;color:var(--text-muted);">({{ $vendor->total_reviews??0 }})</span>
-                        </td>
-                        <td>
-                            <span class="badge {{ $vendor->is_active?'badge-success':'badge-danger' }} badge-dot">
-                                {{ $vendor->is_active?'Active':'Inactive' }}
-                            </span>
-                        </td>
-                        <td>
-                            <form method="POST" action="{{ route('admin.vendors.toggle-featured',$vendor) }}">
-                                @csrf
-                                <button type="submit" class="btn btn-xs {{ $vendor->is_featured?'btn-primary':'btn-outline' }}" title="Toggle Featured">
-                                    <i class="fas fa-star"></i>
-                                </button>
-                            </form>
-                        </td>
-                        <td style="font-size:12px;color:var(--text-muted);">{{ $vendor->created_at->format('d M Y') }}</td>
-                        <td>
-                            <div style="display:flex;gap:5px;flex-wrap:wrap;">
-                                <a href="{{ route('admin.vendors.show',$vendor) }}" class="btn btn-outline btn-xs"><i class="fas fa-eye"></i> View</a>
-
-                                @if(!$vendor->is_active)
-                                <form method="POST" action="{{ route('admin.vendors.approve',$vendor) }}">
-                                    @csrf
-                                    <button class="btn btn-xs btn-success"><i class="fas fa-check"></i> Approve</button>
-                                </form>
-                                @endif
-
-                                @if($vendor->is_active)
-                                <form method="POST" action="{{ route('admin.vendors.reject',$vendor) }}">
-                                    @csrf
-                                    <button class="btn btn-xs btn-warning" onclick="return confirm('Reject {{ addslashes($vendor->name) }}?')">
-                                        <i class="fas fa-ban"></i> Reject
-                                    </button>
-                                </form>
-                                @endif
-
-                                <form method="POST" action="{{ route('admin.vendors.destroy',$vendor) }}" onsubmit="return confirm('Delete {{ addslashes($vendor->name) }}? This cannot be undone.')">
-                                    @csrf @method('DELETE')
-                                    <button class="btn btn-xs btn-danger"><i class="fas fa-trash"></i></button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
-                    @empty
-                    <tr>
-                        <td colspan="9">
-                            <div class="empty-state"><i class="fas fa-store"></i><h3>No vendors found</h3><p>Try adjusting your filters</p></div>
-                        </td>
-                    </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
+        @include('admin.vendors._table', ['vendorList' => $vendors, 'showCheckbox' => true])
         @if($vendors->hasPages())
-        <div class="card-footer" style="display:flex;justify-content:center;">
-            {{ $vendors->withQueryString()->links() }}
-        </div>
+        <div class="card-footer" style="display:flex;justify-content:center;">{{ $vendors->withQueryString()->links() }}</div>
         @endif
     </div>
 </form>
 
+@else
+{{-- ══════════════════════════════════════════════════════════════════ --}}
+{{-- GROUPED VIEW — one card per module                                --}}
+{{-- ══════════════════════════════════════════════════════════════════ --}}
+
+@php
+$moduleColors = [
+    'eFood'     => ['bg'=>'rgba(255,138,0,0.12)', 'color'=>'#FF8A00', 'icon'=>'fa-utensils'],
+    'eGrocery'  => ['bg'=>'rgba(16,185,129,0.12)', 'color'=>'#10B981', 'icon'=>'fa-shopping-basket'],
+    'eShop'     => ['bg'=>'rgba(59,130,246,0.12)', 'color'=>'#3B82F6', 'icon'=>'fa-shopping-bag'],
+    'eParcel'   => ['bg'=>'rgba(139,92,246,0.12)', 'color'=>'#8B5CF6', 'icon'=>'fa-box'],
+    'eMoving'   => ['bg'=>'rgba(236,72,153,0.12)', 'color'=>'#EC4899', 'icon'=>'fa-truck-moving'],
+    'eLearning' => ['bg'=>'rgba(245,158,11,0.12)', 'color'=>'#F59E0B', 'icon'=>'fa-graduation-cap'],
+    'eExchange' => ['bg'=>'rgba(20,184,166,0.12)', 'color'=>'#14B8A6', 'icon'=>'fa-exchange-alt'],
+    'eRent'     => ['bg'=>'rgba(99,102,241,0.12)', 'color'=>'#6366F1', 'icon'=>'fa-home'],
+    'eLaundry'  => ['bg'=>'rgba(6,182,212,0.12)',  'color'=>'#06B6D4', 'icon'=>'fa-tshirt'],
+];
+$defaultStyle = ['bg'=>'rgba(148,163,184,0.12)', 'color'=>'#94A3B8', 'icon'=>'fa-store'];
+@endphp
+
+@forelse($vendorsByModule as $moduleName => $moduleVendors)
+@php
+    $style  = $moduleColors[$moduleName] ?? $defaultStyle;
+    $active = $moduleVendors->where('is_active', true)->count();
+    $total  = $moduleVendors->count();
+@endphp
+
+<div class="card" style="margin-bottom:20px;">
+    <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;"
+         onclick="toggleSection('mod-{{ Str::slug($moduleName) }}', this)">
+        <div class="card-header-title">
+            <div class="card-header-icon" style="background:{{ $style['bg'] }};color:{{ $style['color'] }};">
+                <i class="fas {{ $style['icon'] }}"></i>
+            </div>
+            <span style="font-weight:800;font-size:15px;">{{ $moduleName }}</span>
+            <span class="badge" style="margin-left:8px;background:{{ $style['color'] }};color:#fff;font-size:11px;">{{ $total }}</span>
+            @if($active < $total)
+            <span class="badge badge-warning" style="margin-left:4px;font-size:11px;">{{ $total - $active }} inactive</span>
+            @endif
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+            <a href="{{ route('admin.vendors.index', ['module_id' => $moduleVendors->first()?->module_id]) }}"
+               class="btn btn-outline btn-xs" onclick="event.stopPropagation()">
+                <i class="fas fa-filter"></i> Filter
+            </a>
+            <i class="fas fa-chevron-down toggle-icon" style="color:var(--text-muted);transition:transform .25s;"></i>
+        </div>
+    </div>
+
+    <div id="mod-{{ Str::slug($moduleName) }}">
+        @include('admin.vendors._table', ['vendorList' => $moduleVendors, 'showCheckbox' => false])
+    </div>
+</div>
+@empty
+<div class="card"><div class="card-body"><div class="empty-state"><i class="fas fa-store"></i><h3>No vendors found</h3></div></div></div>
+@endforelse
+
+@endif
+
 <script>
+// ── Collapse/expand module sections ─────────────────────────────────────────
+function toggleSection(id, headerEl) {
+    const section = document.getElementById(id);
+    const icon    = headerEl.querySelector('.toggle-icon');
+    if (!section) return;
+    const isOpen  = section.style.display !== 'none';
+    section.style.display = isOpen ? 'none' : '';
+    icon.style.transform  = isOpen ? 'rotate(-90deg)' : '';
+}
+
+// ── Bulk select (filtered view only) ────────────────────────────────────────
 function toggleAll(master) {
     document.querySelectorAll('.row-check').forEach(cb => cb.checked = master.checked);
     updateBulkBar();
@@ -178,25 +153,27 @@ function toggleAll(master) {
 function updateBulkBar() {
     const checked = document.querySelectorAll('.row-check:checked');
     const toolbar = document.getElementById('bulk-toolbar');
+    if (!toolbar) return;
     const countEl = document.getElementById('bulk-count');
     const master  = document.getElementById('check-all');
     const total   = document.querySelectorAll('.row-check').length;
     if (checked.length > 0) {
         toolbar.style.display = 'flex';
-        countEl.textContent = checked.length;
-        master.indeterminate = checked.length > 0 && checked.length < total;
-        master.checked = checked.length === total;
+        countEl.textContent   = checked.length;
+        master.indeterminate  = checked.length > 0 && checked.length < total;
+        master.checked        = checked.length === total;
     } else {
         toolbar.style.display = 'none';
-        master.indeterminate = false;
-        master.checked = false;
+        master.indeterminate  = false;
+        master.checked        = false;
     }
 }
 function clearSelection() {
     document.querySelectorAll('.row-check').forEach(cb => cb.checked = false);
-    document.getElementById('check-all').checked = false;
-    document.getElementById('check-all').indeterminate = false;
-    document.getElementById('bulk-toolbar').style.display = 'none';
+    const master = document.getElementById('check-all');
+    if (master) { master.checked = false; master.indeterminate = false; }
+    const toolbar = document.getElementById('bulk-toolbar');
+    if (toolbar) toolbar.style.display = 'none';
 }
 </script>
 @endsection
