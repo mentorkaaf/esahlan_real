@@ -19,7 +19,23 @@
 <div class="alert alert-danger alert-dismissible fade show mb-3">{{ session('error') }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
 @endif
 
-{{-- Filter bar --}}
+@php
+$moduleColors = [
+    'eFood'     => ['color'=>'#FF8A00', 'icon'=>'fa-utensils'],
+    'eGrocery'  => ['color'=>'#10B981', 'icon'=>'fa-shopping-basket'],
+    'eShop'     => ['color'=>'#3B82F6', 'icon'=>'fa-shopping-bag'],
+    'eParcel'   => ['color'=>'#8B5CF6', 'icon'=>'fa-box'],
+    'eMoving'   => ['color'=>'#EC4899', 'icon'=>'fa-truck-moving'],
+    'eLearning' => ['color'=>'#F59E0B', 'icon'=>'fa-graduation-cap'],
+    'eExchange' => ['color'=>'#14B8A6', 'icon'=>'fa-exchange-alt'],
+    'eRent'     => ['color'=>'#6366F1', 'icon'=>'fa-home'],
+    'eLaundry'  => ['color'=>'#06B6D4', 'icon'=>'fa-tshirt'],
+];
+$defaultStyle = ['color'=>'#94A3B8', 'icon'=>'fa-store'];
+@endphp
+
+@if($isFiltering)
+{{-- ── FILTERED: flat table ── --}}
 <div class="card">
     <div class="filter-bar">
         <form method="GET" style="display:flex;gap:10px;flex-wrap:wrap;width:100%;align-items:center;">
@@ -40,29 +56,21 @@
                 <option value="active"   {{ request('status')==='active'   ?'selected':'' }}>Active</option>
                 <option value="inactive" {{ request('status')==='inactive' ?'selected':'' }}>Inactive</option>
             </select>
-            @if($isFiltering)
             <a href="{{ route('admin.vendors.index') }}" class="btn btn-outline btn-sm"><i class="fas fa-times"></i> Clear</a>
-            @endif
         </form>
     </div>
 </div>
 
-@if($isFiltering)
-{{-- ══════════════════════════════════════════════════════════════════ --}}
-{{-- FILTERED VIEW — flat table with pagination                        --}}
-{{-- ══════════════════════════════════════════════════════════════════ --}}
 <form id="bulk-form" method="POST" action="{{ route('admin.vendors.bulk-destroy') }}">
     @csrf @method('DELETE')
     <div id="bulk-toolbar" style="display:none;align-items:center;gap:10px;padding:10px 16px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:12px;margin-bottom:12px;">
         <span id="bulk-count" style="font-weight:700;color:#ef4444;font-size:13px;"></span>
         <span style="color:var(--text-muted);font-size:13px;">vendors selected</span>
-        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Delete selected vendors?')">
-            <i class="fas fa-trash me-1"></i> Delete Selected
-        </button>
+        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Delete selected vendors?')"><i class="fas fa-trash me-1"></i> Delete Selected</button>
         <button type="button" class="btn btn-outline btn-sm" onclick="clearSelection()">Cancel</button>
     </div>
     <div class="card">
-        <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;">
+        <div class="card-header">
             <div class="card-header-title">
                 <div class="card-header-icon" style="background:rgba(139,92,246,0.1);color:var(--purple);"><i class="fas fa-store"></i></div>
                 Results <span class="badge badge-purple" style="margin-left:4px;">{{ $vendors->total() }}</span>
@@ -76,74 +84,103 @@
 </form>
 
 @else
-{{-- ══════════════════════════════════════════════════════════════════ --}}
-{{-- GROUPED VIEW — one card per module                                --}}
-{{-- ══════════════════════════════════════════════════════════════════ --}}
+{{-- ── GROUPED: tabs ── --}}
 
-@php
-$moduleColors = [
-    'eFood'     => ['bg'=>'rgba(255,138,0,0.12)', 'color'=>'#FF8A00', 'icon'=>'fa-utensils'],
-    'eGrocery'  => ['bg'=>'rgba(16,185,129,0.12)', 'color'=>'#10B981', 'icon'=>'fa-shopping-basket'],
-    'eShop'     => ['bg'=>'rgba(59,130,246,0.12)', 'color'=>'#3B82F6', 'icon'=>'fa-shopping-bag'],
-    'eParcel'   => ['bg'=>'rgba(139,92,246,0.12)', 'color'=>'#8B5CF6', 'icon'=>'fa-box'],
-    'eMoving'   => ['bg'=>'rgba(236,72,153,0.12)', 'color'=>'#EC4899', 'icon'=>'fa-truck-moving'],
-    'eLearning' => ['bg'=>'rgba(245,158,11,0.12)', 'color'=>'#F59E0B', 'icon'=>'fa-graduation-cap'],
-    'eExchange' => ['bg'=>'rgba(20,184,166,0.12)', 'color'=>'#14B8A6', 'icon'=>'fa-exchange-alt'],
-    'eRent'     => ['bg'=>'rgba(99,102,241,0.12)', 'color'=>'#6366F1', 'icon'=>'fa-home'],
-    'eLaundry'  => ['bg'=>'rgba(6,182,212,0.12)',  'color'=>'#06B6D4', 'icon'=>'fa-tshirt'],
-];
-$defaultStyle = ['bg'=>'rgba(148,163,184,0.12)', 'color'=>'#94A3B8', 'icon'=>'fa-store'];
-@endphp
-
-@forelse($vendorsByModule as $moduleName => $moduleVendors)
-@php
-    $style  = $moduleColors[$moduleName] ?? $defaultStyle;
-    $active = $moduleVendors->where('is_active', true)->count();
-    $total  = $moduleVendors->count();
-@endphp
-
-<div class="card" style="margin-bottom:20px;">
-    <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;"
-         onclick="toggleSection('mod-{{ Str::slug($moduleName) }}', this)">
-        <div class="card-header-title">
-            <div class="card-header-icon" style="background:{{ $style['bg'] }};color:{{ $style['color'] }};">
-                <i class="fas {{ $style['icon'] }}"></i>
+{{-- Search bar (above tabs) --}}
+<div class="card" style="margin-bottom:0;border-bottom-left-radius:0;border-bottom-right-radius:0;border-bottom:none;">
+    <div class="filter-bar" style="padding:12px 16px;">
+        <form method="GET" style="display:flex;gap:10px;flex-wrap:wrap;width:100%;align-items:center;">
+            <div style="flex:1;min-width:200px;">
+                <div class="input-group">
+                    <input type="text" name="search" class="form-control" placeholder="Search vendors…" value="">
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i></button>
+                </div>
             </div>
-            <span style="font-weight:800;font-size:15px;">{{ $moduleName }}</span>
-            <span class="badge" style="margin-left:8px;background:{{ $style['color'] }};color:#fff;font-size:11px;">{{ $total }}</span>
-            @if($active < $total)
-            <span class="badge badge-warning" style="margin-left:4px;font-size:11px;">{{ $total - $active }} inactive</span>
-            @endif
-        </div>
-        <div style="display:flex;align-items:center;gap:10px;">
-            <a href="{{ route('admin.vendors.index', ['module_id' => $moduleVendors->first()?->module_id]) }}"
-               class="btn btn-outline btn-xs" onclick="event.stopPropagation()">
-                <i class="fas fa-filter"></i> Filter
-            </a>
-            <i class="fas fa-chevron-down toggle-icon" style="color:var(--text-muted);transition:transform .25s;"></i>
-        </div>
-    </div>
-
-    <div id="mod-{{ Str::slug($moduleName) }}">
-        @include('admin.vendors._table', ['vendorList' => $moduleVendors, 'showCheckbox' => false])
+            <select name="status" class="form-control" style="width:140px;" onchange="this.form.submit()">
+                <option value="">All Status</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+            </select>
+        </form>
     </div>
 </div>
-@empty
-<div class="card"><div class="card-body"><div class="empty-state"><i class="fas fa-store"></i><h3>No vendors found</h3></div></div></div>
-@endforelse
+
+{{-- Tab strip --}}
+<div style="background:var(--surface);border-left:1px solid var(--border);border-right:1px solid var(--border);overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch;">
+    <div style="display:inline-flex;padding:0 16px;gap:2px;min-width:100%;">
+        @foreach($vendorsByModule as $moduleName => $moduleVendors)
+        @php $s = $moduleColors[$moduleName] ?? $defaultStyle; $slug = Str::slug($moduleName); @endphp
+        <button class="vendor-tab" data-target="tab-{{ $slug }}" onclick="switchTab('{{ $slug }}')"
+                style="display:inline-flex;align-items:center;gap:7px;padding:14px 18px;border:none;background:transparent;
+                       border-bottom:3px solid transparent;cursor:pointer;font-weight:700;font-size:13px;
+                       color:var(--text-muted);white-space:nowrap;transition:color .18s,border-color .18s;">
+            <i class="fas {{ $s['icon'] }}" style="font-size:13px;"></i>
+            {{ $moduleName }}
+            <span class="tab-badge" style="background:var(--border);color:var(--text-muted);
+                  padding:2px 7px;border-radius:10px;font-size:11px;font-weight:800;
+                  transition:background .18s,color .18s;">{{ $moduleVendors->count() }}</span>
+        </button>
+        @endforeach
+    </div>
+</div>
+
+{{-- Tab panels --}}
+<div style="border:1px solid var(--border);border-top:none;border-radius:0 0 12px 12px;overflow:hidden;background:var(--surface);">
+    @foreach($vendorsByModule as $moduleName => $moduleVendors)
+    @php $slug = Str::slug($moduleName); @endphp
+    <div id="tab-{{ $slug }}" class="tab-panel" style="display:none;">
+        @include('admin.vendors._table', ['vendorList' => $moduleVendors, 'showCheckbox' => false])
+    </div>
+    @endforeach
+</div>
 
 @endif
 
 <script>
-// ── Collapse/expand module sections ─────────────────────────────────────────
-function toggleSection(id, headerEl) {
-    const section = document.getElementById(id);
-    const icon    = headerEl.querySelector('.toggle-icon');
-    if (!section) return;
-    const isOpen  = section.style.display !== 'none';
-    section.style.display = isOpen ? 'none' : '';
-    icon.style.transform  = isOpen ? 'rotate(-90deg)' : '';
+// ── Tab switching ────────────────────────────────────────────────────────────
+const MODULE_COLORS = @json($moduleColors ?? []);
+const DEFAULT_COLOR = '#94A3B8';
+
+function switchTab(slug) {
+    // Hide all panels
+    document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
+    // Deactivate all tabs
+    document.querySelectorAll('.vendor-tab').forEach(btn => {
+        btn.style.borderBottomColor = 'transparent';
+        btn.style.color = 'var(--text-muted)';
+        const badge = btn.querySelector('.tab-badge');
+        if (badge) { badge.style.background = 'var(--border)'; badge.style.color = 'var(--text-muted)'; }
+    });
+    // Show target
+    const panel = document.getElementById('tab-' + slug);
+    if (panel) panel.style.display = '';
+    // Activate tab
+    const activeBtn = document.querySelector('[data-target="tab-' + slug + '"]');
+    if (activeBtn) {
+        const name  = activeBtn.textContent.trim().split('\n')[0].trim();
+        // Find color
+        let color = DEFAULT_COLOR;
+        for (const [k, v] of Object.entries(MODULE_COLORS)) {
+            if (k.toLowerCase() === name.toLowerCase()) { color = v.color; break; }
+        }
+        activeBtn.style.borderBottomColor = color;
+        activeBtn.style.color = color;
+        const badge = activeBtn.querySelector('.tab-badge');
+        if (badge) { badge.style.background = color; badge.style.color = '#fff'; }
+    }
+    // Persist
+    try { localStorage.setItem('vendors_tab', slug); } catch(e) {}
 }
+
+// Auto-open first tab (or saved)
+document.addEventListener('DOMContentLoaded', () => {
+    @if(!$isFiltering && $vendorsByModule && $vendorsByModule->count())
+    let saved = null;
+    try { saved = localStorage.getItem('vendors_tab'); } catch(e) {}
+    const firstSlug = '{{ Str::slug($vendorsByModule->keys()->first()) }}';
+    switchTab(saved || firstSlug);
+    @endif
+});
 
 // ── Bulk select (filtered view only) ────────────────────────────────────────
 function toggleAll(master) {
@@ -154,26 +191,25 @@ function updateBulkBar() {
     const checked = document.querySelectorAll('.row-check:checked');
     const toolbar = document.getElementById('bulk-toolbar');
     if (!toolbar) return;
-    const countEl = document.getElementById('bulk-count');
-    const master  = document.getElementById('check-all');
-    const total   = document.querySelectorAll('.row-check').length;
+    const total = document.querySelectorAll('.row-check').length;
+    const master = document.getElementById('check-all');
     if (checked.length > 0) {
         toolbar.style.display = 'flex';
-        countEl.textContent   = checked.length;
-        master.indeterminate  = checked.length > 0 && checked.length < total;
-        master.checked        = checked.length === total;
+        document.getElementById('bulk-count').textContent = checked.length;
+        master.indeterminate = checked.length > 0 && checked.length < total;
+        master.checked = checked.length === total;
     } else {
         toolbar.style.display = 'none';
-        master.indeterminate  = false;
-        master.checked        = false;
+        master.indeterminate = false;
+        master.checked = false;
     }
 }
 function clearSelection() {
     document.querySelectorAll('.row-check').forEach(cb => cb.checked = false);
-    const master = document.getElementById('check-all');
-    if (master) { master.checked = false; master.indeterminate = false; }
-    const toolbar = document.getElementById('bulk-toolbar');
-    if (toolbar) toolbar.style.display = 'none';
+    const m = document.getElementById('check-all');
+    if (m) { m.checked = false; m.indeterminate = false; }
+    const t = document.getElementById('bulk-toolbar');
+    if (t) t.style.display = 'none';
 }
 </script>
 @endsection
