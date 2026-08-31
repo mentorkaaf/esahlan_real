@@ -31,8 +31,8 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.esahlan.evendor"
-        minSdk = 21
+        applicationId = "com.esahlan.esahlan_vendor"
+        minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
