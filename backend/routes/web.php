@@ -381,6 +381,8 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             ->names('qr-manager');
         Route::get('qr-manager/{qrManager}/download', [\App\Http\Controllers\Admin\AdminQrManagerController::class, 'download'])
             ->name('qr-manager.download');
+        Route::post('qr-manager/upload-logo', [\App\Http\Controllers\Admin\AdminQrManagerController::class, 'uploadLogo'])
+            ->name('qr-manager.upload-logo');
 
         // Orders
         Route::prefix('orders')->name('orders.')->group(function () {

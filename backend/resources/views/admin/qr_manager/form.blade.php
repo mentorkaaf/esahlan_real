@@ -101,13 +101,49 @@
                       placeholder="Short description shown on the public scan page...">{{ old('description', $qr?->description) }}</textarea>
         </div>
 
-        {{-- Logo URL --}}
+        {{-- Logo Upload --}}
         <div class="form-group">
-            <label class="form-label" for="logo_url">Logo / Image URL</label>
-            <input type="url" name="logo_url" id="logo_url" class="form-control"
+            <label class="form-label">Logo / Image</label>
+            <input type="hidden" name="logo_url" id="logo_url" value="{{ old('logo_url', $qr?->logo_url) }}">
+
+            <div id="upload-zone"
+                 onclick="document.getElementById('logo_file').click()"
+                 style="border:2px dashed #e2e8f0;border-radius:12px;padding:20px;text-align:center;cursor:pointer;transition:all .15s;background:#fafafa;position:relative;">
+                {{-- Preview --}}
+                <div id="img-preview" style="{{ old('logo_url', $qr?->logo_url) ? '' : 'display:none;' }}">
+                    <img id="preview-img"
+                         src="{{ old('logo_url', $qr?->logo_url) }}"
+                         style="max-height:120px;max-width:100%;border-radius:10px;object-fit:cover;margin-bottom:8px;">
+                    <div style="font-size:12px;color:#64748b;" id="preview-url">{{ old('logo_url', $qr?->logo_url) ? Str::limit(old('logo_url', $qr?->logo_url), 60) : '' }}</div>
+                </div>
+                {{-- Placeholder --}}
+                <div id="upload-placeholder" style="{{ old('logo_url', $qr?->logo_url) ? 'display:none;' : '' }}">
+                    <div style="font-size:32px;margin-bottom:8px;">🖼️</div>
+                    <div style="font-size:14px;font-weight:700;color:#374151;">Click to upload image</div>
+                    <div style="font-size:12px;color:#94a3b8;margin-top:4px;">PNG, JPG, WEBP — max 4MB</div>
+                </div>
+                {{-- Uploading spinner --}}
+                <div id="upload-spinner" style="display:none;">
+                    <div style="font-size:14px;color:#FF8A00;font-weight:700;">⏳ Uploading...</div>
+                </div>
+                {{-- Change overlay --}}
+                <div id="change-btn" onclick="event.stopPropagation();document.getElementById('logo_file').click()"
+                     style="{{ old('logo_url', $qr?->logo_url) ? '' : 'display:none;' }}position:absolute;top:8px;right:8px;background:#fff;border:1.5px solid #e2e8f0;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:700;color:#374151;cursor:pointer;">
+                    ✏️ Change
+                </div>
+            </div>
+            <input type="file" id="logo_file" accept="image/*" style="display:none;" onchange="uploadLogo(this)">
+
+            {{-- Or paste URL --}}
+            <div style="margin-top:10px;display:flex;align-items:center;gap:8px;">
+                <div style="flex:1;height:1px;background:#e2e8f0;"></div>
+                <span style="font-size:12px;color:#94a3b8;white-space:nowrap;">or paste URL</span>
+                <div style="flex:1;height:1px;background:#e2e8f0;"></div>
+            </div>
+            <input type="url" id="logo_url_text" class="form-control" style="margin-top:8px;"
                    value="{{ old('logo_url', $qr?->logo_url) }}"
-                   placeholder="https://...">
-            <div class="form-hint">Image shown at top of public page (vendor logo, product photo, etc.)</div>
+                   placeholder="https://..."
+                   oninput="setLogoUrl(this.value)">
         </div>
 
         {{-- Key-Value Fields --}}
@@ -181,6 +217,69 @@
 </div>
 
 <script>
+// ── Logo Upload ────────────────────────────────────────────────────────────
+function setLogoUrl(url) {
+    document.getElementById('logo_url').value = url;
+    if (url) {
+        document.getElementById('preview-img').src = url;
+        document.getElementById('preview-url').textContent = url.length > 60 ? url.substring(0,60)+'...' : url;
+        document.getElementById('img-preview').style.display = '';
+        document.getElementById('upload-placeholder').style.display = 'none';
+        document.getElementById('change-btn').style.display = '';
+    } else {
+        document.getElementById('img-preview').style.display = 'none';
+        document.getElementById('upload-placeholder').style.display = '';
+        document.getElementById('change-btn').style.display = 'none';
+    }
+}
+
+function uploadLogo(input) {
+    if (!input.files[0]) return;
+    const form = new FormData();
+    form.append('image', input.files[0]);
+    form.append('_token', '{{ csrf_token() }}');
+
+    document.getElementById('upload-placeholder').style.display = 'none';
+    document.getElementById('img-preview').style.display = 'none';
+    document.getElementById('upload-spinner').style.display = '';
+
+    fetch('{{ route("admin.qr-manager.upload-logo") }}', { method: 'POST', body: form })
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('upload-spinner').style.display = 'none';
+            if (data.url) {
+                setLogoUrl(data.url);
+                document.getElementById('logo_url_text').value = data.url;
+            } else {
+                alert('Upload failed');
+                document.getElementById('upload-placeholder').style.display = '';
+            }
+        })
+        .catch(() => {
+            document.getElementById('upload-spinner').style.display = 'none';
+            document.getElementById('upload-placeholder').style.display = '';
+            alert('Upload error, please try again.');
+        });
+}
+
+// Drag & drop support
+const zone = document.getElementById('upload-zone');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.borderColor='#FF8A00'; zone.style.background='#fff7ed'; });
+zone.addEventListener('dragleave', () => { zone.style.borderColor='#e2e8f0'; zone.style.background='#fafafa'; });
+zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.style.borderColor='#e2e8f0'; zone.style.background='#fafafa';
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        const inp = document.getElementById('logo_file');
+        inp.files = dt.files;
+        uploadLogo(inp);
+    }
+});
+
+// ── Fields ─────────────────────────────────────────────────────────────────
 let fieldIdx = {{ count($fields ?? []) }};
 function addField() {
     const c = document.getElementById('fields-container');

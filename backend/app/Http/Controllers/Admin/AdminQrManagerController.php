@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\QrCode;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use SimpleSoftwareIO\QrCode\Facades\QrCode as QrGen;
 
 class AdminQrManagerController extends Controller
@@ -134,6 +135,16 @@ class AdminQrManagerController extends Controller
         $qrManager->delete();
         return redirect()->route('admin.qr-manager.index')
             ->with('success', 'QR Code deleted.');
+    }
+
+    public function uploadLogo(Request $request)
+    {
+        $request->validate(['image' => 'required|image|max:4096']); // max 4MB
+
+        $path = $request->file('image')->store('qr-logos', 'public');
+        $url  = asset('storage/' . $path);
+
+        return response()->json(['url' => $url]);
     }
 
     public function download(QrCode $qrManager)
