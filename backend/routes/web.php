@@ -213,6 +213,9 @@ Route::get('/download', function (\Illuminate\Http\Request $request) {
     return view('app-redirect', compact('iosUrl', 'androidUrl'));
 })->name('app.download');
 
+// Public QR scan page — no auth required
+Route::get('/qr/{token}', [\App\Http\Controllers\PublicQrController::class, 'show'])->name('qr.public');
+
 Route::get('/', function () {
     if (auth()->check()) {
         $role = auth()->user()->role?->slug ?? '';
@@ -367,11 +370,17 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::delete('/{vendor}', [AdminVendorController::class, 'destroy'])->name('destroy');
         });
 
-        // QR Codes
+        // QR Codes (old per-entity routes)
         Route::prefix('qr')->name('qr.')->group(function () {
             Route::get('/{type}/{id}',          [\App\Http\Controllers\Admin\AdminQrController::class, 'show'])->name('show');
             Route::get('/{type}/{id}/download', [\App\Http\Controllers\Admin\AdminQrController::class, 'download'])->name('download');
         });
+
+        // QR Manager (full CRUD)
+        Route::resource('qr-manager', \App\Http\Controllers\Admin\AdminQrManagerController::class)
+            ->names('qr-manager');
+        Route::get('qr-manager/{qrManager}/download', [\App\Http\Controllers\Admin\AdminQrManagerController::class, 'download'])
+            ->name('qr-manager.download');
 
         // Orders
         Route::prefix('orders')->name('orders.')->group(function () {
