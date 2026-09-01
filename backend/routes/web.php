@@ -367,6 +367,12 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
             Route::delete('/{vendor}', [AdminVendorController::class, 'destroy'])->name('destroy');
         });
 
+        // QR Codes
+        Route::prefix('qr')->name('qr.')->group(function () {
+            Route::get('/{type}/{id}',          [\App\Http\Controllers\Admin\AdminQrController::class, 'show'])->name('show');
+            Route::get('/{type}/{id}/download', [\App\Http\Controllers\Admin\AdminQrController::class, 'download'])->name('download');
+        });
+
         // Orders
         Route::prefix('orders')->name('orders.')->group(function () {
             Route::get('/', [AdminOrderController::class, 'index'])->name('index');

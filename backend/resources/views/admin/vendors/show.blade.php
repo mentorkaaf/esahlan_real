@@ -170,6 +170,10 @@ $deliveredPct = $orders > 0 ? round($delivered / $orders * 100) : 0;
                 <i class="fas fa-star"></i> {{ $vendor->is_featured ? 'Unfeature' : 'Make Featured' }}
             </button>
         </form>
+        <a href="{{ route('admin.qr.show', ['vendor', $vendor->id]) }}" target="_blank"
+           class="vd-btn vd-btn-ghost" title="View QR Code">
+            <i class="fas fa-qrcode"></i> QR Code
+        </a>
     </div>
 </div>
 

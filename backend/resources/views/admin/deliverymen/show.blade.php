@@ -23,6 +23,8 @@
                 {{ $deliveryman->user?->status === 'banned' ? 'Unblock' : 'Block' }}
             </button>
         </form>
+        <a href="{{ route('admin.qr.show', ['driver', $deliveryman->id]) }}" target="_blank"
+           class="btn btn-outline"><i class="fas fa-qrcode"></i> QR Code</a>
         <a href="{{ route('admin.deliverymen.index') }}" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Back</a>
     </div>
 </div>
