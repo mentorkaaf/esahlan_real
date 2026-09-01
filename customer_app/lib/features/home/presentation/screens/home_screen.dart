@@ -1382,7 +1382,8 @@ class _RentHomesSectionState extends State<_RentHomesSection> {
   late final Future<List<dynamic>> _future;
   final ScrollController _scrollCtrl = ScrollController();
   Timer? _autoScrollTimer;
-  bool _isPaused = false; // true during end-pause or user touch
+  bool _isPaused = false;
+  bool _autoScrollStarted = false; // guard: start timer only once
 
   @override
   void initState() {
@@ -1391,13 +1392,12 @@ class _RentHomesSectionState extends State<_RentHomesSection> {
   }
 
   void _startAutoScroll(int count) {
-    if (count <= 2) return;
-    _autoScrollTimer?.cancel();
+    if (count <= 2 || _autoScrollStarted) return;
+    _autoScrollStarted = true;
     _isPaused = false;
 
     Future.delayed(const Duration(seconds: 2), () {
       if (!mounted) return;
-      // Tick every 20ms, move 1.4px → ~70px/sec (noticeable but still smooth)
       _autoScrollTimer = Timer.periodic(const Duration(milliseconds: 20), (_) {
         if (!mounted || !_scrollCtrl.hasClients || _isPaused) return;
         final max = _scrollCtrl.position.maxScrollExtent;
@@ -1405,21 +1405,13 @@ class _RentHomesSectionState extends State<_RentHomesSection> {
         const step = 1.4;
 
         if (cur >= max - step) {
-          // Reached end — pause 1.2s, then smoothly animate back to start
           _isPaused = true;
-          Future.delayed(const Duration(milliseconds: 1200), () {
+          // Pause at end, then jump to start, then resume
+          Future.delayed(const Duration(milliseconds: 1000), () {
             if (!mounted || !_scrollCtrl.hasClients) return;
-            _scrollCtrl
-                .animateTo(0,
-                    duration: const Duration(milliseconds: 800),
-                    curve: Curves.easeInOut)
-                .then((_) {
-              if (mounted) {
-                // Small pause at start before resuming forward
-                Future.delayed(const Duration(milliseconds: 600), () {
-                  if (mounted) _isPaused = false;
-                });
-              }
+            _scrollCtrl.jumpTo(0);
+            Future.delayed(const Duration(milliseconds: 500), () {
+              if (mounted) _isPaused = false;
             });
           });
         } else {
@@ -1470,11 +1462,10 @@ class _RentHomesSectionState extends State<_RentHomesSection> {
                     // Pause auto-scroll when user touches, resume on lift
                     onNotification: (n) {
                       if (n is UserScrollNotification) {
-                        _autoScrollTimer?.cancel();
-                        _autoScrollTimer = null;
+                        _isPaused = true;
                       } else if (n is ScrollEndNotification && homes.length > 2) {
                         Future.delayed(const Duration(seconds: 2), () {
-                          if (mounted) _startAutoScroll(homes.length);
+                          if (mounted) _isPaused = false;
                         });
                       }
                       return false;
