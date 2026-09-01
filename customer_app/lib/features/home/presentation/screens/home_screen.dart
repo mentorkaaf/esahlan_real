@@ -1382,7 +1382,7 @@ class _RentHomesSectionState extends State<_RentHomesSection> {
   late final Future<List<dynamic>> _future;
   final ScrollController _scrollCtrl = ScrollController();
   Timer? _autoScrollTimer;
-  bool _scrollingForward = true;
+  bool _isPaused = false; // true during end-pause or user touch
 
   @override
   void initState() {
@@ -1391,29 +1391,39 @@ class _RentHomesSectionState extends State<_RentHomesSection> {
   }
 
   void _startAutoScroll(int count) {
-    if (count <= 2) return; // only when more than 2 cards
+    if (count <= 2) return;
     _autoScrollTimer?.cancel();
-    // Wait a bit before starting
+    _isPaused = false;
+
     Future.delayed(const Duration(seconds: 2), () {
       if (!mounted) return;
-      _autoScrollTimer = Timer.periodic(const Duration(milliseconds: 30), (_) {
-        if (!mounted || !_scrollCtrl.hasClients) return;
+      // Tick every 20ms, move 1.4px → ~70px/sec (noticeable but still smooth)
+      _autoScrollTimer = Timer.periodic(const Duration(milliseconds: 20), (_) {
+        if (!mounted || !_scrollCtrl.hasClients || _isPaused) return;
         final max = _scrollCtrl.position.maxScrollExtent;
         final cur = _scrollCtrl.offset;
-        const step = 0.8; // pixels per tick — slow motion
+        const step = 1.4;
 
-        if (_scrollingForward) {
-          if (cur >= max - 1) {
-            _scrollingForward = false;
-          } else {
-            _scrollCtrl.jumpTo(cur + step);
-          }
+        if (cur >= max - step) {
+          // Reached end — pause 1.2s, then smoothly animate back to start
+          _isPaused = true;
+          Future.delayed(const Duration(milliseconds: 1200), () {
+            if (!mounted || !_scrollCtrl.hasClients) return;
+            _scrollCtrl
+                .animateTo(0,
+                    duration: const Duration(milliseconds: 800),
+                    curve: Curves.easeInOut)
+                .then((_) {
+              if (mounted) {
+                // Small pause at start before resuming forward
+                Future.delayed(const Duration(milliseconds: 600), () {
+                  if (mounted) _isPaused = false;
+                });
+              }
+            });
+          });
         } else {
-          if (cur <= 1) {
-            _scrollingForward = true;
-          } else {
-            _scrollCtrl.jumpTo(cur - step);
-          }
+          _scrollCtrl.jumpTo(cur + step);
         }
       });
     });
