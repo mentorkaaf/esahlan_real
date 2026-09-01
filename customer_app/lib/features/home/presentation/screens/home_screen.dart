@@ -1380,11 +1380,50 @@ class _RentHomesSection extends StatefulWidget {
 
 class _RentHomesSectionState extends State<_RentHomesSection> {
   late final Future<List<dynamic>> _future;
+  final ScrollController _scrollCtrl = ScrollController();
+  Timer? _autoScrollTimer;
+  bool _scrollingForward = true;
 
   @override
   void initState() {
     super.initState();
     _future = _homeRepo.getRentHomes(limit: 8).catchError((_) => <dynamic>[]);
+  }
+
+  void _startAutoScroll(int count) {
+    if (count <= 2) return; // only when more than 2 cards
+    _autoScrollTimer?.cancel();
+    // Wait a bit before starting
+    Future.delayed(const Duration(seconds: 2), () {
+      if (!mounted) return;
+      _autoScrollTimer = Timer.periodic(const Duration(milliseconds: 30), (_) {
+        if (!mounted || !_scrollCtrl.hasClients) return;
+        final max = _scrollCtrl.position.maxScrollExtent;
+        final cur = _scrollCtrl.offset;
+        const step = 0.8; // pixels per tick — slow motion
+
+        if (_scrollingForward) {
+          if (cur >= max - 1) {
+            _scrollingForward = false;
+          } else {
+            _scrollCtrl.jumpTo(cur + step);
+          }
+        } else {
+          if (cur <= 1) {
+            _scrollingForward = true;
+          } else {
+            _scrollCtrl.jumpTo(cur - step);
+          }
+        }
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _autoScrollTimer?.cancel();
+    _scrollCtrl.dispose();
+    super.dispose();
   }
 
   @override
@@ -1395,6 +1434,11 @@ class _RentHomesSectionState extends State<_RentHomesSection> {
         final homes = snap.data ?? [];
         final loading = snap.connectionState != ConnectionState.done;
         if (!loading && homes.isEmpty) return const SizedBox.shrink();
+
+        // Start auto-scroll once data arrives
+        if (!loading && homes.length > 2) {
+          WidgetsBinding.instance.addPostFrameCallback((_) => _startAutoScroll(homes.length));
+        }
 
         return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           _sectionHeader(context, '🏠 Available Homes',
@@ -1412,14 +1456,29 @@ class _RentHomesSectionState extends State<_RentHomesSection> {
                     itemBuilder: (_, __) => Padding(
                         padding: const EdgeInsets.only(right: 14),
                         child: _shimmerBox(w: 200, h: 240)))
-                : ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: homes.length,
-                    itemBuilder: (context, i) {
-                      try { return _RentHomeCard(home: homes[i]); }
-                      catch (_) { return const SizedBox(width: 200); }
-                    }),
+                : NotificationListener<ScrollNotification>(
+                    // Pause auto-scroll when user touches, resume on lift
+                    onNotification: (n) {
+                      if (n is UserScrollNotification) {
+                        _autoScrollTimer?.cancel();
+                        _autoScrollTimer = null;
+                      } else if (n is ScrollEndNotification && homes.length > 2) {
+                        Future.delayed(const Duration(seconds: 2), () {
+                          if (mounted) _startAutoScroll(homes.length);
+                        });
+                      }
+                      return false;
+                    },
+                    child: ListView.builder(
+                      controller: _scrollCtrl,
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: homes.length,
+                      itemBuilder: (context, i) {
+                        try { return _RentHomeCard(home: homes[i]); }
+                        catch (_) { return const SizedBox(width: 200); }
+                      }),
+                  ),
           ),
         ]);
       },
