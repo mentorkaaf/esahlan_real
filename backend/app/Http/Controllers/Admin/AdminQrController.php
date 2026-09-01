@@ -64,7 +64,8 @@ class AdminQrController extends Controller
     private function vendorQr(int $id): array
     {
         $vendor = Vendor::with('module')->findOrFail($id);
-        $url    = url("/app/vendor/{$id}");   // deep link / universal link
+        // Admin URL — when scanned opens vendor detail page
+        $url    = url("/admin/vendors/{$id}");
         $label  = '🏪 ' . $vendor->name;
         $meta   = [
             'Module'  => $vendor->module?->name ?? '—',
@@ -77,36 +78,26 @@ class AdminQrController extends Controller
     private function driverQr(int $id): array
     {
         $driver = Deliveryman::findOrFail($id);
-        // Encode driver identity as JSON for scanner apps
-        $data  = json_encode([
-            'type'   => 'driver',
-            'id'     => $driver->id,
-            'name'   => $driver->name,
-            'phone'  => $driver->phone,
-            'verify' => hash_hmac('sha256', 'driver:' . $driver->id, config('app.key')),
-        ]);
-        $label = '🚗 ' . $driver->name;
+        // Admin URL — when scanned opens driver detail page
+        $url   = url("/admin/deliverymen/{$id}");
+        $label = '🚗 ' . ($driver->name ?? 'Driver #' . $id);
         $meta  = [
             'Phone'  => $driver->phone ?? '—',
             'Status' => $driver->is_active ? 'Active' : 'Inactive',
         ];
-        return [$label, $data, $meta];
+        return [$label, $url, $meta];
     }
 
     private function orderQr(int $id): array
     {
         $order = Order::findOrFail($id);
-        $data  = json_encode([
-            'type'    => 'order',
-            'id'      => $order->id,
-            'status'  => $order->status,
-            'token'   => hash_hmac('sha256', 'order:' . $order->id, config('app.key')),
-        ]);
+        // Admin URL — driver scans to open order detail page
+        $url   = url("/admin/orders/{$id}");
         $label = '📦 Order #' . $order->id;
         $meta  = [
             'Status'  => ucfirst($order->status ?? '—'),
             'Amount'  => '$' . number_format($order->total_price ?? 0, 2),
         ];
-        return [$label, $data, $meta];
+        return [$label, $url, $meta];
     }
 }
