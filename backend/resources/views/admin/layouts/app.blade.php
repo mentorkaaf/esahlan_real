@@ -860,6 +860,15 @@
         <a href="{{ route('admin.ads.index') }}" class="nav-link {{ request()->routeIs('admin.ads.*') ? 'active' : '' }}">
             <div class="nav-icon"><i class="fas fa-rectangle-ad"></i></div><span class="nav-text">Ads Manager</span>
         </a>
+        <a href="{{ route('admin.qr-manager.index') }}" class="nav-link {{ request()->routeIs('admin.qr-manager.*') ? 'active' : '' }}">
+            <div class="nav-icon"><i class="fas fa-qrcode"></i></div><span class="nav-text">QR Codes</span>
+            @php
+                try { $__qrCount = \App\Models\QrCode::where('is_active', true)->count(); } catch(\Exception $e) { $__qrCount = 0; }
+            @endphp
+            @if($__qrCount > 0)
+                <span class="nav-badge" style="background:rgba(255,138,0,0.2);color:#FF8A00;border:1px solid rgba(255,138,0,0.3)">{{ $__qrCount }}</span>
+            @endif
+        </a>
         <div class="nav-link nav-toggle-btn {{ request()->routeIs('admin.notifications.*') || request()->is('admin/inbox*') ? 'open active' : '' }}"
              onclick="toggleNav(this,'engageNav')">
             <div class="nav-icon"><i class="fas fa-paper-plane"></i></div>
