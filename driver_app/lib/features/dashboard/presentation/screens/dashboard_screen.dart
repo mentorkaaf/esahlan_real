@@ -3,11 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../../core/theme/driver_colors.dart';
 import '../../../../core/services/location_service.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
-// driverNameProvider imported via auth_provider
-import '../../../orders/presentation/screens/incoming_order_screen.dart';
 
 final _dashProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) {
   return ref.read(authRepoProvider).dashboard();
@@ -192,12 +191,10 @@ class _Body extends StatelessWidget {
           ),
 
           // ── QUICK ACTIONS ─────────────────────────────────────────────────
-          SliverToBoxAdapter(
-            child: _QuickActions(weekEarnings: weeklyEarnings),
-          ),
+          const SliverToBoxAdapter(child: _QuickActions()),
 
-          // ── TEST ORDER BUTTON (DEV) ────────────────────────────────────────
-          SliverToBoxAdapter(child: _TestOrderButton()),
+          // ── MINI HEATMAP PREVIEW ───────────────────────────────────────────
+          const SliverToBoxAdapter(child: _MiniHeatmap()),
 
           const SliverToBoxAdapter(child: SizedBox(height: 32)),
         ],
@@ -752,11 +749,10 @@ class _StatCard extends StatelessWidget {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// QUICK ACTIONS
+// QUICK ACTIONS — Challenges + My Stats only, large 2-column cards
 // ──────────────────────────────────────────────────────────────────────────────
 class _QuickActions extends StatelessWidget {
-  final double weekEarnings;
-  const _QuickActions({required this.weekEarnings});
+  const _QuickActions();
 
   @override
   Widget build(BuildContext context) {
@@ -773,162 +769,236 @@ class _QuickActions extends StatelessWidget {
                   letterSpacing: 0.8)),
         ),
         Row(children: [
-          _ActionButton(
-            icon: Icons.delivery_dining_rounded,
-            label: 'My Orders',
-            color: DC.orange,
-            onTap: () => context.go('/orders'),
+          // Challenges
+          Expanded(
+            child: GestureDetector(
+              onTap: () => context.go('/challenges'),
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF1C1400), Color(0xFF2E1F00)],
+                  ),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                      color: const Color(0xFFF59E0B).withValues(alpha: 0.35),
+                      width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                        color: const Color(0xFFF59E0B).withValues(alpha: 0.10),
+                        blurRadius: 16,
+                        offset: const Offset(0, 4)),
+                  ],
+                ),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Container(
+                    width: 44, height: 44,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.emoji_events_rounded,
+                        color: Color(0xFFF59E0B), size: 24),
+                  ),
+                  const SizedBox(height: 14),
+                  const Text('Challenges',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15)),
+                  const SizedBox(height: 4),
+                  Text('Earn more rewards',
+                      style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.40),
+                          fontSize: 11)),
+                ]),
+              ),
+            ),
           ),
-          const SizedBox(width: 10),
-          _ActionButton(
-            icon: Icons.bar_chart_rounded,
-            label: 'Earnings',
-            color: DC.success,
-            onTap: () => context.go('/earnings'),
+          const SizedBox(width: 12),
+          // My Stats
+          Expanded(
+            child: GestureDetector(
+              onTap: () => context.go('/driver-stats'),
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF0A1628), Color(0xFF0E1E36)],
+                  ),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                      color: const Color(0xFF3B82F6).withValues(alpha: 0.35),
+                      width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                        color: const Color(0xFF3B82F6).withValues(alpha: 0.10),
+                        blurRadius: 16,
+                        offset: const Offset(0, 4)),
+                  ],
+                ),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Container(
+                    width: 44, height: 44,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF3B82F6).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.insert_chart_rounded,
+                        color: Color(0xFF3B82F6), size: 24),
+                  ),
+                  const SizedBox(height: 14),
+                  const Text('My Stats',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15)),
+                  const SizedBox(height: 4),
+                  Text('Performance overview',
+                      style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.40),
+                          fontSize: 11)),
+                ]),
+              ),
+            ),
           ),
-          const SizedBox(width: 10),
-          _ActionButton(
-            icon: Icons.emoji_events_rounded,
-            label: 'Challenges',
-            color: const Color(0xFFF59E0B),
-            onTap: () => context.go('/challenges'),
-          ),
-          const SizedBox(width: 10),
-          _ActionButton(
-            icon: Icons.account_balance_wallet_rounded,
-            label: 'Wallet',
-            color: const Color(0xFF3B82F6),
-            onTap: () => context.go('/wallet'),
-          ),
-        ]),
-        const SizedBox(height: 10),
-        Row(children: [
-          _ActionButton(
-            icon: Icons.person_rounded,
-            label: 'Profile',
-            color: Colors.white38,
-            onTap: () => context.go('/profile'),
-          ),
-          const SizedBox(width: 10),
-          _ActionButton(
-            icon: Icons.map_rounded,
-            label: 'Heatmap',
-            color: const Color(0xFFEC4899),
-            onTap: () => context.go('/heatmap'),
-          ),
-          const SizedBox(width: 10),
-          _ActionButton(
-            icon: Icons.insert_chart_rounded,
-            label: 'My Stats',
-            color: Colors.white38,
-            onTap: () => context.go('/driver-stats'),
-          ),
-          const SizedBox(width: 10),
-          const Expanded(child: SizedBox()),
         ]),
       ]),
     );
   }
 }
 
-class _ActionButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-  const _ActionButton(
-      {required this.icon,
-      required this.label,
-      required this.color,
-      required this.onTap});
+// ──────────────────────────────────────────────────────────────────────────────
+// MINI HEATMAP — live map preview, tap → full heatmap screen
+// ──────────────────────────────────────────────────────────────────────────────
+class _MiniHeatmap extends StatefulWidget {
+  const _MiniHeatmap();
 
   @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          decoration: BoxDecoration(
-            color: const Color(0xFF111827),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-          ),
-          child: Column(children: [
-            Icon(icon, color: color, size: 22),
-            const SizedBox(height: 6),
-            Text(label,
-                style: TextStyle(
-                    color: color.withValues(alpha: 0.9),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700)),
-          ]),
-        ),
-      ),
-    );
-  }
+  State<_MiniHeatmap> createState() => _MiniHeatmapState();
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-// TEST ORDER BUTTON — so you can see IncomingOrderScreen without real FCM
-// ──────────────────────────────────────────────────────────────────────────────
-class _TestOrderButton extends StatelessWidget {
-  const _TestOrderButton();
+class _MiniHeatmapState extends State<_MiniHeatmap> {
+  static const _center = LatLng(2.0469, 45.3182);
+  GoogleMapController? _ctrl;
+
+  @override
+  void dispose() {
+    _ctrl?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       child: GestureDetector(
-        onTap: () {
-          // Push fake order to demonstrate IncomingOrderScreen
-          context.push('/incoming-order', extra: {
-            'id': 9999,
-            'order_number': 'TEST-001',
-            'module_slug': 'efood',
-            'delivery_fee': '8.50',
-            'distance_km': '3.2',
-            'estimated_minutes': 18,
-            'driver_to_pickup_km': '1.1',
-            'pickup': {
-              'district': 'KM4, Mogadishu',
-              'address': 'Banadir Restaurant',
-              'lat': '2.0469',
-              'lng': '45.3182',
-            },
-            'delivery': {
-              'district': 'Hodan, Mogadishu',
-              'address': 'Makka Al-Mukarama Rd',
-              'lat': '2.0382',
-              'lng': '45.3421',
-            },
-          });
-        },
+        onTap: () => context.go('/heatmap'),
         child: Container(
-          height: 56,
+          height: 200,
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Colors.white.withValues(alpha: 0.07),
-                Colors.white.withValues(alpha: 0.04),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(20),
             border: Border.all(
-                color: Colors.white.withValues(alpha: 0.12), width: 1),
+                color: const Color(0xFFEC4899).withValues(alpha: 0.40), width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                  color: const Color(0xFFEC4899).withValues(alpha: 0.08),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4)),
+            ],
           ),
-          child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(Icons.science_rounded, color: Colors.white38, size: 18),
-            SizedBox(width: 8),
-            Text('Simulate Incoming Order',
-                style: TextStyle(
-                    color: Colors.white38,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13)),
-            SizedBox(width: 6),
-            Text('(test)',
-                style: TextStyle(color: Colors.white24, fontSize: 11)),
-          ]),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(19),
+            child: Stack(children: [
+              // Map (non-interactive preview)
+              IgnorePointer(
+                child: GoogleMap(
+                  onMapCreated: (ctrl) => _ctrl = ctrl,
+                  initialCameraPosition:
+                      const CameraPosition(target: _center, zoom: 12),
+                  myLocationEnabled: false,
+                  myLocationButtonEnabled: false,
+                  zoomControlsEnabled: false,
+                  mapToolbarEnabled: false,
+                  scrollGesturesEnabled: false,
+                  zoomGesturesEnabled: false,
+                  rotateGesturesEnabled: false,
+                  tiltGesturesEnabled: false,
+                ),
+              ),
+              // Dark overlay + label
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withValues(alpha: 0.0),
+                      Colors.black.withValues(alpha: 0.65),
+                    ],
+                  ),
+                ),
+              ),
+              // Top label
+              Positioned(
+                top: 14, left: 14,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEC4899),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                          color: const Color(0xFFEC4899).withValues(alpha: 0.4),
+                          blurRadius: 10),
+                    ],
+                  ),
+                  child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.local_fire_department_rounded,
+                        color: Colors.white, size: 13),
+                    SizedBox(width: 5),
+                    Text('Busy Zones',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800)),
+                  ]),
+                ),
+              ),
+              // Bottom CTA
+              Positioned(
+                bottom: 14, left: 14, right: 14,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Tap to see live heatmap',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13)),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.20)),
+                      ),
+                      child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                        Text('Open', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+                        SizedBox(width: 4),
+                        Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 10),
+                      ]),
+                    ),
+                  ],
+                ),
+              ),
+            ]),
+          ),
         ),
       ),
     );

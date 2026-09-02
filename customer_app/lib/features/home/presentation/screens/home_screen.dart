@@ -1380,51 +1380,32 @@ class _RentHomesSection extends StatefulWidget {
 
 class _RentHomesSectionState extends State<_RentHomesSection> {
   late final Future<List<dynamic>> _future;
-  final ScrollController _scrollCtrl = ScrollController();
-  Timer? _autoScrollTimer;
-  bool _isPaused = false;
-  bool _autoScrollStarted = false; // guard: start timer only once
+  final PageController _pc = PageController(viewportFraction: 0.5, keepPage: false);
+  Timer? _timer;
+  int _page = 0;
+  int _count = 0;
 
   @override
   void initState() {
     super.initState();
     _future = _homeRepo.getRentHomes(limit: 8).catchError((_) => <dynamic>[]);
-  }
-
-  void _startAutoScroll(int count) {
-    if (count <= 2 || _autoScrollStarted) return;
-    _autoScrollStarted = true;
-    _isPaused = false;
-
-    Future.delayed(const Duration(seconds: 2), () {
-      if (!mounted) return;
-      _autoScrollTimer = Timer.periodic(const Duration(milliseconds: 20), (_) {
-        if (!mounted || !_scrollCtrl.hasClients || _isPaused) return;
-        final max = _scrollCtrl.position.maxScrollExtent;
-        final cur = _scrollCtrl.offset;
-        const step = 1.4;
-
-        if (cur >= max - step) {
-          _isPaused = true;
-          // Pause at end, then jump to start, then resume
-          Future.delayed(const Duration(milliseconds: 1000), () {
-            if (!mounted || !_scrollCtrl.hasClients) return;
-            _scrollCtrl.jumpTo(0);
-            Future.delayed(const Duration(milliseconds: 500), () {
-              if (mounted) _isPaused = false;
-            });
-          });
-        } else {
-          _scrollCtrl.jumpTo(cur + step);
-        }
+    _future.then((homes) {
+      _count = homes.length;
+      if (!mounted || _count <= 2) return;
+      _timer = Timer.periodic(const Duration(seconds: 3), (_) {
+        if (!mounted) return;
+        _page = (_page + 1) % _count;
+        _pc.animateToPage(_page,
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeInOut);
       });
     });
   }
 
   @override
   void dispose() {
-    _autoScrollTimer?.cancel();
-    _scrollCtrl.dispose();
+    _timer?.cancel();
+    _pc.dispose();
     super.dispose();
   }
 
@@ -1436,11 +1417,6 @@ class _RentHomesSectionState extends State<_RentHomesSection> {
         final homes = snap.data ?? [];
         final loading = snap.connectionState != ConnectionState.done;
         if (!loading && homes.isEmpty) return const SizedBox.shrink();
-
-        // Start auto-scroll once data arrives
-        if (!loading && homes.length > 2) {
-          WidgetsBinding.instance.addPostFrameCallback((_) => _startAutoScroll(homes.length));
-        }
 
         return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           _sectionHeader(context, '🏠 Available Homes',
@@ -1458,28 +1434,19 @@ class _RentHomesSectionState extends State<_RentHomesSection> {
                     itemBuilder: (_, __) => Padding(
                         padding: const EdgeInsets.only(right: 14),
                         child: _shimmerBox(w: 200, h: 240)))
-                : NotificationListener<ScrollNotification>(
-                    // Pause auto-scroll when user touches, resume on lift
-                    onNotification: (n) {
-                      if (n is UserScrollNotification) {
-                        _isPaused = true;
-                      } else if (n is ScrollEndNotification && homes.length > 2) {
-                        Future.delayed(const Duration(seconds: 2), () {
-                          if (mounted) _isPaused = false;
-                        });
-                      }
-                      return false;
-                    },
-                    child: ListView.builder(
-                      controller: _scrollCtrl,
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: homes.length,
-                      itemBuilder: (context, i) {
-                        try { return _RentHomeCard(home: homes[i]); }
-                        catch (_) { return const SizedBox(width: 200); }
-                      }),
-                  ),
+                : PageView.builder(
+                    controller: _pc,
+                    padEnds: false,
+                    itemCount: homes.length,
+                    onPageChanged: (i) => _page = i,
+                    itemBuilder: (context, i) {
+                      try {
+                        return Padding(
+                          padding: const EdgeInsets.only(left: 16, right: 6),
+                          child: _RentHomeCard(home: homes[i]),
+                        );
+                      } catch (_) { return const SizedBox(); }
+                    }),
           ),
         ]);
       },
@@ -1539,8 +1506,6 @@ class _RentHomeCardState extends State<_RentHomeCard> {
     return GestureDetector(
       onTap: () => context.push(dl),
       child: Container(
-        width: 200,
-        margin: const EdgeInsets.only(right: 14),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(18),
           color: Theme.of(context).cardColor,
@@ -1552,7 +1517,7 @@ class _RentHomeCardState extends State<_RentHomeCard> {
             borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
             child: Stack(children: [
               SizedBox(
-                height: 140, width: 200,
+                height: 140, width: double.infinity,
                 child: _images.isEmpty
                     ? Container(color: Colors.grey[200], child: const Icon(Icons.home_outlined, size: 48, color: Colors.grey))
                     : PageView.builder(
@@ -1560,7 +1525,7 @@ class _RentHomeCardState extends State<_RentHomeCard> {
                         itemCount: _images.length,
                         onPageChanged: (i) => setState(() => _page = i),
                         itemBuilder: (_, i) => NetImage(
-                          url: _images[i], width: 200, height: 140, fit: BoxFit.cover,
+                          url: _images[i], width: double.infinity, height: 140, fit: BoxFit.cover,
                         ),
                       ),
               ),

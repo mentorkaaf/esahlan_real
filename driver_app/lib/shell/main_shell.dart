@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:geolocator/geolocator.dart';
 import '../core/theme/driver_colors.dart';
 import '../core/services/app_update_checker.dart';
 import '../core/services/firebase_service.dart';
@@ -17,6 +18,7 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   static const _tabs = ['/dashboard', '/orders', '/earnings', '/wallet', '/profile'];
   bool _initialized = false;
+  bool _locationOk = true; // assume ok until checked
 
   int _index(BuildContext context) {
     final loc = GoRouterState.of(context).matchedLocation;
@@ -37,6 +39,9 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
       await FirebaseService().initialize();
       _initialized = true;
 
+      // Check location on startup
+      await _checkLocation();
+
       // Check for order that arrived while app was KILLED or BACKGROUND
       // _bgHandler saved it to SharedPreferences; we read + consume it now.
       await _checkPendingOrder();
@@ -52,11 +57,26 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     super.dispose();
   }
 
-  // ── App lifecycle — check pending order when app comes to foreground ─────
+  // ── App lifecycle — check location + pending order when app resumes ──────
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && _initialized) {
+      _checkLocation();
       _checkPendingOrder();
+    }
+  }
+
+  // ── Location gate: device GPS + permission must both be ON ───────────────
+  Future<void> _checkLocation() async {
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    final permission     = await Geolocator.checkPermission();
+    final permOk = permission == LocationPermission.always ||
+                   permission == LocationPermission.whileInUse;
+    final ok = serviceEnabled && permOk;
+    if (mounted && ok != _locationOk) {
+      setState(() => _locationOk = ok);
+    } else if (!mounted) {
+      _locationOk = ok;
     }
   }
 
@@ -118,11 +138,99 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    if (!_locationOk) {
+      return _LocationGateScreen(onRetry: _checkLocation);
+    }
     return Scaffold(
       body: widget.child,
       bottomNavigationBar: _PremiumNavBar(
         currentIndex: _index(context),
         onTap: (i) => context.go(_tabs[i]),
+      ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Location Gate Screen — blocks app until GPS + permission are enabled
+// ──────────────────────────────────────────────────────────────────────────────
+class _LocationGateScreen extends StatelessWidget {
+  final Future<void> Function() onRetry;
+  const _LocationGateScreen({required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF080D18),
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 100, height: 100,
+                  decoration: BoxDecoration(
+                    color: DC.orange.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.location_off_rounded,
+                      size: 48, color: DC.orange),
+                ),
+                const SizedBox(height: 28),
+                const Text(
+                  'Location Required',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'eSahlan Driver requires your device location to be enabled in order to receive and deliver orders.\n\nPlease turn on Location Services to continue.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.6),
+                    fontSize: 14,
+                    height: 1.6,
+                  ),
+                ),
+                const SizedBox(height: 36),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.settings_rounded),
+                    label: const Text('Open Location Settings'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: DC.orange,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                      textStyle: const TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.w700),
+                    ),
+                    onPressed: () async {
+                      await Geolocator.openLocationSettings();
+                    },
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: onRetry,
+                  child: Text(
+                    'I\'ve enabled it — Continue',
+                    style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.5),
+                        fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

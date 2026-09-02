@@ -6,21 +6,23 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../core/theme/driver_colors.dart';
 
-// ── Data model ────────────────────────────────────────────────────────────────
+// ── Model ─────────────────────────────────────────────────────────────────────
 class _Zone {
   final int    vendorId;
   final String vendorName;
-  final String? logo;
   final double lat, lng;
   final int    orderCount;
-  final String level; // active | busy | very_busy
+  final String level;
   final double bonusAmount;
   final String label;
   final int    radiusM;
-  const _Zone({required this.vendorId, required this.vendorName, this.logo,
-    required this.lat, required this.lng, required this.orderCount,
-    required this.level, required this.bonusAmount,
-    required this.label, required this.radiusM});
+  const _Zone({
+    required this.vendorId, required this.vendorName,
+    required this.lat,      required this.lng,
+    required this.orderCount, required this.level,
+    required this.bonusAmount, required this.label,
+    required this.radiusM,
+  });
 }
 
 // ── Provider ──────────────────────────────────────────────────────────────────
@@ -29,19 +31,107 @@ final _zonesProvider = FutureProvider.autoDispose<List<_Zone>>((ref) async {
   return raw.map((z) {
     final m = z as Map<String, dynamic>;
     return _Zone(
-      vendorId:    (m['vendor_id'] as num).toInt(),
-      vendorName:  m['vendor_name'] as String? ?? 'Store',
-      logo:        m['logo'] as String?,
-      lat:         (m['lat'] as num).toDouble(),
-      lng:         (m['lng'] as num).toDouble(),
+      vendorId:    (m['vendor_id']   as num).toInt(),
+      vendorName:  m['vendor_name']  as String? ?? 'Store',
+      lat:         (m['lat']         as num).toDouble(),
+      lng:         (m['lng']         as num).toDouble(),
       orderCount:  (m['order_count'] as num).toInt(),
-      level:       m['level'] as String,
-      bonusAmount: (m['bonus_amount'] as num).toDouble(),
-      label:       m['label'] as String,
-      radiusM:     (m['radius_m'] as num).toInt(),
+      level:       m['level']        as String,
+      bonusAmount: (m['bonus_amount']as num).toDouble(),
+      label:       m['label']        as String,
+      radiusM:     (m['radius_m']    as num).toInt(),
     );
   }).toList();
 });
+
+// ── Colors ────────────────────────────────────────────────────────────────────
+Color _zoneColor(String level) => switch (level) {
+  'very_busy' => const Color(0xFFCC1010),
+  'busy'      => const Color(0xFFE05000),
+  _           => const Color(0xFFFF8A00),
+};
+
+// ── Marker icon builder (simple, fixed logical size) ──────────────────────────
+// Total: 56×72 logical pixels
+// - Circle 56×56 (white bg + colored border + emoji + count badge)
+// - Tail 16px pointing down (same color as border)
+Future<BitmapDescriptor> _buildMarkerIcon(int count, String level) async {
+  final color = _zoneColor(level);
+
+  // Draw at 2× for sharpness, display at 1×
+  const double scale  = 2.0;
+  const double diam   = 56 * scale;  // circle diameter
+  const double tail   = 16 * scale;  // pointer height
+  const double canvasW = diam;
+  const double canvasH = diam + tail;
+  final double cx = diam / 2, cy = diam / 2;
+  final double r  = diam / 2 - 2 * scale;
+
+  final rec    = ui.PictureRecorder();
+  final canvas = Canvas(rec);
+
+  // ── Drop shadow ───────────────────────────────────────────────────────────
+  canvas.drawCircle(
+    Offset(cx, cy + 2 * scale), r + scale,
+    Paint()
+      ..color      = Colors.black.withOpacity(0.20)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+  );
+
+  // ── White circle ──────────────────────────────────────────────────────────
+  canvas.drawCircle(Offset(cx, cy), r, Paint()..color = Colors.white);
+
+  // ── Colored border ────────────────────────────────────────────────────────
+  canvas.drawCircle(
+    Offset(cx, cy), r,
+    Paint()
+      ..color       = color
+      ..style       = PaintingStyle.stroke
+      ..strokeWidth = 3.5 * scale,
+  );
+
+  // ── Store emoji ───────────────────────────────────────────────────────────
+  final emojiTp = TextPainter(
+    text: TextSpan(text: '🏪', style: TextStyle(fontSize: 22 * scale)),
+    textDirection: TextDirection.ltr,
+  )..layout();
+  emojiTp.paint(
+    canvas,
+    Offset(cx - emojiTp.width / 2, cy - emojiTp.height / 2 - 4 * scale),
+  );
+
+  // ── Count badge (top-right) ───────────────────────────────────────────────
+  final badgeR = 11 * scale;
+  final bx = cx + r * 0.65, by = cy - r * 0.65;
+  canvas.drawCircle(Offset(bx, by), badgeR, Paint()..color = color);
+  canvas.drawCircle(
+    Offset(bx, by), badgeR,
+    Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 1.5 * scale,
+  );
+  final countTp = TextPainter(
+    text: TextSpan(
+      text: '$count',
+      style: TextStyle(color: Colors.white, fontSize: 11 * scale, fontWeight: FontWeight.w900),
+    ),
+    textDirection: TextDirection.ltr,
+  )..layout();
+  countTp.paint(canvas, Offset(bx - countTp.width / 2, by - countTp.height / 2));
+
+  // ── Tail (pointer) ────────────────────────────────────────────────────────
+  final path = Path()
+    ..moveTo(cx - 6 * scale, diam - 2 * scale)
+    ..lineTo(cx, canvasH)
+    ..lineTo(cx + 6 * scale, diam - 2 * scale)
+    ..close();
+  canvas.drawPath(path, Paint()..color = color);
+
+  final img  = await rec.endRecording().toImage(canvasW.toInt(), canvasH.toInt());
+  final data = await img.toByteData(format: ui.ImageByteFormat.png);
+  return BitmapDescriptor.fromBytes(
+    data!.buffer.asUint8List(),
+    size: const Size(56, 72), // logical pixels — fixed, zoom-independent
+  );
+}
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 class HeatmapScreen extends ConsumerStatefulWidget {
@@ -51,170 +141,71 @@ class HeatmapScreen extends ConsumerStatefulWidget {
 }
 
 class _HeatmapScreenState extends ConsumerState<HeatmapScreen> {
-  GoogleMapController? _mapController;
-  Timer? _refreshTimer;
+  GoogleMapController? _ctrl;
+  Timer? _timer;
+  _Zone? _selected; // tapped vendor
 
-  static const _mogadishuCenter = LatLng(2.0469, 45.3182);
+  static const _center = LatLng(2.0469, 45.3182);
 
   @override
   void initState() {
     super.initState();
-    // Auto-refresh every 60s
-    _refreshTimer = Timer.periodic(const Duration(seconds: 60), (_) {
+    _timer = Timer.periodic(const Duration(seconds: 60), (_) {
       ref.invalidate(_zonesProvider);
+      setState(() => _selected = null);
     });
   }
 
   @override
   void dispose() {
-    _refreshTimer?.cancel();
-    _mapController?.dispose();
+    _timer?.cancel();
+    _ctrl?.dispose();
     super.dispose();
   }
 
-  // ── Build circles from zone data ──────────────────────────────────────────
-  Set<Circle> _buildCircles(List<_Zone> zones) {
-    final circles = <Circle>{};
+  // ── Circles ───────────────────────────────────────────────────────────────
+  Set<Circle> _circles(List<_Zone> zones) {
+    final out = <Circle>{};
     for (final z in zones) {
-      final colors = _zoneColors(z.level);
-      // Outer glow
-      circles.add(Circle(
-        circleId: CircleId('glow_${z.vendorId}'),
-        center:   LatLng(z.lat, z.lng),
-        radius:   z.radiusM.toDouble() * 1.4,
-        fillColor:   colors.$1.withOpacity(0.08),
-        strokeColor: colors.$1.withOpacity(0.0),
+      final c = _zoneColor(z.level);
+      final pos = LatLng(z.lat, z.lng);
+      // Glow
+      out.add(Circle(
+        circleId:    CircleId('g${z.vendorId}'),
+        center:      pos,
+        radius:      z.radiusM * 1.5,
+        fillColor:   c.withOpacity(0.07),
         strokeWidth: 0,
+        strokeColor: Colors.transparent,
       ));
-      // Main circle
-      circles.add(Circle(
-        circleId: CircleId('zone_${z.vendorId}'),
-        center:   LatLng(z.lat, z.lng),
-        radius:   z.radiusM.toDouble(),
-        fillColor:   colors.$1.withOpacity(0.25),
-        strokeColor: colors.$1.withOpacity(0.70),
+      // Fill
+      out.add(Circle(
+        circleId:    CircleId('f${z.vendorId}'),
+        center:      pos,
+        radius:      z.radiusM.toDouble(),
+        fillColor:   c.withOpacity(0.20),
+        strokeColor: c.withOpacity(0.60),
         strokeWidth: 2,
       ));
     }
-    return circles;
+    return out;
   }
 
-  // ── Build label markers ───────────────────────────────────────────────────
-  Future<Set<Marker>> _buildMarkers(List<_Zone> zones) async {
-    final markers = <Marker>{};
+  // ── Markers ───────────────────────────────────────────────────────────────
+  Future<Set<Marker>> _markers(List<_Zone> zones) async {
+    final out = <Marker>{};
     for (final z in zones) {
-      final colors = _zoneColors(z.level);
-      final icon = await _buildVendorIcon(z.vendorName, z.orderCount, colors.$1);
-      markers.add(Marker(
-        markerId: MarkerId('vendor_${z.vendorId}'),
+      final icon = await _buildMarkerIcon(z.orderCount, z.level);
+      out.add(Marker(
+        markerId: MarkerId('m${z.vendorId}'),
         position: LatLng(z.lat, z.lng),
         icon:     icon,
-        anchor:   const Offset(0.5, 1.0),
-        zIndex:   3,
-        infoWindow: InfoWindow(
-          title: z.vendorName,
-          snippet: '${z.orderCount} active order${z.orderCount > 1 ? 's' : ''} · ${z.label}',
-        ),
+        anchor:   const Offset(0.5, 1.0), // tail points to exact location
+        zIndex:   2,
+        onTap:    () => setState(() => _selected = z),
       ));
     }
-    return markers;
-  }
-
-  // ── Colors per level ──────────────────────────────────────────────────────
-  (Color, Color) _zoneColors(String level) => switch (level) {
-    'very_busy' => (const Color(0xFFCC1010), Colors.white),
-    'busy'      => (const Color(0xFFE05000), Colors.white),
-    _           => (const Color(0xFFFF8A00), Colors.white),
-  };
-
-  // ── Vendor marker: store circle + name pill + count badge ────────────────
-  Future<BitmapDescriptor> _buildVendorIcon(String name, int count, Color zoneColor) async {
-    // Scale factor — multiply everything by 3 for sharp hi-DPI rendering
-    const double s = 3.0;
-
-    final shortName = name.length > 18 ? '${name.substring(0, 16)}…' : name;
-
-    // Measure name text at 3× scale
-    final nameTp = TextPainter(
-      text: TextSpan(
-        text: shortName,
-        style: TextStyle(color: Colors.white, fontSize: 13 * s, fontWeight: FontWeight.w800),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-
-    // Pill width = name + padding
-    final pillW  = nameTp.width + 24 * s;
-    final pillH  = 28 * s;
-    final circleR = 30 * s; // icon circle radius
-    final badgeR  = 13 * s; // count badge radius
-    final canvasW = (pillW > circleR * 2 + badgeR ? pillW + badgeR : circleR * 2 + badgeR * 2 + 4 * s);
-    final canvasH = circleR * 2 + 6 * s + pillH + 4 * s;
-
-    final cx = canvasW / 2;
-    final cy = circleR;
-
-    final recorder = ui.PictureRecorder();
-    final canvas   = Canvas(recorder);
-
-    // ── Shadow ────────────────────────────────────────────────────────────
-    canvas.drawCircle(Offset(cx, cy + 3 * s), circleR + 2 * s,
-        Paint()..color = Colors.black.withOpacity(0.20)
-                ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6));
-
-    // ── White circle background ───────────────────────────────────────────
-    canvas.drawCircle(Offset(cx, cy), circleR, Paint()..color = Colors.white);
-
-    // ── Colored border ring ───────────────────────────────────────────────
-    canvas.drawCircle(Offset(cx, cy), circleR,
-        Paint()..color = zoneColor..style = PaintingStyle.stroke..strokeWidth = 4 * s);
-
-    // ── Store emoji 🏪 ────────────────────────────────────────────────────
-    final emojiTp = TextPainter(
-      text: TextSpan(text: '🏪', style: TextStyle(fontSize: 28 * s)),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    emojiTp.paint(canvas, Offset(cx - emojiTp.width / 2, cy - emojiTp.height / 2));
-
-    // ── Count badge (top-right) ───────────────────────────────────────────
-    final bx = cx + circleR - badgeR * 0.3;
-    final by = cy - circleR + badgeR * 0.3;
-    canvas.drawCircle(Offset(bx, by), badgeR,
-        Paint()..color = Colors.white);
-    canvas.drawCircle(Offset(bx, by), badgeR,
-        Paint()..color = zoneColor..style = PaintingStyle.stroke..strokeWidth = 2 * s);
-    final countTp = TextPainter(
-      text: TextSpan(text: '$count',
-          style: TextStyle(color: zoneColor, fontSize: 13 * s, fontWeight: FontWeight.w900)),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    countTp.paint(canvas, Offset(bx - countTp.width / 2, by - countTp.height / 2));
-
-    // ── Name pill below circle ────────────────────────────────────────────
-    final pillX = cx - pillW / 2;
-    final pillY = cy + circleR + 6 * s;
-    final pillRect = RRect.fromLTRBR(
-      pillX, pillY, pillX + pillW, pillY + pillH,
-      Radius.circular(pillH / 2),
-    );
-    // Pill shadow
-    canvas.drawRRect(pillRect,
-        Paint()..color = Colors.black.withOpacity(0.18)
-                ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4));
-    // Pill background
-    canvas.drawRRect(pillRect, Paint()..color = zoneColor);
-    // Name text
-    nameTp.paint(canvas,
-        Offset(cx - nameTp.width / 2, pillY + (pillH - nameTp.height) / 2));
-
-    // Render at 3× then Flutter scales down = crisp result
-    final img  = await recorder.endRecording()
-        .toImage(canvasW.ceil(), canvasH.ceil());
-    final data = await img.toByteData(format: ui.ImageByteFormat.png);
-    return BitmapDescriptor.fromBytes(
-      data!.buffer.asUint8List(),
-      size: Size(canvasW / s, canvasH / s), // logical pixels
-    );
+    return out;
   }
 
   @override
@@ -226,107 +217,64 @@ class _HeatmapScreenState extends ConsumerState<HeatmapScreen> {
       backgroundColor: c.navy,
       appBar: AppBar(
         backgroundColor: c.navyLight,
-        title: Text('Busy Zones', style: TextStyle(fontWeight: FontWeight.w800, color: c.text, fontSize: 18)),
+        title: Text('Busy Zones',
+            style: TextStyle(fontWeight: FontWeight.w800, color: c.text, fontSize: 18)),
         actions: [
           IconButton(
             icon: Icon(Icons.refresh_rounded, color: c.text),
-            onPressed: () => ref.invalidate(_zonesProvider),
+            onPressed: () {
+              setState(() => _selected = null);
+              ref.invalidate(_zonesProvider);
+            },
           ),
         ],
       ),
       body: Stack(children: [
+
         // ── Map ──────────────────────────────────────────────────────────
         async.when(
-          loading: () => GoogleMap(
-            onMapCreated: (ctrl) => _mapController = ctrl,
-            initialCameraPosition: const CameraPosition(target: _mogadishuCenter, zoom: 12),
-            myLocationEnabled: true,
-            myLocationButtonEnabled: false,
-            zoomControlsEnabled: false,
-            mapToolbarEnabled: false,
-          ),
-          error: (_, __) => GoogleMap(
-            onMapCreated: (ctrl) => _mapController = ctrl,
-            initialCameraPosition: const CameraPosition(target: _mogadishuCenter, zoom: 12),
-            myLocationEnabled: true,
-            myLocationButtonEnabled: false,
-            zoomControlsEnabled: false,
-            mapToolbarEnabled: false,
-          ),
-          data: (zones) => FutureBuilder<Set<Marker>>(
-            future: _buildMarkers(zones),
-            builder: (ctx, snap) => GoogleMap(
-              onMapCreated: (ctrl) => _mapController = ctrl,
-              initialCameraPosition: const CameraPosition(target: _mogadishuCenter, zoom: 12),
-              circles: _buildCircles(zones),
-              markers: snap.data ?? {},
-              myLocationEnabled: true,
-              myLocationButtonEnabled: false,
-              zoomControlsEnabled: false,
-              mapToolbarEnabled: false,
-              mapType: MapType.normal,
-            ),
+          loading: () => _baseMap(const {}, const {}),
+          error:   (_, __) => _baseMap(const {}, const {}),
+          data:    (zones) => FutureBuilder<Set<Marker>>(
+            future: _markers(zones),
+            builder: (_, snap) => _baseMap(_circles(zones), snap.data ?? {}),
           ),
         ),
 
-        // ── Legend (bottom pill) ──────────────────────────────────────────
+        // ── Vendor info card (on tap) ─────────────────────────────────────
+        if (_selected != null)
+          Positioned(
+            bottom: 100, left: 16, right: 16,
+            child: _VendorCard(zone: _selected!, onClose: () => setState(() => _selected = null)),
+          ),
+
+        // ── Legend ───────────────────────────────────────────────────────
         Positioned(
           bottom: 24, left: 16, right: 16,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 16, offset: const Offset(0, 4))],
-            ),
-            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              async.when(
-                loading: () => const Text('Loading zones...', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                error:   (_, __) => const Text('Could not load zones', style: TextStyle(color: Colors.red, fontSize: 13)),
-                data:    (zones) {
-                  if (zones.isEmpty) {
-                    return const Text('No busy zones right now', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Colors.grey));
-                  }
-                  final hasBusy     = zones.any((z) => z.level == 'busy');
-                  final hasVeryBusy = zones.any((z) => z.level == 'very_busy');
-                  final bonus       = zones.first.bonusAmount;
-                  return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    if (bonus > 0) ...[
-                      Text('You\'ll get \$${bonus.toStringAsFixed(2)} more peak pay\non each order in busy zones',
-                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                      const SizedBox(height: 10),
-                    ],
-                    Row(children: [
-                      if (hasVeryBusy) ...[
-                        _legend(const Color(0xFFCC1010), 'Very Busy'),
-                        const SizedBox(width: 16),
-                      ],
-                      if (hasBusy) ...[
-                        _legend(const Color(0xFFE05000), 'Busy'),
-                        const SizedBox(width: 16),
-                      ],
-                      _legend(const Color(0xFFFF8A00), 'Active'),
-                    ]),
-                  ]);
-                },
-              ),
-            ]),
+          child: async.when(
+            loading: () => _legendCard([], 0),
+            error:   (_, __) => _legendCard([], 0),
+            data:    (zones) => _legendCard(zones, zones.isNotEmpty ? zones.first.bonusAmount : 0),
           ),
         ),
 
-        // ── Loading spinner overlay ────────────────────────────────────────
+        // ── Loading indicator ─────────────────────────────────────────────
         if (async.isLoading)
           Positioned(
-            top: 16, left: 0, right: 0,
+            top: 12, left: 0, right: 0,
             child: Center(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20),
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8)]),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.10), blurRadius: 8)],
+                ),
                 child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                  SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFFF8A00))),
+                  SizedBox(width: 14, height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFFF8A00))),
                   SizedBox(width: 8),
-                  Text('Updating zones...', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  Text('Updating...', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                 ]),
               ),
             ),
@@ -335,10 +283,112 @@ class _HeatmapScreenState extends ConsumerState<HeatmapScreen> {
     );
   }
 
-  Widget _legend(Color color, String label) => Row(mainAxisSize: MainAxisSize.min, children: [
-    Container(width: 14, height: 14, decoration: BoxDecoration(color: color.withOpacity(0.85), shape: BoxShape.circle,
-        border: Border.all(color: color, width: 1.5))),
-    const SizedBox(width: 5),
-    Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87)),
-  ]);
+  Widget _baseMap(Set<Circle> circles, Set<Marker> markers) => GoogleMap(
+    onMapCreated:         (ctrl) => _ctrl = ctrl,
+    initialCameraPosition: const CameraPosition(target: _center, zoom: 12.5),
+    circles:              circles,
+    markers:              markers,
+    myLocationEnabled:    true,
+    myLocationButtonEnabled: false,
+    zoomControlsEnabled:  false,
+    mapToolbarEnabled:    false,
+    onTap:                (_) => setState(() => _selected = null),
+  );
+
+  Widget _legendCard(List<_Zone> zones, double bonus) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.10), blurRadius: 16, offset: const Offset(0, 4))],
+    ),
+    child: zones.isEmpty
+        ? const Text('No busy zones right now',
+            style: TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.w600))
+        : Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            if (bonus > 0) ...[
+              Text('💰 +\$${bonus.toStringAsFixed(2)} peak pay per order in busy zones',
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+              const SizedBox(height: 8),
+            ],
+            Row(children: [
+              if (zones.any((z) => z.level == 'very_busy')) ...[
+                _dot(const Color(0xFFCC1010)), const SizedBox(width: 5),
+                const Text('Very Busy', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                const SizedBox(width: 14),
+              ],
+              if (zones.any((z) => z.level == 'busy')) ...[
+                _dot(const Color(0xFFE05000)), const SizedBox(width: 5),
+                const Text('Busy', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                const SizedBox(width: 14),
+              ],
+              _dot(const Color(0xFFFF8A00)), const SizedBox(width: 5),
+              const Text('Active', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            ]),
+          ]),
+  );
+
+  Widget _dot(Color c) => Container(
+    width: 12, height: 12,
+    decoration: BoxDecoration(color: c, shape: BoxShape.circle),
+  );
+}
+
+// ── Vendor detail card (shown on marker tap) ──────────────────────────────────
+class _VendorCard extends StatelessWidget {
+  final _Zone zone;
+  final VoidCallback onClose;
+  const _VendorCard({required this.zone, required this.onClose});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _zoneColor(zone.level);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 20, offset: const Offset(0, 6))],
+      ),
+      child: Row(children: [
+        // Store icon
+        Container(
+          width: 52, height: 52,
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.10),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withOpacity(0.30), width: 1.5),
+          ),
+          child: const Center(child: Text('🏪', style: TextStyle(fontSize: 26))),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(zone.vendorName,
+                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF07003B)),
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+            const SizedBox(height: 4),
+            Row(children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(20)),
+                child: Text(zone.label,
+                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800)),
+              ),
+              const SizedBox(width: 8),
+              Text('${zone.orderCount} active order${zone.orderCount > 1 ? 's' : ''}',
+                  style: const TextStyle(color: Colors.grey, fontSize: 12)),
+            ]),
+          ]),
+        ),
+        GestureDetector(
+          onTap: onClose,
+          child: const Padding(
+            padding: EdgeInsets.only(left: 8),
+            child: Icon(Icons.close, color: Colors.grey, size: 20),
+          ),
+        ),
+      ]),
+    );
+  }
 }
