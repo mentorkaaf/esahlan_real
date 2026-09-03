@@ -29,7 +29,11 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: '/login',
     refreshListenable: notifier,
     redirect: (context, state) {
-      final auth = ref.read(authStateProvider).valueOrNull;
+      final authAsync = ref.read(authStateProvider);
+      // Fix H-7: return null (no redirect) while auth state is still loading
+      // to avoid flashing the login screen for already-authenticated drivers.
+      if (authAsync.isLoading) return null;
+      final auth = authAsync.valueOrNull;
       final loggedIn = auth?.loggedIn ?? false;
       final approved = auth?.approved ?? false;
       final loc = state.matchedLocation;

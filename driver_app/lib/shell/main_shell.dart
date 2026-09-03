@@ -19,6 +19,8 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   static const _tabs = ['/dashboard', '/orders', '/earnings', '/wallet', '/profile'];
   bool _initialized = false;
   bool _locationOk = true; // assume ok until checked
+  // Fix H-8: guard against pushing /incoming-order multiple times
+  bool _showingOrderScreen = false;
 
   int _index(BuildContext context) {
     final loc = GoRouterState.of(context).matchedLocation;
@@ -95,10 +97,14 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   // ── Navigate to IncomingOrderScreen ──────────────────────────────────────
   void _handleIncomingOrder(Map<String, dynamic> data) {
     if (!mounted) return;
-    // Cancel alarm notification (app is now showing the full-screen UI)
+    // Fix H-8: prevent pushing a second /incoming-order while one is showing
+    if (_showingOrderScreen) return;
+    _showingOrderScreen = true;
     FirebaseService().cancelOrderNotification();
     final orderData = _parseOrderFromFcm(data);
-    context.push('/incoming-order', extra: orderData);
+    context.push('/incoming-order', extra: orderData).whenComplete(() {
+      _showingOrderScreen = false;
+    });
   }
 
   /// Map flat FCM data keys → nested order structure for IncomingOrderScreen.

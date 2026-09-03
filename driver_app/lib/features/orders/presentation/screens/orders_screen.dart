@@ -509,7 +509,8 @@ class _ActiveCard extends StatelessWidget {
     final module = (order['module_slug'] ?? '').toString();
     final fee = double.tryParse('${order['delivery_fee'] ?? 0}') ?? 0;
     final status = order['status']?.toString() ?? '';
-    final orderId = (order['id'] as num).toInt();
+    // Fix M-9: safe parse — avoids CastError when id arrives as String
+    final orderId = int.tryParse('${order['id'] ?? 0}') ?? 0;
     final customerPhone = delivery?['phone']?.toString();
 
     return Container(
@@ -604,6 +605,8 @@ class _ActiveDeliveryPage extends ConsumerStatefulWidget {
 class _ActiveDeliveryState extends ConsumerState<_ActiveDeliveryPage> {
   bool _loading = false;
   LatLng? _customerLoc;
+  // Fix M-3: local copy of status so we don't mutate widget.order directly
+  late String _localStatus;
 
   late final int _orderId;
   late final String _realtimeChannel;
@@ -611,7 +614,9 @@ class _ActiveDeliveryState extends ConsumerState<_ActiveDeliveryPage> {
   @override
   void initState() {
     super.initState();
-    _orderId = (widget.order['id'] as num).toInt();
+    // Fix M-9: safe parse — FCM delivers all data values as Strings
+    _orderId = int.tryParse('${widget.order['id'] ?? 0}') ?? 0;
+    _localStatus = '${widget.order['status'] ?? ''}';
     _realtimeChannel = 'private-order-chat.$_orderId';
     _subscribeCustomerLocation();
   }
@@ -645,7 +650,9 @@ class _ActiveDeliveryState extends ConsumerState<_ActiveDeliveryPage> {
     final customer = (o['delivery'] ?? o['customer']) as Map<String, dynamic>?;
     final module = (o['module_slug'] ?? '').toString();
     final distance = o['distance_km'];
-    final status = o['status']?.toString() ?? '';
+    // Fix M-3: use _localStatus instead of widget.order['status'] so status
+    // updates from _handleAction are reflected immediately in the UI.
+    final status = _localStatus;
     final vLat = double.tryParse('${vendor?['lat'] ?? 0}') ?? 0;
     final vLng = double.tryParse('${vendor?['lng'] ?? 0}') ?? 0;
     // Customer delivery coordinates (from API or real-time share)
@@ -866,13 +873,15 @@ class _ActiveDeliveryState extends ConsumerState<_ActiveDeliveryPage> {
     }
     setState(() => _loading = true);
     try {
-      await ref.read(authRepoProvider).updateOrderStatus((widget.order['id'] as num).toInt(), nextStatus);
+      await ref.read(authRepoProvider).updateOrderStatus(_orderId, nextStatus);
       // Invalidate active list in background — driver stays on this page
       ref.invalidate(_activeProvider);
-      // Update local order status so buttons/labels update immediately without pop
+      // Fix M-3: update _localStatus instead of mutating widget.order directly.
+      // Mutating widget.order bypasses the reactive system and gets overwritten
+      // if the parent rebuilds.
       if (mounted) {
         setState(() {
-          widget.order['status'] = nextStatus;
+          _localStatus = nextStatus;
           _loading = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -910,7 +919,7 @@ class _ActiveDeliveryState extends ConsumerState<_ActiveDeliveryPage> {
       const SnackBar(content: Text('🆘 Sending SOS...'), backgroundColor: Colors.orange, duration: Duration(seconds: 3)),
     );
     try {
-      final orderId = (widget.order['id'] as num?)?.toInt();
+      final orderId = int.tryParse('${widget.order['id'] ?? 0}');
       await ref.read(authRepoProvider).sendSOS(orderId: orderId);
       if (mounted) {
         ScaffoldMessenger.of(context).clearSnackBars();
@@ -1143,7 +1152,7 @@ class _PhotoConfirmState extends ConsumerState<_PhotoConfirmPage> {
   Future<void> _confirm() async {
     setState(() => _loading = true);
     try {
-      final orderId = (widget.order['id'] as num).toInt();
+      final orderId = int.tryParse('${widget.order['id'] ?? 0}') ?? 0;
       final formData = FormData.fromMap({
         'status': 'delivered',
         if (_photo != null) 'delivery_photo': await MultipartFile.fromFile(_photo!.path, filename: 'delivery.jpg'),
@@ -1265,6 +1274,10 @@ class _CustomerChatSheetState extends State<_CustomerChatSheet> {
   }
 
   void _subscribeRealtime() {
+    // Fix M-4: remove any existing listener before adding to prevent duplicate
+    // callbacks if this method is somehow called more than once (e.g., if the
+    // channel was already subscribed from another widget like _ActiveDeliveryState).
+    RealtimeService.instance.removeListener(_channel, 'new_message', _onRealtime);
     RealtimeService.instance.listen(_channel, 'new_message', _onRealtime);
   }
 
@@ -1378,6 +1391,10 @@ class _CustomerChatSheetState extends State<_CustomerChatSheet> {
   @override
   void dispose() {
     _recordTimer?.cancel();
+    // Fix H-3: stop recorder before dispose if still recording, to release mic
+    if (_recording) {
+      _recorder.stop().catchError((_) {});
+    }
     _recorder.dispose();
     RealtimeService.instance.removeListener(_channel, 'new_message', _onRealtime);
     _ctrl.dispose();
@@ -1625,22 +1642,24 @@ class _DriverVoiceBubbleState extends State<_DriverVoiceBubble> {
   bool _playing = false;
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
+  // Fix M-1: store subscriptions so they can be cancelled in dispose()
+  final List<StreamSubscription<dynamic>> _subs = [];
 
   @override
   void initState() {
     super.initState();
-    _player.onPlayerStateChanged.listen((s) {
+    _subs.add(_player.onPlayerStateChanged.listen((s) {
       if (mounted) setState(() => _playing = s == PlayerState.playing);
-    });
-    _player.onPositionChanged.listen((p) {
+    }));
+    _subs.add(_player.onPositionChanged.listen((p) {
       if (mounted) setState(() => _position = p);
-    });
-    _player.onDurationChanged.listen((d) {
+    }));
+    _subs.add(_player.onDurationChanged.listen((d) {
       if (mounted) setState(() => _duration = d);
-    });
-    _player.onPlayerComplete.listen((_) {
+    }));
+    _subs.add(_player.onPlayerComplete.listen((_) {
       if (mounted) setState(() { _playing = false; _position = Duration.zero; });
-    });
+    }));
   }
 
   String _fmt(Duration d) {
@@ -1660,7 +1679,12 @@ class _DriverVoiceBubbleState extends State<_DriverVoiceBubble> {
   }
 
   @override
-  void dispose() { _player.dispose(); super.dispose(); }
+  void dispose() {
+    // Fix M-1: cancel all stream subscriptions to prevent memory leaks
+    for (final sub in _subs) { sub.cancel(); }
+    _player.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

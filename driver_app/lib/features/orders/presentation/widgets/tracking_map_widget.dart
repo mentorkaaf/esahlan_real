@@ -19,7 +19,10 @@ import 'package:http/http.dart' as http;
 //   • Auto-zoom to fit all 3 points
 // ─────────────────────────────────────────────────────────────────────────────
 
-const _kMapsKey = 'AIzaSyC1pxwcaFZxDXwqDpxK_gDfPAdpFM8bTnc';
+// Fix C-1: API key removed from source. Pass via --dart-define=MAPS_KEY=...
+// at build time: flutter build apk --dart-define=MAPS_KEY=YOUR_KEY_HERE
+// Restricted to your app's SHA-1 in the Google Cloud Console.
+const _kMapsKey = String.fromEnvironment('MAPS_KEY', defaultValue: '');
 
 class TrackingMapWidget extends StatefulWidget {
   final double pickupLat;
@@ -74,16 +77,24 @@ class _TrackingMapWidgetState extends State<TrackingMapWidget> {
 
   // ── GPS — live driver position ─────────────────────────────────────────────
   void _startGps() {
+    // Fix H-4: add onError handler so a PermissionDeniedException or similar
+    // does not become an unhandled zone error.
     _gpsSub = Geolocator.getPositionStream(
       locationSettings: const LocationSettings(
         accuracy: LocationAccuracy.bestForNavigation,
         distanceFilter: 5,           // update every 5 m moved
       ),
-    ).listen((pos) {
-      final newPos = LatLng(pos.latitude, pos.longitude);
-      setState(() => _driverPos = newPos);
-      _animateCamera();
-    });
+    ).listen(
+      (pos) {
+        if (!mounted) return;
+        final newPos = LatLng(pos.latitude, pos.longitude);
+        setState(() => _driverPos = newPos);
+        _animateCamera();
+      },
+      onError: (e) {
+        debugPrint('[TrackingMap] GPS stream error: $e');
+      },
+    );
     // Also get instant first fix
     Geolocator.getCurrentPosition(
       locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
@@ -125,6 +136,10 @@ class _TrackingMapWidgetState extends State<TrackingMapWidget> {
 
   // ── Distance Matrix API — ETA ──────────────────────────────────────────────
   Future<void> _loadEta() async {
+    // Fix H-5: guard against calling setState / scheduling another timer after
+    // the widget has been disposed. The recursive timer pattern would otherwise
+    // create a new timer on a dead widget.
+    if (!mounted) return;
     if (_driverPos == null) return;
     try {
       final origin = '${_driverPos!.latitude},${_driverPos!.longitude}';
@@ -180,11 +195,14 @@ class _TrackingMapWidgetState extends State<TrackingMapWidget> {
     ));
   }
 
+  // Fix L-9: actually animate the camera to follow the driver dot.
+  // Previously this was an empty stub, so the blue dot never moved on screen.
   void _animateCamera() {
-    // Smooth follow — only if map is not showing all markers yet
-    if (_mapCtrl != null && _driverPos != null) {
-      // Don't pan aggressively; re-fit is on demand
-    }
+    final ctrl = _mapCtrl;
+    final pos  = _driverPos;
+    if (ctrl == null || pos == null || !mounted) return;
+    // Gentle follow — pan to driver without changing zoom level.
+    ctrl.animateCamera(CameraUpdate.newLatLng(pos));
   }
 
   // ── Markers ────────────────────────────────────────────────────────────────

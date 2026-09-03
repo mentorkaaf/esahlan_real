@@ -55,10 +55,16 @@ Future<void> _bgHandler(RemoteMessage message) async {
     }
 
     // ── 2. Show fullScreenIntent alarm notification ───────────────────────
+    // Fix C-4: initialize() MUST be called before createNotificationChannel
+    // or show() in a fresh background isolate. Skipping it causes silent
+    // failures on some Android versions.
     final local = FlutterLocalNotificationsPlugin();
-    await local.initialize(const InitializationSettings(
-      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-    ));
+    await local.initialize(
+      const InitializationSettings(
+        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      ),
+      onDidReceiveBackgroundNotificationResponse: _onBgNotifTap,
+    );
 
     await local
         .resolvePlatformSpecificImplementation<

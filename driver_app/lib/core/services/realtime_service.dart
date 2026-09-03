@@ -195,5 +195,8 @@ class RealtimeService {
     _listeners.clear();
     _socketId = null;
     _setState(RealtimeState.disconnected);
+    // Fix H-2: close the broadcast StreamController so subscribers are released
+    // and don't hold a reference to this singleton after disconnect.
+    await _stateCtrl.close();
   }
 }

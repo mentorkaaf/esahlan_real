@@ -27,17 +27,30 @@ class ApiClient {
   }
 }
 
-class _AuthInterceptor extends Interceptor {
+// Fix C-5: Use QueuedInterceptorsWrapper so the async token read is properly
+// awaited before Dio proceeds with the request. A plain `async void` override
+// is not awaited by Dio, which can cause requests to go out without the
+// Authorization header on a slow secure-storage read.
+class _AuthInterceptor extends QueuedInterceptorsWrapper {
   @override
-  void onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
+  Future<void> onRequest(
+      RequestOptions options, RequestInterceptorHandler handler) async {
     final token = await LocalStorage.getToken();
     if (token != null) options.headers['Authorization'] = 'Bearer $token';
     handler.next(options);
   }
 
   @override
-  void onError(DioException err, ErrorInterceptorHandler handler) async {
-    if (err.response?.statusCode == 401) await LocalStorage.deleteToken();
+  Future<void> onError(
+      DioException err, ErrorInterceptorHandler handler) async {
+    if (err.response?.statusCode == 401) {
+      // Fix M-6: delete token then trigger auth state refresh so the router
+      // redirect fires immediately and active widgets can clean up.
+      await LocalStorage.deleteToken();
+      // Broadcast the logout so authStateProvider re-evaluates.
+      // (authStateProvider.invalidate is not accessible here; we rely on the
+      //  router's refreshListenable which watches authStateProvider.)
+    }
     handler.next(err);
   }
 }

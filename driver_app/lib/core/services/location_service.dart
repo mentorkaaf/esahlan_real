@@ -17,7 +17,9 @@ const _kServiceId       = 1001;
 const _kChannelId       = 'esahlan_driver_location';
 const _kBgTaskName      = 'driver_location_bg';
 const _kIntervalMs      = 5000;   // 5 s — real-time foreground interval
-const _kBgIntervalMin   = 5;      // WorkManager minimum practical (OS enforced ~5min)
+// Fix M-10: Android WorkManager enforces a minimum of 15 minutes for periodic
+// tasks regardless of what value you pass. 5 was silently rounded up to 15.
+const _kBgIntervalMin   = 15;     // WorkManager minimum (Android OS enforced)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Isolated HTTP helper — safe to call from Isolate / background entry points
@@ -100,8 +102,9 @@ class _LocationTaskHandler extends TaskHandler {
   @override
   Future<void> onStart(DateTime timestamp, TaskStarter starter) async {
     debugPrint('[FGTask] started (starter: $starter)');
-    _startTimer();
-    _startWatchdog();
+    // Post one location immediately on start; subsequent posts come from
+    // onRepeatEvent which is fired every _kIntervalMs by the FG task engine.
+    _postLocationHttp(orderId: _orderId);
   }
 
   @override
@@ -115,37 +118,19 @@ class _LocationTaskHandler extends TaskHandler {
 
   @override
   void onRepeatEvent(DateTime timestamp) {
-    // Heartbeat fired by flutter_foreground_task — post location immediately
+    // Fix H-1: onRepeatEvent is the ONLY source of periodic posts.
+    // The internal _timer has been removed to avoid double-posting every 5 s.
     _postLocationHttp(orderId: _orderId);
   }
 
   @override
   Future<void> onDestroy(DateTime timestamp) async {
-    _timer?.cancel();
-    _watchdog?.cancel();
     debugPrint('[FGTask] destroyed');
   }
 
-  // ── helpers ───────────────────────────────────────────────────────────────
-  void _startTimer() {
-    _timer?.cancel();
-    // Post immediately on start, then every 5 s
-    _postLocationHttp(orderId: _orderId);
-    _timer = Timer.periodic(const Duration(milliseconds: _kIntervalMs), (_) {
-      _postLocationHttp(orderId: _orderId);
-    });
-  }
-
-  void _startWatchdog() {
-    _watchdog?.cancel();
-    // Every 60 s verify timer is still ticking; restart if it died
-    _watchdog = Timer.periodic(const Duration(seconds: 60), (_) {
-      if (!(_timer?.isActive ?? false)) {
-        debugPrint('[FGTask] watchdog: timer dead — restarting');
-        _startTimer();
-      }
-    });
-  }
+  // Fix H-1: removed _startTimer / _startWatchdog — onRepeatEvent (fired by
+  // flutter_foreground_task every _kIntervalMs) is the sole periodic source.
+  // Having both a Timer AND onRepeatEvent caused two HTTP posts per tick.
 }
 
 // entry point registered with flutter_foreground_task
@@ -157,10 +142,15 @@ void _fgTaskCallback() {
 // ─────────────────────────────────────────────────────────────────────────────
 // Public API
 // ─────────────────────────────────────────────────────────────────────────────
+// Fix C-3 persistence key
+const _kWasTrackingKey = 'driver_was_tracking';
+
 class DriverLocationService {
   DriverLocationService._();
 
   static bool _running = false;
+  // Fix C-2: guard flag to prevent concurrent startTracking calls
+  static bool _starting = false;
   static int? _activeOrderId;
 
   // ── Call once from main() before runApp ──────────────────────────────────
@@ -260,6 +250,9 @@ class DriverLocationService {
       }
       return;
     }
+    // Fix C-2: prevent concurrent startTracking calls (race condition)
+    if (_starting) return;
+    _starting = true;
 
     _running       = true;
     _activeOrderId = orderId;
@@ -288,12 +281,14 @@ class DriverLocationService {
       // _postLocationHttp has try/catch so it silently retries next tick.
     );
 
+    _starting = false; // Fix C-2: release concurrent-start guard
     debugPrint('[GPS] tracking started (orderId: $orderId)');
   }
 
   // ── Stop tracking ─────────────────────────────────────────────────────────
   static Future<void> stopTracking() async {
     _running       = false;
+    _starting      = false;
     _activeOrderId = null;
     await _setWasTracking(false);
     await FlutterForegroundTask.stopService();
@@ -324,19 +319,24 @@ class DriverLocationService {
 
   static bool get isRunning => _running;
 
-  // ── Persistence helpers (SharedPreferences not available here — use file) ─
+  // ── Persistence helpers ────────────────────────────────────────────────────
+  // Fix C-3: persist the actual tracking state rather than inferring it from
+  // the login token. Previously, every logged-in driver had GPS auto-resumed
+  // after a reboot even if they had manually gone offline.
   static Future<bool> _getWasTracking() async {
     try {
       final token = await LocalStorage.getToken();
-      return token != null; // if logged in, assume was tracking
+      if (token == null) return false; // not logged in
+      return await LocalStorage.getBool(_kWasTrackingKey);
     } catch (_) {
       return false;
     }
   }
 
   static Future<void> _setWasTracking(bool value) async {
-    // Nothing to do — we derive from token existence above
-    // This hook is here for future expansion
-    debugPrint('[GPS] persist wasTracking=$value');
+    try {
+      await LocalStorage.saveBool(_kWasTrackingKey, value);
+      debugPrint('[GPS] persist wasTracking=$value');
+    } catch (_) {}
   }
 }

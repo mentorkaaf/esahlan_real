@@ -81,11 +81,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           onToggle: () async {
             HapticFeedback.mediumImpact();
             final goingOnline = d['is_online'] != true;
-            await ref.read(authRepoProvider).toggleStatus();
-            if (goingOnline && !DriverLocationService.isRunning) {
-              await DriverLocationService.startTracking();
+            try {
+              await ref.read(authRepoProvider).toggleStatus();
+              if (goingOnline && !DriverLocationService.isRunning) {
+                await DriverLocationService.startTracking();
+              }
+              ref.invalidate(_dashProvider);
+            } catch (e) {
+              // Fix M-7: show error to driver instead of silently swallowing it
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text('Failed to change status: $e'),
+                  backgroundColor: const Color(0xFFEF4444),
+                  behavior: SnackBarBehavior.floating,
+                ));
+              }
             }
-            ref.invalidate(_dashProvider);
           },
         ),
       ),

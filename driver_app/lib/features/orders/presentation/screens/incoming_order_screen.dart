@@ -140,14 +140,19 @@ class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen>
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       setState(() => _secondsLeft--);
-      if (_secondsLeft <= 0) _decline(auto: true);
+      // Fix H-6: re-check mounted after setState before calling _decline,
+      // which itself calls setState. The widget could be disposed between the
+      // two operations.
+      if (_secondsLeft <= 0 && mounted) _decline(auto: true);
     });
   }
 
   // ── stop everything ───────────────────────────────────────────────────────
-  void _stopAll() {
+  // Fix L-4: made async so _player.stop() is properly awaited, preventing
+  // the ring sound from persisting briefly into the next screen.
+  Future<void> _stopAll() async {
     _timer?.cancel();
-    _player.stop();
+    try { await _player.stop(); } catch (_) {}
     FirebaseService().cancelOrderNotification();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   }
@@ -157,7 +162,7 @@ class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen>
     if (_accepting || _declining) return;
     HapticFeedback.heavyImpact();
     setState(() => _accepting = true);
-    _stopAll();
+    await _stopAll();
     try {
       final id = _orderId;
       await ref.read(authRepoProvider).acceptOrder(id);
@@ -188,8 +193,8 @@ class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen>
   Future<void> _decline({bool auto = false}) async {
     if (_accepting || _declining) return;
     if (!auto) HapticFeedback.mediumImpact();
-    setState(() => _declining = true);
-    _stopAll();
+    if (mounted) setState(() => _declining = true);
+    await _stopAll();
     try {
       await ref.read(authRepoProvider).rejectOrder(_orderId);
     } catch (_) {}
@@ -201,8 +206,12 @@ class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen>
 
   @override
   void dispose() {
-    _stopAll();
-    _player.dispose();
+    // _stopAll is async but dispose must be sync; fire-and-forget is acceptable
+    // here since the timer is cancelled synchronously at the start of _stopAll.
+    _timer?.cancel();
+    _player.stop().catchError((_) {}).then((_) => _player.dispose());
+    FirebaseService().cancelOrderNotification();
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _pulseCtrl.dispose();
     _rippleCtrl.dispose();
     _slideCtrl.dispose();
@@ -239,7 +248,15 @@ class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen>
 
     final size = MediaQuery.of(context).size;
 
-    return Scaffold(
+    // Fix L-7: wrap with PopScope so the system back button calls _stopAll
+    // (cancels timer, stops audio, restores system UI) before navigating away.
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        await _decline();
+      },
+      child: Scaffold(
       backgroundColor: const Color(0xFF060B14),
       body: Stack(children: [
         // ── Animated background ─────────────────────────────────────────────
@@ -290,7 +307,8 @@ class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen>
           ]),
         ),
       ]),
-    );
+    ), // Scaffold
+    ); // PopScope
   }
 }
 
