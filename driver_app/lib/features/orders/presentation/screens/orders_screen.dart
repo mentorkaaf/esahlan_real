@@ -1393,7 +1393,7 @@ class _CustomerChatSheetState extends State<_CustomerChatSheet> {
     _recordTimer?.cancel();
     // Fix H-3: stop recorder before dispose if still recording, to release mic
     if (_recording) {
-      _recorder.stop().catchError((_) {});
+      _recorder.stop().catchError((_) => '');
     }
     _recorder.dispose();
     RealtimeService.instance.removeListener(_channel, 'new_message', _onRealtime);
