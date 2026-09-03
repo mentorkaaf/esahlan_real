@@ -17,7 +17,7 @@ const _kServiceId       = 1001;
 const _kChannelId       = 'esahlan_driver_location';
 const _kBgTaskName      = 'driver_location_bg';
 const _kIntervalMs      = 5000;   // 5 s — real-time foreground interval
-const _kBgIntervalMin   = 15;     // WorkManager minimum (OS enforced)
+const _kBgIntervalMin   = 5;      // WorkManager minimum practical (OS enforced ~5min)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Isolated HTTP helper — safe to call from Isolate / background entry points
@@ -284,7 +284,8 @@ class DriverLocationService {
       frequency:          const Duration(minutes: _kBgIntervalMin),
       existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
       inputData:          orderId != null ? {'order_id': orderId} : null,
-      constraints:        Constraints(networkType: NetworkType.connected),
+      // No network constraint — fires regardless of connectivity.
+      // _postLocationHttp has try/catch so it silently retries next tick.
     );
 
     debugPrint('[GPS] tracking started (orderId: $orderId)');
@@ -312,7 +313,6 @@ class DriverLocationService {
         frequency:          const Duration(minutes: _kBgIntervalMin),
         existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
         inputData:          {'order_id': orderId},
-        constraints:        Constraints(networkType: NetworkType.connected),
       );
     }
   }

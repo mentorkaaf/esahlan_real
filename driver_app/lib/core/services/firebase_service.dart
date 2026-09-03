@@ -161,7 +161,13 @@ class FirebaseService {
 
   // ── Full initialisation — call from MainShell.initState ───────────────────
   Future<void> initialize() async {
-    if (_init) return;
+    // Always re-register token on every launch so server has the latest.
+    // Token changes when app reinstalled / cleared / Firebase rotates it.
+    // Only skip the heavy setup (channels, listeners) if already done.
+    if (_init) {
+      await _registerToken(); // re-upload token silently on every resume
+      return;
+    }
     _init = true;
 
     await _fcm.requestPermission(alert: true, sound: true, badge: true);
