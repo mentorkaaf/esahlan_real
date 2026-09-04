@@ -57,6 +57,22 @@
             </intent-filter>
         </activity>
 
+        <!--
+             OrderCallActivity — native full-screen incoming-call UI.
+             Launched via fullScreenIntent from CallPlugin notification.
+             showWhenLocked + turnScreenOn: pops over lock screen instantly.
+             launchMode singleInstance: only one call screen at a time.
+        -->
+        <activity
+            android:name=".OrderCallActivity"
+            android:exported="false"
+            android:launchMode="singleInstance"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@style/LaunchTheme"
+            android:excludeFromRecents="true"
+            android:configChanges="orientation|screenSize|keyboardHidden"/>
+
         <meta-data
             android:name="flutterEmbedding"
             android:value="2"/>

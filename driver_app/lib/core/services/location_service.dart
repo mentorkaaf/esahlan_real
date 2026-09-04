@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:battery_plus/battery_plus.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:geolocator/geolocator.dart';
@@ -235,6 +236,18 @@ class DriverLocationService {
       final notifPerm = await Permission.notification.status;
       if (notifPerm.isDenied) {
         await Permission.notification.request();
+      }
+
+      // USE_FULL_SCREEN_INTENT — Android 14+ requires explicit user grant.
+      // Without this, the fullScreenIntent notification won't pop over the
+      // lock screen automatically (only shows as heads-up notification).
+      // Permission ID 1034 = android.Manifest.permission.USE_FULL_SCREEN_INTENT
+      // We use a MethodChannel call since permission_handler doesn't expose this yet.
+      try {
+        const ch = MethodChannel('esahlan_intent');
+        await ch.invokeMethod('requestFullScreenIntent');
+      } catch (_) {
+        // Plugin not ready yet — permission will be requested on next launch
       }
     }
   }

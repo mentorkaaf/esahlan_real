@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -16,8 +17,11 @@ import '../../firebase_options.dart';
 // Shared constants
 // ─────────────────────────────────────────────────────────────────────────────
 const _kPendingOrderKey = 'pending_ring_order';
+// 'pending_ring_action' key is written by OrderCallActivity.kt (native),
+// read by MainShell._checkNativeOrderAction(). Not used in Dart directly.
 const _kRingChannelId   = 'esahlan_order_ring_v3';
-const _kRingNotifId     = 99901;
+const _kRingNotifId      = 99901;
+const _kNativeCallCh     = 'esahlan_call';        // MethodChannel → CallPlugin → OrderCallActivity
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Background handler — runs in its own Dart isolate
@@ -45,7 +49,7 @@ Future<void> _bgHandler(RemoteMessage message) async {
   }
 
   if (type == 'new_order') {
-    // ── 1. Persist order so the app can read it after launch / resume ────────
+    // ── 1. Persist order so the app reads it after launch / resume ───────────
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_kPendingOrderKey, jsonEncode(message.data));
@@ -54,10 +58,37 @@ Future<void> _bgHandler(RemoteMessage message) async {
       debugPrint('[FCM:BG] prefs save error: $e');
     }
 
-    // ── 2. Show fullScreenIntent alarm notification ───────────────────────
-    // Fix C-4: initialize() MUST be called before createNotificationChannel
-    // or show() in a fresh background isolate. Skipping it causes silent
-    // failures on some Android versions.
+    // ── 2. Try native call screen via MethodChannel → CallPlugin → OrderCallActivity
+    //
+    // CallPlugin is registered by MainActivity.configureFlutterEngine().
+    // When the app is BACKGROUND/LOCKED (engine running), this always works.
+    // When the app is KILLED, BackgroundIsolateBinaryMessenger bridges the
+    // background isolate to the platform if RootIsolateToken is available.
+    bool nativeShown = false;
+    try {
+      final token = RootIsolateToken.instance;
+      if (token != null) {
+        BackgroundIsolateBinaryMessenger.ensureInitialized(token);
+      }
+      await const MethodChannel(_kNativeCallCh).invokeMethod(
+        'showCallScreen',
+        Map<String, String>.from(message.data),
+      );
+      nativeShown = true;
+      debugPrint('[FCM:BG] native OrderCallActivity shown');
+    } catch (e) {
+      debugPrint('[FCM:BG] native call screen unavailable ($e) — using local notification fallback');
+    }
+
+    if (nativeShown) return; // OrderCallActivity handles everything
+
+    // ── 3. Fallback: flutter_local_notifications with fullScreenIntent ────────
+    //      Used when app is killed and CallPlugin is not yet registered on the
+    //      background engine. The notification fires the fullScreenIntent which
+    //      launches MainActivity → Flutter starts → checkPendingOrder() fires →
+    //      ring screen appears. With USE_FULL_SCREEN_INTENT permission granted
+    //      (see location_service.dart), Android shows this automatically on the
+    //      lock screen without the user needing to tap.
     final local = FlutterLocalNotificationsPlugin();
     await local.initialize(
       const InitializationSettings(
@@ -85,7 +116,7 @@ Future<void> _bgHandler(RemoteMessage message) async {
 
     await local.show(
       _kRingNotifId,
-      'New Order — Tap to accept',
+      '🚴 New Order — Tap to accept',
       'Order #$orderNum  •  \$$fee delivery fee',
       NotificationDetails(
         android: AndroidNotificationDetails(
@@ -93,16 +124,17 @@ Future<void> _bgHandler(RemoteMessage message) async {
           importance:       Importance.max,
           priority:         Priority.max,
           color:            const Color(0xFFFF8A00),
-          fullScreenIntent: true,                            // pops over lock screen
-          category:         AndroidNotificationCategory.alarm,
+          fullScreenIntent: true,                            // auto-shows on lock screen
+          category:         AndroidNotificationCategory.call,// call = highest OS priority
           visibility:       NotificationVisibility.public,
           playSound:        true,
           sound:            const RawResourceAndroidNotificationSound('order_ring'),
           enableVibration:  true,
           vibrationPattern: Int64List.fromList([0, 500, 200, 500, 200, 500, 200, 500]),
-          ongoing:          true,    // stays in tray until driver acts
+          ongoing:          true,
           autoCancel:       false,
           ticker:           'New delivery order',
+          timeoutAfter:     55000,
         ),
       ),
       payload: jsonEncode(message.data),
@@ -250,9 +282,12 @@ class FirebaseService {
     }
   }
 
-  // ── Cancel the ongoing alarm notification ─────────────────────────────────
+  // ── Cancel the ongoing alarm notification (both flutter + native) ──────────
   Future<void> cancelOrderNotification() async {
     try { await _local.cancel(_kRingNotifId); } catch (_) {}
+    try {
+      await const MethodChannel(_kNativeCallCh).invokeMethod('cancelCallScreen');
+    } catch (_) {}
   }
 
   // ── Foreground FCM handler ────────────────────────────────────────────────

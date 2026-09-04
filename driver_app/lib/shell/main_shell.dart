@@ -1,27 +1,30 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../core/theme/driver_colors.dart';
 import '../core/services/app_update_checker.dart';
 import '../core/services/firebase_service.dart';
 import '../core/services/location_service.dart';
 import '../core/storage/local_storage.dart';
+import '../features/auth/presentation/providers/auth_provider.dart';
 
-class MainShell extends StatefulWidget {
+class MainShell extends ConsumerStatefulWidget {
   final Widget child;
   const MainShell({super.key, required this.child});
 
   @override
-  State<MainShell> createState() => _MainShellState();
+  ConsumerState<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
-  static const _tabs = ['/dashboard', '/orders', '/earnings', '/wallet', '/profile'];
-  bool _initialized = false;
-  bool _locationOk = true; // assume ok until checked
-  // Fix H-8: guard against pushing /incoming-order multiple times
+class _MainShellState extends ConsumerState<MainShell> with WidgetsBindingObserver {
+  static const _tabs        = ['/dashboard', '/orders', '/earnings', '/wallet', '/profile'];
+  static const _intentCh    = MethodChannel('esahlan_intent');
+  bool _initialized        = false;
+  bool _locationOk         = true;
   bool _showingOrderScreen = false;
 
   int _index(BuildContext context) {
@@ -38,6 +41,15 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     // ── Wire up the in-app new-order navigation ──────────────────────────
     FirebaseService().onNewOrder = _handleIncomingOrder;
 
+    // Listen for new intents from OrderCallActivity (background → foreground)
+    _intentCh.setMethodCallHandler((call) async {
+      if (call.method == 'onNewIntent') {
+        final action = call.arguments as String?;
+        debugPrint('[Shell] onNewIntent order_action=$action');
+        await _handleOrderAction(action);
+      }
+    });
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       // Initialise FCM channels + listeners (safe to call multiple times)
       await FirebaseService().initialize();
@@ -46,8 +58,10 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
       // Check location on startup
       await _checkLocation();
 
+      // Check if OrderCallActivity set an action (accept/decline) before app launched
+      await _checkNativeOrderAction();
+
       // Check for order that arrived while app was KILLED or BACKGROUND
-      // _bgHandler saved it to SharedPreferences; we read + consume it now.
       await _checkPendingOrder();
 
       if (mounted) AppUpdateChecker.check(context, 'driver');
@@ -100,13 +114,84 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     }
   }
 
+  // ── Check if native OrderCallActivity set an accept/decline action ─────────
+  // Called on startup. The native activity writes 'accept' or 'decline' to
+  // SharedPreferences key 'flutter.pending_ring_action'. We consume it here
+  // and auto-process the action without showing the ring screen.
+  Future<void> _checkNativeOrderAction() async {
+    try {
+      // Read intent extras set by OrderCallActivity via MainActivity
+      final action = await _intentCh.invokeMethod<String?>('getOrderAction');
+      if (action != null && action.isNotEmpty) {
+        debugPrint('[Shell] native order_action from intent=$action');
+        await _handleOrderAction(action);
+        return; // don't also show ring screen
+      }
+
+      // Fallback: SharedPreferences (set by OrderCallActivity directly)
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString('pending_ring_action');
+      if (saved != null && saved.isNotEmpty) {
+        await prefs.remove('pending_ring_action');
+        debugPrint('[Shell] native order_action from prefs=$saved');
+        await _handleOrderAction(saved);
+      }
+    } catch (e) {
+      debugPrint('[Shell] _checkNativeOrderAction error: $e');
+    }
+  }
+
+  /// Process an accept/decline action that came from the native OrderCallActivity.
+  /// Reads the pending order from SharedPreferences for the order ID.
+  Future<void> _handleOrderAction(String? action) async {
+    if (action == null || action.isEmpty) return;
+    final data = await FirebaseService.checkPendingOrder();
+    if (data == null) return;
+
+    final orderId = int.tryParse('${data['order_id'] ?? 0}') ?? 0;
+    if (orderId == 0) return;
+
+    if (!mounted) return;
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    if (action == 'accept') {
+      try {
+        await ref.read(authRepoProvider).acceptOrder(orderId);
+        if (mounted) {
+          context.go('/orders');
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: const Text('Order accepted — go pick it up! 🚴'),
+            backgroundColor: const Color(0xFF22C55E),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ));
+        }
+      } catch (e) {
+        debugPrint('[Shell] auto-accept failed: $e');
+        // If accept API fails, show ring screen so driver can retry
+        if (mounted) _handleIncomingOrder(data);
+      }
+    } else if (action == 'decline') {
+      try {
+        await ref.read(authRepoProvider).rejectOrder(orderId);
+        debugPrint('[Shell] order $orderId auto-declined from native screen');
+      } catch (_) {}
+    }
+  }
+
   // ── Read pending order from SharedPreferences ────────────────────────────
-  // Called on startup AND every time the app resumes.
-  // This handles BOTH killed-app taps AND background-app taps.
+  // Called on startup AND on resume. Skipped if native action already
+  // consumed the order (accept/decline from OrderCallActivity).
   Future<void> _checkPendingOrder() async {
+    // If native OrderCallActivity set an action, that method already consumed
+    // the pending order key. Nothing more to do here.
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.containsKey('pending_ring_action')) return;
+    } catch (_) {}
+
     final data = await FirebaseService.checkPendingOrder();
     if (data != null && mounted) {
-      // Small delay ensures GoRouter is settled before push
       await Future.delayed(const Duration(milliseconds: 200));
       if (mounted) _handleIncomingOrder(data);
     }
