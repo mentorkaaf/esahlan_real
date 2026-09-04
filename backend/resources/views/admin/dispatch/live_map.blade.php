@@ -210,7 +210,7 @@ function renderDrivers(drivers) {
                     '<button class="trail-btn" onclick="setTrailMinutes(480,this)" style="flex:1;padding:4px;border:1px solid #e5e7eb;border-radius:5px;background:#fff;font-size:10px;cursor:pointer;">8h</button>' +
                     '</div>' +
                     '<div style="display:flex;gap:4px;">' +
-                    '<button onclick="showTrail(' + dd.id + ')" style="flex:1;padding:5px;border:none;border-radius:5px;background:#22c55e;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">▶ Show Trail</button>' +
+                    '<button data-trail-btn="' + dd.id + '" onclick="showTrail(' + dd.id + ')" style="flex:1;padding:5px;border:none;border-radius:5px;background:#22c55e;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">▶ Show Trail</button>' +
                     '<button onclick="hideTrail(' + dd.id + ')" style="flex:1;padding:5px;border:1px solid #e5e7eb;border-radius:5px;background:#fff;color:#374151;font-size:11px;cursor:pointer;">✕ Hide</button>' +
                     '</div>' +
                     '</div>' +
@@ -313,40 +313,72 @@ function showTrail(driverId) {
     }
     activeTrailId = driverId;
 
+    // Visual feedback on the button
+    var btn = document.querySelector('[data-trail-btn="' + driverId + '"]');
+    if (btn) { btn.textContent = '⏳ Loading...'; btn.disabled = true; }
+
     // Fetch history from server
-    fetch('/admin/dispatch/drivers/' + driverId + '/route?minutes=' + trailMinutes)
+    fetch('/admin/dispatch/drivers/' + driverId + '/route?minutes=' + trailMinutes, { credentials: 'same-origin' })
         .then(r => r.json())
         .then(data => {
-            if (!data.success || !data.points || data.points.length < 2) {
-                // Not enough points yet — start an empty polyline so real-time extends it
-                if (!trailPolylines[driverId]) {
-                    trailPolylines[driverId] = new google.maps.Polyline({
-                        map: map,
-                        path: [],
-                        strokeColor: driverTrailColor(driverId),
-                        strokeWeight: 4,
-                        strokeOpacity: 0.85,
-                        icons: [{ icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 3, strokeColor: '#fff' }, offset: '100%', repeat: '80px' }],
-                    });
-                }
-                return;
-            }
-            var path = data.points.map(p => ({ lat: parseFloat(p.lat), lng: parseFloat(p.lng) }));
-            if (trailPolylines[driverId]) {
-                trailPolylines[driverId].setPath(path);
-                trailPolylines[driverId].setMap(map);
-            } else {
+            if (btn) { btn.textContent = '▶ Show Trail'; btn.disabled = false; }
+
+            var color = driverTrailColor(driverId);
+
+            // Ensure a polyline exists (empty or filled)
+            if (!trailPolylines[driverId]) {
                 trailPolylines[driverId] = new google.maps.Polyline({
                     map: map,
-                    path: path,
-                    strokeColor: driverTrailColor(driverId),
+                    path: [],
+                    strokeColor: color,
                     strokeWeight: 4,
-                    strokeOpacity: 0.85,
-                    icons: [{ icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 3, strokeColor: '#fff' }, offset: '100%', repeat: '80px' }],
+                    strokeOpacity: 0.9,
+                    icons: [{ icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 3, strokeColor: '#fff', strokeWeight: 1 }, offset: '100%', repeat: '60px' }],
                 });
+            } else {
+                trailPolylines[driverId].setMap(map);
             }
+
+            if (!data.success || !data.points || data.points.length < 2) {
+                // Not enough history yet — polyline is empty; real-time will fill it
+                showToast('📍 No trail yet for this window. Trail will grow as new pings arrive.', '#f59e0b');
+                return;
+            }
+
+            var path = data.points.map(function(p) {
+                return { lat: parseFloat(p.lat), lng: parseFloat(p.lng) };
+            });
+            trailPolylines[driverId].setPath(path);
+
+            // Fit map to show the full trail
+            var bounds = new google.maps.LatLngBounds();
+            path.forEach(function(pt) { bounds.extend(pt); });
+            map.fitBounds(bounds, { padding: 60 });
+
+            showToast('🛤 Showing ' + data.points.length + ' GPS points (' + data.minutes + 'min window)', color);
         })
-        .catch(() => {});
+        .catch(function(err) {
+            if (btn) { btn.textContent = '▶ Show Trail'; btn.disabled = false; }
+            showToast('Trail load failed — check console', '#ef4444');
+            console.error('[Trail]', err);
+        });
+}
+
+// Small toast notification on the map
+var _toastTimer = null;
+function showToast(msg, color) {
+    var t = document.getElementById('map-toast');
+    if (!t) {
+        t = document.createElement('div');
+        t.id = 'map-toast';
+        t.style.cssText = 'position:absolute;bottom:24px;left:50%;transform:translateX(-50%);padding:10px 18px;border-radius:10px;color:#fff;font-size:13px;font-weight:600;z-index:999;box-shadow:0 4px 16px rgba(0,0,0,.25);transition:opacity .3s;pointer-events:none;white-space:nowrap;';
+        document.querySelector('.map-wrap').appendChild(t);
+    }
+    t.style.background = color || '#1e293b';
+    t.textContent = msg;
+    t.style.opacity = '1';
+    if (_toastTimer) clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(function() { t.style.opacity = '0'; }, 4000);
 }
 
 function hideTrail(driverId) {
