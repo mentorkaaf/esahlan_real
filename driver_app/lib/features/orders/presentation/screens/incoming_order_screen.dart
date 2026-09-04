@@ -88,26 +88,15 @@ class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen>
 
   // ── map ───────────────────────────────────────────────────────────────────
   GoogleMapController? _mapCtrl;
+  bool _mapReady = false;
 
-  // ── rich details (loaded async from API) ──────────────────────────────────
+  // ── rich details loaded async from API ────────────────────────────────────
   Map<String, dynamic>? _richOrder;
   bool _richLoading = true;
-
-  // ── sheet animation ───────────────────────────────────────────────────────
-  late final AnimationController _sheetCtrl;
-  late final Animation<double>   _sheetAnim;
 
   @override
   void initState() {
     super.initState();
-
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-
-    _sheetCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 520));
-    _sheetAnim = CurvedAnimation(parent: _sheetCtrl, curve: Curves.easeOutCubic);
-    _sheetCtrl.forward();
-
     _startAudio();
     _startCountdown();
     _loadRichDetails();
@@ -133,30 +122,26 @@ class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen>
     });
   }
 
-  // ── load rich order details from API ──────────────────────────────────────
+  // ── load full order details from API ──────────────────────────────────────
   Future<void> _loadRichDetails() async {
     try {
       final id = _orderId;
       if (id <= 0) { if (mounted) setState(() => _richLoading = false); return; }
       final data = await ref.read(authRepoProvider).ringOrderDetails(id);
       if (!mounted) return;
-      setState(() {
-        _richOrder   = data;
-        _richLoading = false;
-      });
-      _fitMapBounds();
+      setState(() { _richOrder = data; _richLoading = false; });
+      _fitMap();
     } catch (e) {
       debugPrint('[Ring] details error: $e');
       if (mounted) setState(() => _richLoading = false);
     }
   }
 
-  // ── stop everything ───────────────────────────────────────────────────────
+  // ── stop all resources ────────────────────────────────────────────────────
   Future<void> _stopAll() async {
     _timer?.cancel();
     try { await _player.stop(); } catch (_) {}
     FirebaseService().cancelOrderNotification();
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   }
 
   // ── accept ────────────────────────────────────────────────────────────────
@@ -173,7 +158,7 @@ class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen>
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: const Text('Order accepted — go pick it up! 🚀'),
           backgroundColor: DC.success,
-          behavior:         SnackBarBehavior.floating,
+          behavior:  SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ));
       }
@@ -181,9 +166,8 @@ class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen>
       if (mounted) {
         setState(() => _accepting = false);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content:         Text('$e'),
-          backgroundColor: DC.error,
-          behavior:        SnackBarBehavior.floating,
+          content: Text('$e'), backgroundColor: DC.error,
+          behavior: SnackBarBehavior.floating,
         ));
       }
     }
@@ -207,8 +191,6 @@ class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen>
     _timer?.cancel();
     _player.stop().catchError((_) {}).then((_) => _player.dispose());
     FirebaseService().cancelOrderNotification();
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    _sheetCtrl.dispose();
     _mapCtrl?.dispose();
     super.dispose();
   }
@@ -221,30 +203,20 @@ class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen>
         : int.tryParse('${o['id'] ?? 0}') ?? 0;
   }
 
-  // Coords — prefer rich order, fallback to FCM data
-  double get _pickupLat {
-    final r = _richOrder;
-    if (r != null) return (r['pickup']?['lat'] as num?)?.toDouble() ?? 0;
-    return double.tryParse('${widget.order['pickup_lat'] ?? 0}') ?? 0;
-  }
-  double get _pickupLng {
-    final r = _richOrder;
-    if (r != null) return (r['pickup']?['lng'] as num?)?.toDouble() ?? 0;
-    return double.tryParse('${widget.order['pickup_lng'] ?? 0}') ?? 0;
-  }
-  double get _delivLat {
-    final r = _richOrder;
-    if (r != null) return (r['delivery']?['lat'] as num?)?.toDouble() ?? 0;
-    return double.tryParse('${widget.order['delivery_lat'] ?? 0}') ?? 0;
-  }
-  double get _delivLng {
-    final r = _richOrder;
-    if (r != null) return (r['delivery']?['lng'] as num?)?.toDouble() ?? 0;
-    return double.tryParse('${widget.order['delivery_lng'] ?? 0}') ?? 0;
-  }
+  double _d(dynamic v) => (v is num) ? v.toDouble()
+      : double.tryParse(v?.toString() ?? '') ?? 0.0;
 
-  void _fitMapBounds() {
-    if (_mapCtrl == null) return;
+  double get _pickupLat => _richOrder != null
+      ? _d(_richOrder!['pickup']?['lat']) : _d(widget.order['pickup_lat']);
+  double get _pickupLng => _richOrder != null
+      ? _d(_richOrder!['pickup']?['lng']) : _d(widget.order['pickup_lng']);
+  double get _delivLat  => _richOrder != null
+      ? _d(_richOrder!['delivery']?['lat']) : _d(widget.order['delivery_lat']);
+  double get _delivLng  => _richOrder != null
+      ? _d(_richOrder!['delivery']?['lng']) : _d(widget.order['delivery_lng']);
+
+  void _fitMap() {
+    if (_mapCtrl == null || !_mapReady) return;
     final pLat = _pickupLat; final pLng = _pickupLng;
     final dLat = _delivLat;  final dLng = _delivLng;
     if (pLat == 0 && pLng == 0) return;
@@ -252,18 +224,22 @@ class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen>
       _mapCtrl!.animateCamera(CameraUpdate.newLatLngZoom(LatLng(pLat, pLng), 14));
       return;
     }
-    final sw = LatLng(pLat < dLat ? pLat : dLat, pLng < dLng ? pLng : dLng);
-    final ne = LatLng(pLat > dLat ? pLat : dLat, pLng > dLng ? pLng : dLng);
+    final minLat = pLat < dLat ? pLat : dLat;
+    final maxLat = pLat > dLat ? pLat : dLat;
+    final minLng = pLng < dLng ? pLng : dLng;
+    final maxLng = pLng > dLng ? pLng : dLng;
     _mapCtrl!.animateCamera(CameraUpdate.newLatLngBounds(
-      LatLngBounds(southwest: sw, northeast: ne), 80));
+      LatLngBounds(southwest: LatLng(minLat, minLng), northeast: LatLng(maxLat, maxLng)),
+      72,
+    ));
   }
 
   Set<Marker> get _markers {
-    final markers = <Marker>{};
+    final s = <Marker>{};
     final pLat = _pickupLat; final pLng = _pickupLng;
     final dLat = _delivLat;  final dLng = _delivLng;
     if (pLat != 0 || pLng != 0) {
-      markers.add(Marker(
+      s.add(Marker(
         markerId: const MarkerId('pickup'),
         position: LatLng(pLat, pLng),
         icon:     BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
@@ -271,40 +247,41 @@ class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen>
       ));
     }
     if (dLat != 0 || dLng != 0) {
-      markers.add(Marker(
+      s.add(Marker(
         markerId: const MarkerId('delivery'),
         position: LatLng(dLat, dLng),
         icon:     BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
         infoWindow: const InfoWindow(title: 'Delivery'),
       ));
     }
-    return markers;
+    return s;
   }
 
   @override
   Widget build(BuildContext context) {
-    final o          = widget.order;
-    final module     = (o['module_slug'] ?? 'order').toString();
+    final o           = widget.order;
+    final module      = (o['module_slug'] ?? 'order').toString();
     final moduleColor = _kModuleColors[module] ?? DC.orange;
     final moduleLabel = _kModuleLabels[module] ?? 'Delivery';
     final moduleIcon  = _kModuleIcons[module]  ?? Icons.delivery_dining_rounded;
-    final orderNum   = (_richOrder?['order_number'] ?? o['order_number'] ?? '').toString();
+    final orderNum    = (_richOrder?['order_number'] ?? o['order_number'] ?? '').toString();
 
-    // Earnings / distance / time — prefer rich data
-    final fee      = ((_richOrder?['delivery_fee'] ?? o['delivery_fee'] ?? 0) as num).toDouble();
-    final distance = ((_richOrder?['distance_km']  ?? o['distance_km']  ?? 0) as num).toDouble();
-    final estMin   = ((_richOrder?['estimated_minutes'] ?? o['estimated_minutes'] ?? 0) as num).toInt();
-    final toPickup = double.tryParse('${o['driver_to_pickup_km'] ?? 0}') ?? 0;
+    final fee      = _d(_richOrder?['delivery_fee']      ?? o['delivery_fee']      ?? 0);
+    final distance = _d(_richOrder?['distance_km']       ?? o['distance_km']       ?? 0);
+    final estMin   = (_d(_richOrder?['estimated_minutes']?? o['estimated_minutes'] ?? 0)).toInt();
+    final toPickup = _d(o['driver_to_pickup_km'] ?? 0);
 
-    final progress    = _secondsLeft / _kTimeout;
-    final timerColor  = _secondsLeft > 20
-        ? const Color(0xFF22C55E)
-        : _secondsLeft > 10 ? DC.orange : DC.error;
+    final progress   = _secondsLeft / _kTimeout;
+    final timerColor = _secondsLeft > 20
+        ? const Color(0xFF22C55E) : _secondsLeft > 10 ? DC.orange : DC.error;
 
-    final hasMap = (_pickupLat != 0 || _pickupLng != 0);
-    final initialCamera = hasMap
-        ? CameraPosition(target: LatLng(_pickupLat, _pickupLng), zoom: 13)
-        : const CameraPosition(target: LatLng(2.0469, 45.3182), zoom: 12); // Mogadishu default
+    // Initial map center: FCM pickup coords, fallback Mogadishu
+    final pLat = _pickupLat; final pLng = _pickupLng;
+    final hasMapCoords = pLat != 0 || pLng != 0;
+    final initialCam  = CameraPosition(
+      target: hasMapCoords ? LatLng(pLat, pLng) : const LatLng(2.0469, 45.3182),
+      zoom:   13,
+    );
 
     return PopScope(
       canPop: false,
@@ -314,122 +291,159 @@ class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen>
       },
       child: Scaffold(
         backgroundColor: const Color(0xFF0A0E1A),
-        body: Stack(children: [
-
-          // ── Google Maps (full screen behind sheet) ─────────────────────────
-          Positioned.fill(
-            child: GoogleMap(
-              initialCameraPosition: initialCamera,
-              markers:               _markers,
-              mapType:               MapType.normal,
-              myLocationButtonEnabled: false,
-              zoomControlsEnabled:  false,
-              compassEnabled:       false,
-              onMapCreated: (ctrl) {
-                _mapCtrl = ctrl;
-                _fitMapBounds();
-              },
-            ),
-          ),
-
-          // ── Dark gradient overlay at bottom (for sheet readability) ────────
-          Positioned(
-            left: 0, right: 0, bottom: 0,
-            height: MediaQuery.of(context).size.height * 0.62,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    const Color(0xFF0A0E1A).withValues(alpha: 0.85),
-                    const Color(0xFF0A0E1A),
-                  ],
-                  stops: const [0.0, 0.30, 0.55],
+        body: Column(children: [
+          // ── TOP: Google Map (takes ~45% of screen) ──────────────────────
+          Expanded(
+            flex: 45,
+            child: Stack(children: [
+              // Map
+              Positioned.fill(
+                child: GoogleMap(
+                  initialCameraPosition: initialCam,
+                  markers:               _markers,
+                  mapType:               MapType.normal,
+                  myLocationButtonEnabled: false,
+                  zoomControlsEnabled:    false,
+                  compassEnabled:         false,
+                  onMapCreated: (ctrl) {
+                    _mapCtrl  = ctrl;
+                    _mapReady = true;
+                    _fitMap();
+                  },
                 ),
               ),
-            ),
-          ),
-
-          // ── Top bar: NEW ORDER chip + timer ───────────────────────────────
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Module chip
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color:        const Color(0xFF0A0E1A).withValues(alpha: 0.85),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: moduleColor.withValues(alpha: 0.5)),
+              // Gradient fade at bottom of map → blends into sheet
+              Positioned(
+                left: 0, right: 0, bottom: 0, height: 80,
+                child: DecoratedBox(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end:   Alignment.bottomCenter,
+                      colors: [Colors.transparent, Color(0xFF0E1520)],
                     ),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(moduleIcon, color: moduleColor, size: 14),
-                      const SizedBox(width: 5),
-                      Text(
-                        moduleLabel.toUpperCase(),
-                        style: TextStyle(
-                          color: moduleColor,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.2,
-                        ),
-                      ),
-                    ]),
                   ),
-                  // Countdown circle
-                  SizedBox(
-                    width: 50, height: 50,
-                    child: Stack(alignment: Alignment.center, children: [
-                      CircularProgressIndicator(
-                        value:           progress,
-                        strokeWidth:     3.5,
-                        backgroundColor: Colors.white.withValues(alpha: 0.12),
-                        valueColor:      AlwaysStoppedAnimation<Color>(timerColor),
-                      ),
-                      Text(
-                        '$_secondsLeft',
-                        style: TextStyle(
-                          color:      timerColor,
-                          fontSize:   15,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ]),
-                  ),
-                ],
+                ),
               ),
-            ),
+              // Top bar: module chip (left) + timer (right)
+              SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Module chip
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 7),
+                        decoration: BoxDecoration(
+                          color:        Colors.black.withValues(alpha: 0.72),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                              color: moduleColor.withValues(alpha: 0.55)),
+                        ),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Icon(moduleIcon, color: moduleColor, size: 14),
+                          const SizedBox(width: 5),
+                          Text(
+                            moduleLabel.toUpperCase(),
+                            style: TextStyle(
+                              color:         moduleColor,
+                              fontSize:      10,
+                              fontWeight:    FontWeight.w800,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                        ]),
+                      ),
+                      // Countdown ring
+                      SizedBox(
+                        width: 50, height: 50,
+                        child: Stack(alignment: Alignment.center, children: [
+                          CircularProgressIndicator(
+                            value:           progress,
+                            strokeWidth:     3.5,
+                            backgroundColor: Colors.white.withValues(alpha: 0.15),
+                            valueColor: AlwaysStoppedAnimation<Color>(timerColor),
+                          ),
+                          Text(
+                            '$_secondsLeft',
+                            style: TextStyle(
+                              color:      timerColor,
+                              fontSize:   14,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ]),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ]),
           ),
 
-          // ── Slide-up bottom sheet ──────────────────────────────────────────
-          Positioned(
-            left: 0, right: 0, bottom: 0,
-            child: AnimatedBuilder(
-              animation: _sheetAnim,
-              builder: (_, child) => FractionalTranslation(
-                translation: Offset(0, 1 - _sheetAnim.value),
-                child: child,
+          // ── BOTTOM: Order details sheet (takes ~55% of screen) ──────────
+          Expanded(
+            flex: 55,
+            child: Container(
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                color: Color(0xFF0E1520),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
               ),
-              child: _BottomSheet(
-                order:        widget.order,
-                richOrder:    _richOrder,
-                richLoading:  _richLoading,
-                fee:          fee,
-                distance:     distance,
-                estMin:       estMin,
-                toPickup:     toPickup,
-                orderNum:     orderNum,
-                moduleColor:  moduleColor,
-                accepting:    _accepting,
-                declining:    _declining,
-                onAccept:     _accept,
-                onDecline:    () => _decline(),
-              ),
+              child: Column(children: [
+                // Drag handle
+                Padding(
+                  padding: const EdgeInsets.only(top: 10, bottom: 4),
+                  child: Container(
+                    width: 38, height: 4,
+                    decoration: BoxDecoration(
+                      color:        Colors.white.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+
+                // Scrollable content
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Stats row
+                        _StatsRow(
+                          fee:      fee,
+                          distance: distance,
+                          estMin:   estMin,
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Details cards
+                        if (_richLoading)
+                          _LoadingSkeleton()
+                        else
+                          _DetailCards(
+                            fcmOrder:    widget.order,
+                            richOrder:   _richOrder,
+                            moduleColor: moduleColor,
+                            toPickup:    toPickup,
+                            orderNum:    orderNum,
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Sticky buttons
+                _ButtonBar(
+                  accepting: _accepting,
+                  declining: _declining,
+                  onAccept:  _accept,
+                  onDecline: () => _decline(),
+                ),
+              ]),
             ),
           ),
         ]),
@@ -439,161 +453,112 @@ class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Bottom Sheet — full order details
+// Stats Row
 // ─────────────────────────────────────────────────────────────────────────────
-class _BottomSheet extends StatelessWidget {
-  final Map<String, dynamic>  order;
-  final Map<String, dynamic>? richOrder;
-  final bool   richLoading;
-  final double fee, distance, toPickup;
+class _StatsRow extends StatelessWidget {
+  final double fee, distance;
   final int    estMin;
-  final String orderNum;
-  final Color  moduleColor;
-  final bool   accepting, declining;
-  final VoidCallback onAccept, onDecline;
+  const _StatsRow({required this.fee, required this.distance, required this.estMin});
 
-  const _BottomSheet({
-    required this.order,
-    required this.richOrder,
-    required this.richLoading,
-    required this.fee,
-    required this.distance,
-    required this.estMin,
-    required this.toPickup,
-    required this.orderNum,
-    required this.moduleColor,
-    required this.accepting,
-    required this.declining,
-    required this.onAccept,
-    required this.onDecline,
+  @override
+  Widget build(BuildContext context) {
+    return Row(children: [
+      Expanded(child: _StatTile(
+        label: 'Earnings', value: '\$${fee.toStringAsFixed(2)}',
+        color: const Color(0xFF22C55E), icon: Icons.attach_money_rounded,
+      )),
+      if (distance > 0) ...[
+        const SizedBox(width: 10),
+        Expanded(child: _StatTile(
+          label: 'Distance', value: '${distance.toStringAsFixed(1)} km',
+          color: const Color(0xFF60A5FA), icon: Icons.route_rounded,
+        )),
+      ],
+      if (estMin > 0) ...[
+        const SizedBox(width: 10),
+        Expanded(child: _StatTile(
+          label: 'Est. Time', value: '${estMin}m',
+          color: DC.orange, icon: Icons.access_time_rounded,
+        )),
+      ],
+    ]);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Button Bar — sticky at bottom
+// ─────────────────────────────────────────────────────────────────────────────
+class _ButtonBar extends StatelessWidget {
+  final bool accepting, declining;
+  final VoidCallback onAccept, onDecline;
+  const _ButtonBar({
+    required this.accepting, required this.declining,
+    required this.onAccept, required this.onDecline,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        color:        Color(0xFF0E1520),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      padding: EdgeInsets.fromLTRB(
+          16, 12, 16, MediaQuery.of(context).padding.bottom + 16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0E1520),
+        border: Border(
+          top: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+        ),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Drag handle
-          Padding(
-            padding: const EdgeInsets.only(top: 10, bottom: 6),
-            child: Container(
-              width: 40, height: 4,
-              decoration: BoxDecoration(
-                color:        Colors.white.withValues(alpha: 0.18),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
+      child: Row(children: [
+        Expanded(
+          flex: 2,
+          child: _ActionButton(
+            label: 'Decline', icon: Icons.close_rounded,
+            bgColor: const Color(0xFF1C2234), textColor: Colors.white54,
+            loading: declining, onTap: onDecline,
           ),
-
-          // Scrollable content
-          ConstrainedBox(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.58,
-            ),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // ── Earnings row ───────────────────────────────────────────
-                  Row(children: [
-                    Expanded(child: _StatTile(
-                      label: 'Earnings',
-                      value: '\$${fee.toStringAsFixed(2)}',
-                      color: const Color(0xFF22C55E),
-                      icon:  Icons.attach_money_rounded,
-                    )),
-                    if (distance > 0) ...[
-                      const SizedBox(width: 10),
-                      Expanded(child: _StatTile(
-                        label: 'Distance',
-                        value: '${distance.toStringAsFixed(1)} km',
-                        color: const Color(0xFF60A5FA),
-                        icon:  Icons.route_rounded,
-                      )),
-                    ],
-                    if (estMin > 0) ...[
-                      const SizedBox(width: 10),
-                      Expanded(child: _StatTile(
-                        label: 'Est. Time',
-                        value: '${estMin}m',
-                        color: DC.orange,
-                        icon:  Icons.access_time_rounded,
-                      )),
-                    ],
-                  ]),
-
-                  const SizedBox(height: 14),
-
-                  // ── Details (loading skeleton or cards) ────────────────────
-                  if (richLoading)
-                    _LoadingSkeleton()
-                  else
-                    _DetailCards(
-                      fcmOrder:    order,
-                      richOrder:   richOrder,
-                      moduleColor: moduleColor,
-                      toPickup:    toPickup,
-                      orderNum:    orderNum,
-                    ),
-
-                  const SizedBox(height: 14),
-                ],
-              ),
-            ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          flex: 3,
+          child: _ActionButton(
+            label: 'ACCEPT', icon: Icons.check_rounded,
+            bgColor: const Color(0xFF22C55E), textColor: Colors.white,
+            loading: accepting, onTap: onAccept,
           ),
-
-          // ── Sticky buttons at bottom ───────────────────────────────────────
-          Container(
-            padding: EdgeInsets.fromLTRB(
-                16, 12, 16, MediaQuery.of(context).padding.bottom + 16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0E1520),
-              border: Border(
-                top: BorderSide(
-                    color: Colors.white.withValues(alpha: 0.06), width: 1)),
-            ),
-            child: Row(children: [
-              // Decline
-              Expanded(
-                flex: 2,
-                child: _ActionButton(
-                  label:     'Decline',
-                  icon:      Icons.close_rounded,
-                  bgColor:   const Color(0xFF1C2234),
-                  textColor: Colors.white54,
-                  loading:   declining,
-                  onTap:     onDecline,
-                ),
-              ),
-              const SizedBox(width: 12),
-              // Accept
-              Expanded(
-                flex: 3,
-                child: _ActionButton(
-                  label:     'ACCEPT',
-                  icon:      Icons.check_rounded,
-                  bgColor:   const Color(0xFF22C55E),
-                  textColor: Colors.white,
-                  loading:   accepting,
-                  onTap:     onAccept,
-                ),
-              ),
-            ]),
-          ),
-        ],
-      ),
+        ),
+      ]),
     );
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Detail Cards — customer, vendor, route, parcel/items
+// Loading skeleton
+// ─────────────────────────────────────────────────────────────────────────────
+class _LoadingSkeleton extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Column(children: [
+      _Bone(height: 80), const SizedBox(height: 10),
+      _Bone(height: 64), const SizedBox(height: 10),
+      _Bone(height: 64),
+    ]);
+  }
+}
+
+class _Bone extends StatelessWidget {
+  final double height;
+  const _Bone({required this.height});
+  @override
+  Widget build(BuildContext context) => Container(
+    height: height, width: double.infinity,
+    decoration: BoxDecoration(
+      color:        Colors.white.withValues(alpha: 0.06),
+      borderRadius: BorderRadius.circular(14),
+    ),
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Detail Cards
 // ─────────────────────────────────────────────────────────────────────────────
 class _DetailCards extends StatelessWidget {
   final Map<String, dynamic>  fcmOrder;
@@ -610,213 +575,159 @@ class _DetailCards extends StatelessWidget {
     required this.orderNum,
   });
 
+  String _s(dynamic v) => v?.toString() ?? '';
+
   @override
   Widget build(BuildContext context) {
     final r      = richOrder;
-    final module = (r?['module_slug'] ?? fcmOrder['module_slug'] ?? '').toString();
+    final module = _s(r?['module_slug'] ?? fcmOrder['module_slug']);
 
-    // Pickup / delivery from rich order or FCM
-    final pickup = (r?['pickup'] as Map?)?.cast<String, dynamic>() ?? {
-      'district': fcmOrder['pickup_district'] ?? '',
-      'address':  fcmOrder['pickup_address']  ?? '',
+    final pickup   = (r?['pickup']   as Map?)?.cast<String, dynamic>() ?? {
+      'district': fcmOrder['pickup_district']  ?? '',
+      'address':  fcmOrder['pickup_address']   ?? '',
     };
     final delivery = (r?['delivery'] as Map?)?.cast<String, dynamic>() ?? {
       'district': fcmOrder['delivery_district'] ?? '',
       'address':  fcmOrder['delivery_address']  ?? '',
     };
 
-    // Customer (person receiving)
-    final custName  = (r?['delivery']?['name']  ?? '').toString();
-    final custPhone = (r?['delivery']?['phone'] ?? '').toString();
+    final custName  = _s(r?['delivery']?['name']);
+    final custPhone = _s(r?['delivery']?['phone']);
+    final vendName  = _s(r?['pickup']?['name']);
+    final vendPhone = _s(r?['pickup']?['phone']);
+    final vendAddr  = _s(pickup['district']).isNotEmpty
+        ? _s(pickup['district']) : _s(pickup['address']);
 
-    // Vendor / sender
-    final vendorName  = (r?['pickup']?['name']    ?? '').toString();
-    final vendorPhone = (r?['pickup']?['phone']   ?? '').toString();
-    final vendorAddr  = (pickup['address']        ?? '').toString();
-    final vendorDistr = (pickup['district']       ?? '').toString();
-
-    // Parcel
-    final parcel = (r?['parcel'] as Map?)?.cast<String, dynamic>();
-
-    // Items (for food/grocery)
+    final parcel     = (r?['parcel'] as Map?)?.cast<String, dynamic>();
     final items      = r?['items'] as List?;
-    final itemsCount = (r?['items_count'] as num?)?.toInt() ??
-                       (items?.length ?? 0);
-
-    final orderNumDisplay = orderNum.isNotEmpty ? orderNum
-        : (r?['order_number'] ?? '').toString();
+    final itemsCount = (r?['items_count'] as num?)?.toInt()
+                       ?? (items?.length ?? 0);
+    final orderNumDisplay = orderNum.isNotEmpty
+        ? orderNum : _s(r?['order_number']);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── Route card ─────────────────────────────────────────────────────
-        _InfoCard(
-          child: Column(children: [
-            _RouteRow(
-              dotColor: moduleColor,
-              label:    'PICKUP',
-              title:    pickup['district']?.toString() ?? '',
-              subtitle: pickup['address']?.toString()  ?? '',
-              trailing: toPickup > 0 ? '${toPickup.toStringAsFixed(1)} km away' : null,
+        // Route
+        _InfoCard(child: Column(children: [
+          _RouteRow(
+            dotColor: moduleColor,
+            label:    'PICKUP',
+            title:    _s(pickup['district']),
+            subtitle: _s(pickup['address']),
+            badge:    toPickup > 0 ? '${toPickup.toStringAsFixed(1)} km away' : null,
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 11),
+            child: Container(
+              width: 2, height: 14,
+              color: Colors.white.withValues(alpha: 0.10),
             ),
-            Padding(
-              padding: const EdgeInsets.only(left: 11),
-              child: Container(
-                width: 2, height: 16,
-                color: Colors.white.withValues(alpha: 0.10),
-              ),
-            ),
-            _RouteRow(
-              dotColor: const Color(0xFF22C55E),
-              label:    'DELIVER',
-              title:    delivery['district']?.toString() ?? '',
-              subtitle: delivery['address']?.toString()  ?? '',
-            ),
-          ]),
-        ),
-
+          ),
+          _RouteRow(
+            dotColor: const Color(0xFF22C55E),
+            label:    'DELIVER',
+            title:    _s(delivery['district']),
+            subtitle: _s(delivery['address']),
+          ),
+        ])),
         const SizedBox(height: 10),
 
-        // ── Customer card ──────────────────────────────────────────────────
-        if (custName.isNotEmpty || custPhone.isNotEmpty)
+        // Customer
+        if (custName.isNotEmpty || custPhone.isNotEmpty) ...[
           _PeopleCard(
-            icon:   Icons.person_rounded,
-            label:  'Customer',
-            color:  const Color(0xFF60A5FA),
-            name:   custName,
-            phone:  custPhone,
+            icon: Icons.person_rounded, label: 'Customer',
+            color: const Color(0xFF60A5FA),
+            name: custName, phone: custPhone,
           ),
-
-        if (custName.isNotEmpty || custPhone.isNotEmpty)
           const SizedBox(height: 10),
+        ],
 
-        // ── Vendor / Sender card ───────────────────────────────────────────
-        if (vendorName.isNotEmpty || vendorPhone.isNotEmpty)
+        // Vendor / Sender
+        if (vendName.isNotEmpty || vendPhone.isNotEmpty) ...[
           _PeopleCard(
             icon:    module == 'eparcel' ? Icons.inbox_rounded : Icons.storefront_rounded,
             label:   module == 'eparcel' ? 'Sender' : 'Restaurant / Store',
             color:   moduleColor,
-            name:    vendorName,
-            phone:   vendorPhone,
-            address: vendorDistr.isNotEmpty ? vendorDistr : vendorAddr,
+            name:    vendName,
+            phone:   vendPhone,
+            address: vendAddr,
           ),
-
-        if (vendorName.isNotEmpty || vendorPhone.isNotEmpty)
           const SizedBox(height: 10),
+        ],
 
-        // ── Parcel info ────────────────────────────────────────────────────
-        if (parcel != null) _ParcelCard(parcel: parcel, moduleColor: moduleColor),
-        if (parcel != null) const SizedBox(height: 10),
+        // Parcel info
+        if (parcel != null) ...[
+          _ParcelCard(parcel: parcel, moduleColor: moduleColor),
+          const SizedBox(height: 10),
+        ],
 
-        // ── Items summary (food/grocery) ────────────────────────────────────
-        if (itemsCount > 0 && parcel == null)
-          _InfoCard(
-            child: Row(children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color:        moduleColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(Icons.receipt_long_rounded, color: moduleColor, size: 18),
+        // Items (food/grocery)
+        if (itemsCount > 0 && parcel == null) ...[
+          _InfoCard(child: Row(children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color:        moduleColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
               ),
-              const SizedBox(width: 12),
-              Expanded(child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '$itemsCount item${itemsCount == 1 ? '' : 's'}',
-                    style: const TextStyle(
-                        color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
-                  ),
-                  if (items != null && items.isNotEmpty)
-                    Text(
-                      items.take(3).map((it) {
-                        final name = it['name'] ?? it['product_name'] ?? '';
-                        final qty  = it['quantity'] ?? 1;
-                        return '${qty}x $name';
-                      }).join('  •  '),
-                      style: TextStyle(
-                          color:    Colors.white.withValues(alpha: 0.40),
-                          fontSize: 11),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                ],
-              )),
-            ]),
-          ),
-
-        if (itemsCount > 0 && parcel == null) const SizedBox(height: 10),
-
-        // ── Order number ───────────────────────────────────────────────────
-        if (orderNumDisplay.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 2),
-            child: Text(
-              'Order #$orderNumDisplay',
-              style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.25), fontSize: 11),
+              child: Icon(Icons.receipt_long_rounded, color: moduleColor, size: 18),
             ),
-          ),
+            const SizedBox(width: 12),
+            Expanded(child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('$itemsCount item${itemsCount == 1 ? '' : 's'}',
+                    style: const TextStyle(
+                        color: Colors.white, fontSize: 14,
+                        fontWeight: FontWeight.w700)),
+                if (items != null && items.isNotEmpty)
+                  Text(
+                    items.take(3).map((it) {
+                      final name = it['name'] ?? it['product_name'] ?? '';
+                      final qty  = it['quantity'] ?? 1;
+                      return '${qty}x $name';
+                    }).join('  •  '),
+                    style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.40),
+                        fontSize: 11),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+              ],
+            )),
+          ])),
+          const SizedBox(height: 10),
+        ],
+
+        // Order number
+        if (orderNumDisplay.isNotEmpty)
+          Text('Order #$orderNumDisplay',
+              style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.25), fontSize: 11)),
       ],
     );
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Loading skeleton — shown while API call is in flight
-// ─────────────────────────────────────────────────────────────────────────────
-class _LoadingSkeleton extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Column(children: [
-      _SkeletonBox(height: 88),
-      const SizedBox(height: 10),
-      _SkeletonBox(height: 64),
-      const SizedBox(height: 10),
-      _SkeletonBox(height: 64),
-    ]);
-  }
-}
-
-class _SkeletonBox extends StatelessWidget {
-  final double height;
-  const _SkeletonBox({required this.height});
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height:      height,
-      decoration: BoxDecoration(
-        color:        Colors.white.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(14),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// People Card — customer or vendor/sender
+// People Card
 // ─────────────────────────────────────────────────────────────────────────────
 class _PeopleCard extends StatelessWidget {
   final IconData icon;
   final String   label, name, phone;
   final String?  address;
   final Color    color;
-
   const _PeopleCard({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.name,
-    required this.phone,
-    this.address,
+    required this.icon, required this.label, required this.color,
+    required this.name, required this.phone, this.address,
   });
 
   @override
   Widget build(BuildContext context) {
-    return _InfoCard(
-      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    return _InfoCard(child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
         Container(
           padding: const EdgeInsets.all(9),
           decoration: BoxDecoration(
@@ -826,44 +737,32 @@ class _PeopleCard extends StatelessWidget {
           child: Icon(icon, color: color, size: 18),
         ),
         const SizedBox(width: 12),
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(
-              label.toUpperCase(),
-              style: TextStyle(
-                  color: color, fontSize: 9,
-                  fontWeight: FontWeight.w800, letterSpacing: 1.2),
-            ),
+        Expanded(child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label.toUpperCase(), style: TextStyle(
+                color: color, fontSize: 9,
+                fontWeight: FontWeight.w800, letterSpacing: 1.2)),
             const SizedBox(height: 3),
             if (name.isNotEmpty)
-              Text(name,
-                  style: const TextStyle(
-                      color: Colors.white, fontSize: 14,
-                      fontWeight: FontWeight.w700)),
+              Text(name, style: const TextStyle(
+                  color: Colors.white, fontSize: 14,
+                  fontWeight: FontWeight.w700)),
             if (phone.isNotEmpty) ...[
               const SizedBox(height: 2),
-              Text(
-                phone,
-                style: TextStyle(
-                    color:    Colors.white.withValues(alpha: 0.45),
-                    fontSize: 12),
-              ),
+              Text(phone, style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.45), fontSize: 12)),
             ],
             if (address != null && address!.isNotEmpty) ...[
               const SizedBox(height: 2),
-              Text(
-                address!,
-                style: TextStyle(
-                    color:    Colors.white.withValues(alpha: 0.35),
-                    fontSize: 11),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+              Text(address!, style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.35), fontSize: 11),
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
             ],
-          ]),
-        ),
-      ]),
-    );
+          ],
+        )),
+      ],
+    ));
   }
 }
 
@@ -881,8 +780,9 @@ class _ParcelCard extends StatelessWidget {
     final type   = parcel['package_type']?.toString();
     final desc   = parcel['description']?.toString();
 
-    return _InfoCard(
-      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    return _InfoCard(child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
         Container(
           padding: const EdgeInsets.all(9),
           decoration: BoxDecoration(
@@ -892,58 +792,45 @@ class _ParcelCard extends StatelessWidget {
           child: Icon(Icons.inventory_2_rounded, color: moduleColor, size: 18),
         ),
         const SizedBox(width: 12),
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(
-              'PARCEL INFO',
-              style: TextStyle(
-                  color: moduleColor, fontSize: 9,
-                  fontWeight: FontWeight.w800, letterSpacing: 1.2),
-            ),
+        Expanded(child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('PARCEL INFO', style: TextStyle(
+                color: moduleColor, fontSize: 9,
+                fontWeight: FontWeight.w800, letterSpacing: 1.2)),
             const SizedBox(height: 4),
             if (type != null && type.isNotEmpty)
-              Text(
-                type,
-                style: const TextStyle(
-                    color: Colors.white, fontSize: 13,
-                    fontWeight: FontWeight.w700),
-              ),
+              Text(type, style: const TextStyle(
+                  color: Colors.white, fontSize: 13,
+                  fontWeight: FontWeight.w700)),
             if (weight != null && weight.isNotEmpty) ...[
               const SizedBox(height: 2),
-              Text(
-                'Weight: $weight',
-                style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.45), fontSize: 12),
-              ),
+              Text('Weight: $weight', style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.45), fontSize: 12)),
             ],
             if (desc != null && desc.isNotEmpty) ...[
               const SizedBox(height: 2),
-              Text(
-                desc,
-                style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.35), fontSize: 11),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
+              Text(desc, style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.35), fontSize: 11),
+                  maxLines: 2, overflow: TextOverflow.ellipsis),
             ],
-          ]),
-        ),
-      ]),
-    );
+          ],
+        )),
+      ],
+    ));
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Info Card container
+// Info Card
 // ─────────────────────────────────────────────────────────────────────────────
 class _InfoCard extends StatelessWidget {
   final Widget child;
   const _InfoCard({required this.child});
-
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: double.infinity,
+      width:   double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color:        Colors.white.withValues(alpha: 0.04),
@@ -961,13 +848,10 @@ class _InfoCard extends StatelessWidget {
 class _RouteRow extends StatelessWidget {
   final Color   dotColor;
   final String  label, title, subtitle;
-  final String? trailing;
+  final String? badge;
   const _RouteRow({
-    required this.dotColor,
-    required this.label,
-    required this.title,
-    required this.subtitle,
-    this.trailing,
+    required this.dotColor, required this.label,
+    required this.title,    required this.subtitle, this.badge,
   });
 
   @override
@@ -986,20 +870,21 @@ class _RouteRow extends StatelessWidget {
         )),
       ),
       const SizedBox(width: 10),
-      Expanded(
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Expanded(child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Row(children: [
             Text(label, style: TextStyle(
                 color: dotColor, fontSize: 9,
                 fontWeight: FontWeight.w800, letterSpacing: 1.2)),
-            if (trailing != null) ...[
+            if (badge != null) ...[
               const SizedBox(width: 6),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                     color: dotColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(6)),
-                child: Text(trailing!, style: TextStyle(
+                child: Text(badge!, style: TextStyle(
                     color: dotColor, fontSize: 9, fontWeight: FontWeight.w700)),
               ),
             ],
@@ -1013,8 +898,8 @@ class _RouteRow extends StatelessWidget {
                 color: Colors.white.withValues(alpha: 0.38), fontSize: 11),
                 maxLines: 1, overflow: TextOverflow.ellipsis),
           const SizedBox(height: 4),
-        ]),
-      ),
+        ],
+      )),
     ]);
   }
 }
@@ -1027,10 +912,8 @@ class _StatTile extends StatelessWidget {
   final Color    color;
   final IconData icon;
   const _StatTile({
-    required this.label,
-    required this.value,
-    required this.color,
-    required this.icon,
+    required this.label, required this.value,
+    required this.color, required this.icon,
   });
 
   @override
@@ -1065,14 +948,10 @@ class _ActionButton extends StatelessWidget {
   final Color    bgColor, textColor;
   final bool     loading;
   final VoidCallback onTap;
-
   const _ActionButton({
-    required this.label,
-    required this.icon,
-    required this.bgColor,
-    required this.textColor,
-    required this.loading,
-    required this.onTap,
+    required this.label,  required this.icon,
+    required this.bgColor, required this.textColor,
+    required this.loading, required this.onTap,
   });
 
   @override
@@ -1081,7 +960,7 @@ class _ActionButton extends StatelessWidget {
       onTap: loading ? null : onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        height:   52,
+        height:   54,
         decoration: BoxDecoration(
           color:        loading ? bgColor.withValues(alpha: 0.5) : bgColor,
           borderRadius: BorderRadius.circular(16),
@@ -1089,8 +968,7 @@ class _ActionButton extends StatelessWidget {
             if (!loading)
               BoxShadow(
                 color:      bgColor.withValues(alpha: 0.35),
-                blurRadius: 16,
-                offset:     const Offset(0, 6),
+                blurRadius: 14, offset: const Offset(0, 5),
               ),
           ],
         ),
@@ -1099,15 +977,14 @@ class _ActionButton extends StatelessWidget {
           children: loading
               ? [SizedBox(
                   width: 20, height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: textColor))]
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: textColor))]
               : [
                   Icon(icon, color: textColor, size: 20),
                   const SizedBox(width: 7),
                   Text(label, style: TextStyle(
-                      color:         textColor,
-                      fontSize:      15,
-                      fontWeight:    FontWeight.w800,
-                      letterSpacing: 0.5)),
+                      color:         textColor, fontSize: 15,
+                      fontWeight:    FontWeight.w800, letterSpacing: 0.5)),
                 ],
         ),
       ),
