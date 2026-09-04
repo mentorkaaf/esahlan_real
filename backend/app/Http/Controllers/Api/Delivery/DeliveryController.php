@@ -277,7 +277,11 @@ class DeliveryController extends Controller
         $dm = $this->dm($request);
         if (!$dm) return response()->json(['success' => false, 'message' => 'Profile not found'], 404);
 
+        // Only show orders the driver has explicitly ACCEPTED.
+        // Admin-pre-assigned orders (driver_accepted_at IS NULL) are hidden until
+        // the driver taps Accept on the ring screen.
         $orders = Order::where('deliveryman_id', $dm->id)
+            ->whereNotNull('driver_accepted_at')
             ->whereIn('status', ['confirmed', 'preparing', 'ready_for_pickup', 'picked_up', 'out_for_delivery'])
             ->with(['vendor:id,name,address,latitude,longitude,phone,logo', 'user:id,name,phone', 'items'])
             ->get()
@@ -305,13 +309,20 @@ class DeliveryController extends Controller
         $dm = $this->dm($request);
         if (!$dm || !$dm->is_approved) return response()->json(['success' => false, 'message' => 'Not approved'], 403);
 
-        if ($order->deliveryman_id) {
-            return response()->json(['success' => false, 'message' => 'Order already assigned'], 422);
+        // Block if assigned to a DIFFERENT driver
+        if ($order->deliveryman_id && $order->deliveryman_id !== $dm->id) {
+            return response()->json(['success' => false, 'message' => 'Order already assigned to another driver'], 422);
         }
 
-        // Max orders limit (admin configurable)
+        // Idempotent: already accepted by this driver (e.g. double-tap)
+        if ($order->deliveryman_id === $dm->id && $order->driver_accepted_at) {
+            return response()->json(['success' => true, 'message' => 'Order accepted']);
+        }
+
+        // Max orders limit (admin configurable) — count only accepted orders
         $maxOrders = (int) \App\Helpers\AppSettings::get('max_orders_per_driver', 5);
         $activeCount = Order::where('deliveryman_id', $dm->id)
+            ->whereNotNull('driver_accepted_at')
             ->whereIn('status', ['confirmed', 'preparing', 'ready_for_pickup', 'out_for_delivery'])
             ->count();
         if ($activeCount >= $maxOrders) {
@@ -319,9 +330,11 @@ class DeliveryController extends Controller
         }
 
         DB::transaction(function () use ($order, $dm, $request) {
+            // For self-pick (pool): assign driver. For admin-pre-assigned: driver_id already set.
             $updateData = [
-                'deliveryman_id' => $dm->id,
-                'dispatched_at'  => now(),
+                'deliveryman_id'    => $dm->id,
+                'dispatched_at'     => $order->dispatched_at ?? now(),
+                'driver_accepted_at'=> now(),   // ← marks driver explicitly accepted
             ];
 
             // Set delivery_fee from pricing if not already set
