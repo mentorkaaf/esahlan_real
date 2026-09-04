@@ -294,6 +294,7 @@ function renderDrivers(drivers) {
         if (!d.latitude || !d.longitude) return;
 
         // Marker color
+        var pos = new google.maps.LatLng(d.latitude, d.longitude);
         var markerColor = isOffline ? '#374151'
                         : isBusy   ? '#f97316'
                         : isStale  ? '#1e293b'
