@@ -48,7 +48,11 @@ class PingOnlineDriversLocation extends Command
         //       they don't need a wake-up ping — saves FCM quota)
         $staleThreshold = now()->subMinutes(3);
 
-        $rows = Deliveryman::where('is_online', true)
+        // Use wants_tracking (the driver's INTENT) not is_online (current freshness).
+        // MarkStaleDriversOffline clears is_online after 10-min silence but never
+        // touches wants_tracking, so we still wake up drivers whose foreground
+        // service died and haven't opened the app for days.
+        $rows = Deliveryman::where('wants_tracking', true)
             ->whereNotNull('user_id')
             ->where(function ($q) use ($staleThreshold) {
                 $q->whereNull('last_location_at')

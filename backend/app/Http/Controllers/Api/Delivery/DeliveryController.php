@@ -570,6 +570,12 @@ class DeliveryController extends Controller
             $updateData['is_online'] = true;
             $updateData['status']    = $dm->status === 'offline' ? 'available' : $dm->status;
         }
+        // Every location ping implies the driver wants to be tracked.
+        // This seeds wants_tracking=true for drivers on older app versions
+        // that don't set it via the toggle endpoint.
+        if (!$dm->wants_tracking) {
+            $updateData['wants_tracking'] = true;
+        }
         $dm->update($updateData);
 
         if ($request->order_id) {
@@ -612,9 +618,13 @@ class DeliveryController extends Controller
 
         $goingOnline = !$dm->is_online;
         $dm->update([
-            'is_online'    => $goingOnline,
-            'is_available' => $goingOnline,
-            'status'       => $goingOnline ? 'available' : 'offline',
+            'is_online'      => $goingOnline,
+            'is_available'   => $goingOnline,
+            'status'         => $goingOnline ? 'available' : 'offline',
+            // wants_tracking records the DRIVER's INTENT so the FCM ping
+            // scheduler can wake the app even after MarkStaleDriversOffline
+            // has temporarily cleared is_online.
+            'wants_tracking' => $goingOnline,
         ]);
 
         return response()->json([
