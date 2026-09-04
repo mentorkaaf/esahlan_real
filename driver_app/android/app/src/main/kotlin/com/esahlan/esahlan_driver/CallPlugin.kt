@@ -35,9 +35,75 @@ class CallPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     private lateinit var appContext: Context
 
     companion object {
-        private const val CHANNEL_ID  = "esahlan_order_call_v1"
-        private const val NOTIF_ID    = 77701
+        const val CHANNEL_ID  = "esahlan_order_call_v1"
+        const val NOTIF_ID    = 77701
         private const val METHOD_CH   = "esahlan_call"
+
+        // ── Static helpers — callable from EsahlanMessagingService (no Flutter needed) ──
+
+        fun ensureNotificationChannelStatic(context: Context) {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+            val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            if (nm.getNotificationChannel(CHANNEL_ID) != null) return
+            val ch = NotificationChannel(
+                CHANNEL_ID,
+                "Incoming Order Call",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description          = "Shows a full-screen alarm when a new delivery order arrives."
+                enableLights(true)
+                lightColor           = Color.parseColor("#FF8A00")
+                enableVibration(true)
+                vibrationPattern     = longArrayOf(0, 500, 200, 500, 200, 500, 200, 500)
+                lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
+            }
+            nm.createNotificationChannel(ch)
+        }
+
+        fun showCallNotificationStatic(context: Context, data: Map<String, String>) {
+            ensureNotificationChannelStatic(context)
+            val orderNum = data["order_number"] ?: ""
+            val fee      = data["delivery_fee"]  ?: "0"
+
+            val callIntent = Intent(context, OrderCallActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                data.forEach { (k, v) -> putExtra(k, v) }
+            }
+            val flags = PendingIntent.FLAG_UPDATE_CURRENT or
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
+                        PendingIntent.FLAG_IMMUTABLE else 0
+
+            val fullScreenPI = PendingIntent.getActivity(context, NOTIF_ID,     callIntent, flags)
+            val contentPI    = PendingIntent.getActivity(context, NOTIF_ID + 1, callIntent, flags)
+
+            val notif = NotificationCompat.Builder(context, CHANNEL_ID)
+                .setSmallIcon(android.R.drawable.ic_dialog_dialer)
+                .setContentTitle("🚴 New Order — Tap to accept")
+                .setContentText(
+                    buildString {
+                        if (orderNum.isNotEmpty()) append("Order #$orderNum  •  ")
+                        append("\$$fee delivery fee")
+                    }
+                )
+                .setPriority(NotificationCompat.PRIORITY_MAX)
+                .setCategory(NotificationCompat.CATEGORY_CALL)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setFullScreenIntent(fullScreenPI, true)
+                .setContentIntent(contentPI)
+                .setOngoing(true)
+                .setAutoCancel(false)
+                .setTimeoutAfter(55_000)
+                .setColor(Color.parseColor("#FF8A00"))
+                .build()
+
+            val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            nm.notify(NOTIF_ID, notif)
+        }
+
+        fun cancelCallNotificationStatic(context: Context) {
+            val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            nm.cancel(NOTIF_ID)
+        }
     }
 
     // ── Plugin lifecycle ──────────────────────────────────────────────────────
@@ -54,22 +120,7 @@ class CallPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
 
     // ── Notification channel ──────────────────────────────────────────────────
     private fun ensureNotificationChannel() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
-        val nm = appContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        if (nm.getNotificationChannel(CHANNEL_ID) != null) return
-        val ch = NotificationChannel(
-            CHANNEL_ID,
-            "Incoming Order Call",
-            NotificationManager.IMPORTANCE_HIGH
-        ).apply {
-            description     = "Shows a full-screen alarm when a new delivery order arrives."
-            enableLights(true)
-            lightColor      = Color.parseColor("#FF8A00")
-            enableVibration(true)
-            vibrationPattern = longArrayOf(0, 500, 200, 500, 200, 500, 200, 500)
-            lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
-        }
-        nm.createNotificationChannel(ch)
+        ensureNotificationChannelStatic(appContext)
     }
 
     // ── Method handler ────────────────────────────────────────────────────────
@@ -100,50 +151,10 @@ class CallPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
         }
     }
 
-    // ── Show fullScreenIntent notification → OrderCallActivity ────────────────
-    private fun showCallNotification(data: Map<String, String>) {
-        val orderNum  = data["order_number"] ?: ""
-        val fee       = data["delivery_fee"]  ?: "0"
+    // ── Show / cancel — delegate to static companion methods ─────────────────
+    private fun showCallNotification(data: Map<String, String>) =
+        showCallNotificationStatic(appContext, data)
 
-        // Intent pointing directly to OrderCallActivity
-        val callIntent = Intent(appContext, OrderCallActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            data.forEach { (k, v) -> putExtra(k, v) }
-        }
-
-        val flags = PendingIntent.FLAG_UPDATE_CURRENT or
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
-                        PendingIntent.FLAG_IMMUTABLE else 0
-
-        val fullScreenPI = PendingIntent.getActivity(appContext, NOTIF_ID,     callIntent, flags)
-        val contentPI    = PendingIntent.getActivity(appContext, NOTIF_ID + 1, callIntent, flags)
-
-        val notif = NotificationCompat.Builder(appContext, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_dialog_dialer)   // phone icon
-            .setContentTitle("🚴 New Order — Tap to accept")
-            .setContentText(
-                buildString {
-                    if (orderNum.isNotEmpty()) append("Order #$orderNum  •  ")
-                    append("\$$fee delivery fee")
-                }
-            )
-            .setPriority(NotificationCompat.PRIORITY_MAX)
-            .setCategory(NotificationCompat.CATEGORY_CALL)       // call category = highest priority
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)  // show on lock screen
-            .setFullScreenIntent(fullScreenPI, true)              // ← the key: pops over lock screen
-            .setContentIntent(contentPI)
-            .setOngoing(true)         // stays in tray until dismissed
-            .setAutoCancel(false)
-            .setTimeoutAfter(55_000)  // auto-dismiss after 55 s (safety net)
-            .setColor(Color.parseColor("#FF8A00"))
-            .build()
-
-        val nm = appContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        nm.notify(NOTIF_ID, notif)
-    }
-
-    private fun cancelCallNotification() {
-        val nm = appContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        nm.cancel(NOTIF_ID)
-    }
+    private fun cancelCallNotification() =
+        cancelCallNotificationStatic(appContext)
 }

@@ -4,12 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../core/theme/driver_colors.dart';
 import '../../../../core/services/firebase_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Provider — kept for compatibility with any code that checks incoming state
+// Provider — kept for compatibility
 // ─────────────────────────────────────────────────────────────────────────────
 class _IncomingOrderState {
   final Map<String, dynamic>? order;
@@ -30,15 +31,6 @@ final incomingOrderProvider =
 // ─────────────────────────────────────────────────────────────────────────────
 // Module config
 // ─────────────────────────────────────────────────────────────────────────────
-const _kModuleIcons = {
-  'efood':    Icons.restaurant_rounded,
-  'egrocery': Icons.local_grocery_store_rounded,
-  'eshop':    Icons.shopping_bag_rounded,
-  'eparcel':  Icons.local_shipping_rounded,
-  'emoving':  Icons.move_to_inbox_rounded,
-  'elaundry': Icons.local_laundry_service_rounded,
-  'erent':    Icons.home_rounded,
-};
 const _kModuleLabels = {
   'efood':    'eFood Delivery',
   'egrocery': 'eGrocery Delivery',
@@ -57,9 +49,18 @@ const _kModuleColors = {
   'elaundry': Color(0xFF06B6D4),
   'erent':    Color(0xFFF59E0B),
 };
+const _kModuleIcons = {
+  'efood':    Icons.restaurant_rounded,
+  'egrocery': Icons.local_grocery_store_rounded,
+  'eshop':    Icons.shopping_bag_rounded,
+  'eparcel':  Icons.local_shipping_rounded,
+  'emoving':  Icons.move_to_inbox_rounded,
+  'elaundry': Icons.local_laundry_service_rounded,
+  'erent':    Icons.home_rounded,
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
-// IncomingOrderScreen — full-screen DoorDash-style incoming order alarm
+// IncomingOrderScreen — DoorDash-style full-screen ring alarm
 // ─────────────────────────────────────────────────────────────────────────────
 class IncomingOrderScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic> order;
@@ -72,9 +73,10 @@ class IncomingOrderScreen extends ConsumerStatefulWidget {
 
 class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen>
     with TickerProviderStateMixin {
+
   // ── countdown ─────────────────────────────────────────────────────────────
   static const _kTimeout = 45;
-  int   _secondsLeft = _kTimeout;
+  int    _secondsLeft = _kTimeout;
   Timer? _timer;
 
   // ── button state ──────────────────────────────────────────────────────────
@@ -84,44 +86,31 @@ class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen>
   // ── audio ─────────────────────────────────────────────────────────────────
   final _player = AudioPlayer();
 
-  // ── animations ────────────────────────────────────────────────────────────
-  late final AnimationController _pulseCtrl;
-  late final AnimationController _rippleCtrl;
-  late final AnimationController _slideCtrl;
-  late final Animation<double>   _pulseAnim;
-  late final Animation<double>   _rippleAnim;
-  late final Animation<Offset>   _slideAnim;
+  // ── map ───────────────────────────────────────────────────────────────────
+  GoogleMapController? _mapCtrl;
+
+  // ── rich details (loaded async from API) ──────────────────────────────────
+  Map<String, dynamic>? _richOrder;
+  bool _richLoading = true;
+
+  // ── sheet animation ───────────────────────────────────────────────────────
+  late final AnimationController _sheetCtrl;
+  late final Animation<double>   _sheetAnim;
 
   @override
   void initState() {
     super.initState();
 
-    // Full immersive — hide status bar + nav bar
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
-    // Pulse: icon breathes
-    _pulseCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 850))
-      ..repeat(reverse: true);
-    _pulseAnim = Tween<double>(begin: 0.90, end: 1.10)
-        .animate(CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
-
-    // Ripple: expanding rings behind icon
-    _rippleCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1400))
-      ..repeat();
-    _rippleAnim = Tween<double>(begin: 0.0, end: 1.0)
-        .animate(CurvedAnimation(parent: _rippleCtrl, curve: Curves.easeOut));
-
-    // Slide: bottom card slides up
-    _slideCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 450));
-    _slideAnim = Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _slideCtrl, curve: Curves.easeOutCubic));
-    _slideCtrl.forward();
+    _sheetCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 520));
+    _sheetAnim = CurvedAnimation(parent: _sheetCtrl, curve: Curves.easeOutCubic);
+    _sheetCtrl.forward();
 
     _startAudio();
     _startCountdown();
+    _loadRichDetails();
   }
 
   // ── audio ─────────────────────────────────────────────────────────────────
@@ -140,16 +129,29 @@ class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen>
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       setState(() => _secondsLeft--);
-      // Fix H-6: re-check mounted after setState before calling _decline,
-      // which itself calls setState. The widget could be disposed between the
-      // two operations.
       if (_secondsLeft <= 0 && mounted) _decline(auto: true);
     });
   }
 
+  // ── load rich order details from API ──────────────────────────────────────
+  Future<void> _loadRichDetails() async {
+    try {
+      final id = _orderId;
+      if (id <= 0) { if (mounted) setState(() => _richLoading = false); return; }
+      final data = await ref.read(authRepoProvider).ringOrderDetails(id);
+      if (!mounted) return;
+      setState(() {
+        _richOrder   = data;
+        _richLoading = false;
+      });
+      _fitMapBounds();
+    } catch (e) {
+      debugPrint('[Ring] details error: $e');
+      if (mounted) setState(() => _richLoading = false);
+    }
+  }
+
   // ── stop everything ───────────────────────────────────────────────────────
-  // Fix L-4: made async so _player.stop() is properly awaited, preventing
-  // the ring sound from persisting briefly into the next screen.
   Future<void> _stopAll() async {
     _timer?.cancel();
     try { await _player.stop(); } catch (_) {}
@@ -164,26 +166,24 @@ class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen>
     setState(() => _accepting = true);
     await _stopAll();
     try {
-      final id = _orderId;
-      await ref.read(authRepoProvider).acceptOrder(id);
+      await ref.read(authRepoProvider).acceptOrder(_orderId);
       if (mounted) {
         ref.read(incomingOrderProvider.notifier).clear();
         context.go('/orders');
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: const Text('Order accepted — go pick it up!'),
+          content: const Text('Order accepted — go pick it up! 🚀'),
           backgroundColor: DC.success,
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          behavior:         SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ));
       }
     } catch (e) {
       if (mounted) {
         setState(() => _accepting = false);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('$e'),
+          content:         Text('$e'),
           backgroundColor: DC.error,
-          behavior: SnackBarBehavior.floating,
+          behavior:        SnackBarBehavior.floating,
         ));
       }
     }
@@ -195,9 +195,7 @@ class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen>
     if (!auto) HapticFeedback.mediumImpact();
     if (mounted) setState(() => _declining = true);
     await _stopAll();
-    try {
-      await ref.read(authRepoProvider).rejectOrder(_orderId);
-    } catch (_) {}
+    try { await ref.read(authRepoProvider).rejectOrder(_orderId); } catch (_) {}
     if (mounted) {
       ref.read(incomingOrderProvider.notifier).clear();
       context.go('/dashboard');
@@ -206,50 +204,108 @@ class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen>
 
   @override
   void dispose() {
-    // _stopAll is async but dispose must be sync; fire-and-forget is acceptable
-    // here since the timer is cancelled synchronously at the start of _stopAll.
     _timer?.cancel();
     _player.stop().catchError((_) {}).then((_) => _player.dispose());
     FirebaseService().cancelOrderNotification();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    _pulseCtrl.dispose();
-    _rippleCtrl.dispose();
-    _slideCtrl.dispose();
+    _sheetCtrl.dispose();
+    _mapCtrl?.dispose();
     super.dispose();
   }
 
   // ── helpers ───────────────────────────────────────────────────────────────
-  int get _orderId =>
-      (widget.order['id'] is num)
-          ? (widget.order['id'] as num).toInt()
-          : int.tryParse('${widget.order['id'] ?? 0}') ?? 0;
+  int get _orderId {
+    final o = widget.order;
+    return (o['id'] is num)
+        ? (o['id'] as num).toInt()
+        : int.tryParse('${o['id'] ?? 0}') ?? 0;
+  }
+
+  // Coords — prefer rich order, fallback to FCM data
+  double get _pickupLat {
+    final r = _richOrder;
+    if (r != null) return (r['pickup']?['lat'] as num?)?.toDouble() ?? 0;
+    return double.tryParse('${widget.order['pickup_lat'] ?? 0}') ?? 0;
+  }
+  double get _pickupLng {
+    final r = _richOrder;
+    if (r != null) return (r['pickup']?['lng'] as num?)?.toDouble() ?? 0;
+    return double.tryParse('${widget.order['pickup_lng'] ?? 0}') ?? 0;
+  }
+  double get _delivLat {
+    final r = _richOrder;
+    if (r != null) return (r['delivery']?['lat'] as num?)?.toDouble() ?? 0;
+    return double.tryParse('${widget.order['delivery_lat'] ?? 0}') ?? 0;
+  }
+  double get _delivLng {
+    final r = _richOrder;
+    if (r != null) return (r['delivery']?['lng'] as num?)?.toDouble() ?? 0;
+    return double.tryParse('${widget.order['delivery_lng'] ?? 0}') ?? 0;
+  }
+
+  void _fitMapBounds() {
+    if (_mapCtrl == null) return;
+    final pLat = _pickupLat; final pLng = _pickupLng;
+    final dLat = _delivLat;  final dLng = _delivLng;
+    if (pLat == 0 && pLng == 0) return;
+    if (dLat == 0 && dLng == 0) {
+      _mapCtrl!.animateCamera(CameraUpdate.newLatLngZoom(LatLng(pLat, pLng), 14));
+      return;
+    }
+    final sw = LatLng(pLat < dLat ? pLat : dLat, pLng < dLng ? pLng : dLng);
+    final ne = LatLng(pLat > dLat ? pLat : dLat, pLng > dLng ? pLng : dLng);
+    _mapCtrl!.animateCamera(CameraUpdate.newLatLngBounds(
+      LatLngBounds(southwest: sw, northeast: ne), 80));
+  }
+
+  Set<Marker> get _markers {
+    final markers = <Marker>{};
+    final pLat = _pickupLat; final pLng = _pickupLng;
+    final dLat = _delivLat;  final dLng = _delivLng;
+    if (pLat != 0 || pLng != 0) {
+      markers.add(Marker(
+        markerId: const MarkerId('pickup'),
+        position: LatLng(pLat, pLng),
+        icon:     BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+        infoWindow: const InfoWindow(title: 'Pickup'),
+      ));
+    }
+    if (dLat != 0 || dLng != 0) {
+      markers.add(Marker(
+        markerId: const MarkerId('delivery'),
+        position: LatLng(dLat, dLng),
+        icon:     BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+        infoWindow: const InfoWindow(title: 'Delivery'),
+      ));
+    }
+    return markers;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final o        = widget.order;
-    final pickup   = (o['pickup']   as Map?)?.cast<String, dynamic>() ?? {};
-    final delivery = (o['delivery'] as Map?)?.cast<String, dynamic>() ?? {};
-    final module   = (o['module_slug'] ?? 'order').toString();
-
-    final fee      = double.tryParse('${o['delivery_fee']       ?? 0}') ?? 0;
-    final distance = double.tryParse('${o['distance_km']        ?? 0}') ?? 0;
-    final estMin   = int.tryParse   ('${o['estimated_minutes']  ?? 0}') ?? 0;
-    final toPickup = double.tryParse('${o['driver_to_pickup_km']?? 0}') ?? 0;
-    final orderNum = o['order_number']?.toString() ?? '';
-
+    final o          = widget.order;
+    final module     = (o['module_slug'] ?? 'order').toString();
     final moduleColor = _kModuleColors[module] ?? DC.orange;
-    final moduleIcon  = _kModuleIcons[module]  ?? Icons.delivery_dining_rounded;
     final moduleLabel = _kModuleLabels[module] ?? 'Delivery';
+    final moduleIcon  = _kModuleIcons[module]  ?? Icons.delivery_dining_rounded;
+    final orderNum   = (_richOrder?['order_number'] ?? o['order_number'] ?? '').toString();
 
-    final progress   = _secondsLeft / _kTimeout;
-    final timerColor = _secondsLeft > 20
+    // Earnings / distance / time — prefer rich data
+    final fee      = ((_richOrder?['delivery_fee'] ?? o['delivery_fee'] ?? 0) as num).toDouble();
+    final distance = ((_richOrder?['distance_km']  ?? o['distance_km']  ?? 0) as num).toDouble();
+    final estMin   = ((_richOrder?['estimated_minutes'] ?? o['estimated_minutes'] ?? 0) as num).toInt();
+    final toPickup = double.tryParse('${o['driver_to_pickup_km'] ?? 0}') ?? 0;
+
+    final progress    = _secondsLeft / _kTimeout;
+    final timerColor  = _secondsLeft > 20
         ? const Color(0xFF22C55E)
         : _secondsLeft > 10 ? DC.orange : DC.error;
 
-    final size = MediaQuery.of(context).size;
+    final hasMap = (_pickupLat != 0 || _pickupLng != 0);
+    final initialCamera = hasMap
+        ? CameraPosition(target: LatLng(_pickupLat, _pickupLng), zoom: 13)
+        : const CameraPosition(target: LatLng(2.0469, 45.3182), zoom: 12); // Mogadishu default
 
-    // Fix L-7: wrap with PopScope so the system back button calls _stopAll
-    // (cancels timer, stops audio, restores system UI) before navigating away.
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
@@ -257,257 +313,154 @@ class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen>
         await _decline();
       },
       child: Scaffold(
-      backgroundColor: const Color(0xFF060B14),
-      body: Stack(children: [
-        // ── Animated background ─────────────────────────────────────────────
-        _RippleBackground(
-          rippleAnim: _rippleAnim,
-          moduleColor: moduleColor,
-          size: size,
-        ),
+        backgroundColor: const Color(0xFF0A0E1A),
+        body: Stack(children: [
 
-        // ── Content ─────────────────────────────────────────────────────────
-        SafeArea(
-          child: Column(children: [
-            // Top: pulsing icon + module label + order number
-            Expanded(
-              flex: 4,
-              child: _TopHero(
-                pulseAnim:   _pulseAnim,
-                moduleColor: moduleColor,
-                moduleIcon:  moduleIcon,
-                moduleLabel: moduleLabel,
-                orderNumber: orderNum,
-              ),
+          // ── Google Maps (full screen behind sheet) ─────────────────────────
+          Positioned.fill(
+            child: GoogleMap(
+              initialCameraPosition: initialCamera,
+              markers:               _markers,
+              mapType:               MapType.normal,
+              myLocationButtonEnabled: false,
+              zoomControlsEnabled:  false,
+              compassEnabled:       false,
+              onMapCreated: (ctrl) {
+                _mapCtrl = ctrl;
+                _fitMapBounds();
+              },
             ),
+          ),
 
-            // Bottom: slide-up card with all order info + buttons
-            Expanded(
-              flex: 6,
-              child: SlideTransition(
-                position: _slideAnim,
-                child: _OrderCard(
-                  fee:          fee,
-                  distance:     distance,
-                  estMin:       estMin,
-                  toPickup:     toPickup,
-                  pickup:       pickup,
-                  delivery:     delivery,
-                  secondsLeft:  _secondsLeft,
-                  progress:     progress,
-                  timerColor:   timerColor,
-                  moduleColor:  moduleColor,
-                  accepting:    _accepting,
-                  declining:    _declining,
-                  onAccept:     _accept,
-                  onDecline:    () => _decline(),
+          // ── Dark gradient overlay at bottom (for sheet readability) ────────
+          Positioned(
+            left: 0, right: 0, bottom: 0,
+            height: MediaQuery.of(context).size.height * 0.62,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    const Color(0xFF0A0E1A).withValues(alpha: 0.85),
+                    const Color(0xFF0A0E1A),
+                  ],
+                  stops: const [0.0, 0.30, 0.55],
                 ),
               ),
             ),
-          ]),
-        ),
-      ]),
-    ), // Scaffold
-    ); // PopScope
-  }
-}
+          ),
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Ripple Background — animated dark gradient + expanding rings
-// ─────────────────────────────────────────────────────────────────────────────
-class _RippleBackground extends StatelessWidget {
-  final Animation<double> rippleAnim;
-  final Color moduleColor;
-  final Size  size;
-  const _RippleBackground({
-    required this.rippleAnim,
-    required this.moduleColor,
-    required this.size,
-  });
+          // ── Top bar: NEW ORDER chip + timer ───────────────────────────────
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Module chip
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color:        const Color(0xFF0A0E1A).withValues(alpha: 0.85),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: moduleColor.withValues(alpha: 0.5)),
+                    ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(moduleIcon, color: moduleColor, size: 14),
+                      const SizedBox(width: 5),
+                      Text(
+                        moduleLabel.toUpperCase(),
+                        style: TextStyle(
+                          color: moduleColor,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                    ]),
+                  ),
+                  // Countdown circle
+                  SizedBox(
+                    width: 50, height: 50,
+                    child: Stack(alignment: Alignment.center, children: [
+                      CircularProgressIndicator(
+                        value:           progress,
+                        strokeWidth:     3.5,
+                        backgroundColor: Colors.white.withValues(alpha: 0.12),
+                        valueColor:      AlwaysStoppedAnimation<Color>(timerColor),
+                      ),
+                      Text(
+                        '$_secondsLeft',
+                        style: TextStyle(
+                          color:      timerColor,
+                          fontSize:   15,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ]),
+                  ),
+                ],
+              ),
+            ),
+          ),
 
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: rippleAnim,
-      builder: (_, __) => CustomPaint(
-        size: size,
-        painter: _BgPainter(
-          ripple:      rippleAnim.value,
-          moduleColor: moduleColor,
-        ),
+          // ── Slide-up bottom sheet ──────────────────────────────────────────
+          Positioned(
+            left: 0, right: 0, bottom: 0,
+            child: AnimatedBuilder(
+              animation: _sheetAnim,
+              builder: (_, child) => FractionalTranslation(
+                translation: Offset(0, 1 - _sheetAnim.value),
+                child: child,
+              ),
+              child: _BottomSheet(
+                order:        widget.order,
+                richOrder:    _richOrder,
+                richLoading:  _richLoading,
+                fee:          fee,
+                distance:     distance,
+                estMin:       estMin,
+                toPickup:     toPickup,
+                orderNum:     orderNum,
+                moduleColor:  moduleColor,
+                accepting:    _accepting,
+                declining:    _declining,
+                onAccept:     _accept,
+                onDecline:    () => _decline(),
+              ),
+            ),
+          ),
+        ]),
       ),
     );
   }
 }
 
-class _BgPainter extends CustomPainter {
-  final double ripple;
+// ─────────────────────────────────────────────────────────────────────────────
+// Bottom Sheet — full order details
+// ─────────────────────────────────────────────────────────────────────────────
+class _BottomSheet extends StatelessWidget {
+  final Map<String, dynamic>  order;
+  final Map<String, dynamic>? richOrder;
+  final bool   richLoading;
+  final double fee, distance, toPickup;
+  final int    estMin;
+  final String orderNum;
   final Color  moduleColor;
-  _BgPainter({required this.ripple, required this.moduleColor});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    // Dark gradient background
-    final bgPaint = Paint()
-      ..shader = RadialGradient(
-        center: const Alignment(0, -0.3),
-        radius: 1.4,
-        colors: [
-          moduleColor.withValues(alpha: 0.18),
-          const Color(0xFF0A0F1E),
-          const Color(0xFF060B14),
-        ],
-        stops: const [0.0, 0.55, 1.0],
-      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
-    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), bgPaint);
-
-    // Three staggered ripple rings
-    final cx = size.width  / 2;
-    final cy = size.height * 0.38;
-    for (int i = 0; i < 3; i++) {
-      final t = (ripple + i / 3.0) % 1.0;
-      final radius = size.width * 0.28 + t * size.width * 0.42;
-      final opacity = (1.0 - t) * 0.22;
-      canvas.drawCircle(
-        Offset(cx, cy),
-        radius,
-        Paint()
-          ..color   = moduleColor.withValues(alpha: opacity)
-          ..style   = PaintingStyle.stroke
-          ..strokeWidth = 2.5,
-      );
-    }
-
-    // Glow behind icon
-    canvas.drawCircle(
-      Offset(cx, cy),
-      size.width * 0.20,
-      Paint()
-        ..color  = moduleColor.withValues(alpha: 0.07)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 40),
-    );
-  }
-
-  @override
-  bool shouldRepaint(_BgPainter old) =>
-      old.ripple != ripple || old.moduleColor != moduleColor;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Top Hero — pulsing icon, module label, order number
-// ─────────────────────────────────────────────────────────────────────────────
-class _TopHero extends StatelessWidget {
-  final Animation<double> pulseAnim;
-  final Color             moduleColor;
-  final IconData          moduleIcon;
-  final String            moduleLabel;
-  final String            orderNumber;
-  const _TopHero({
-    required this.pulseAnim,
-    required this.moduleColor,
-    required this.moduleIcon,
-    required this.moduleLabel,
-    required this.orderNumber,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        // Alert chip
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-          decoration: BoxDecoration(
-            color:        moduleColor.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(20),
-            border:       Border.all(color: moduleColor.withValues(alpha: 0.4)),
-          ),
-          child: Text(
-            'NEW ORDER',
-            style: TextStyle(
-              color:      moduleColor,
-              fontSize:   11,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 2.0,
-            ),
-          ),
-        ),
-
-        const SizedBox(height: 20),
-
-        // Pulsing icon
-        ScaleTransition(
-          scale: pulseAnim,
-          child: Container(
-            width: 96, height: 96,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  moduleColor.withValues(alpha: 0.30),
-                  moduleColor.withValues(alpha: 0.08),
-                ],
-              ),
-              border: Border.all(
-                  color: moduleColor.withValues(alpha: 0.55), width: 2),
-            ),
-            child: Icon(moduleIcon, size: 44, color: moduleColor),
-          ),
-        ),
-
-        const SizedBox(height: 18),
-
-        // Module label
-        Text(
-          moduleLabel,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 22,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.3,
-          ),
-        ),
-
-        const SizedBox(height: 6),
-
-        // Order number
-        if (orderNumber.isNotEmpty)
-          Text(
-            'Order #$orderNumber',
-            style: TextStyle(
-              color:      Colors.white.withValues(alpha: 0.45),
-              fontSize:   13,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Order Card — earnings, route, countdown, accept / decline
-// ─────────────────────────────────────────────────────────────────────────────
-class _OrderCard extends StatelessWidget {
-  final double   fee, distance, toPickup;
-  final int      estMin, secondsLeft;
-  final double   progress;
-  final Color    timerColor, moduleColor;
-  final Map<String, dynamic> pickup, delivery;
-  final bool     accepting, declining;
+  final bool   accepting, declining;
   final VoidCallback onAccept, onDecline;
 
-  const _OrderCard({
+  const _BottomSheet({
+    required this.order,
+    required this.richOrder,
+    required this.richLoading,
     required this.fee,
     required this.distance,
     required this.estMin,
     required this.toPickup,
-    required this.pickup,
-    required this.delivery,
-    required this.secondsLeft,
-    required this.progress,
-    required this.timerColor,
+    required this.orderNum,
     required this.moduleColor,
     required this.accepting,
     required this.declining,
@@ -518,105 +471,94 @@ class _OrderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      decoration: BoxDecoration(
-        color:        const Color(0xFF0E1520),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(
-            color: Colors.white.withValues(alpha: 0.07)),
-        boxShadow: [
-          BoxShadow(
-            color:       Colors.black.withValues(alpha: 0.55),
-            blurRadius:  30,
-            offset:      const Offset(0, -8),
-          ),
-        ],
+      decoration: const BoxDecoration(
+        color:        Color(0xFF0E1520),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Earnings row ─────────────────────────────────────────────
-            Row(children: [
-              Expanded(child: _StatTile(
-                label: 'Earnings',
-                value: '\$${fee.toStringAsFixed(2)}',
-                color: const Color(0xFF22C55E),
-                icon:  Icons.attach_money_rounded,
-              )),
-              if (distance > 0) ...[
-                const SizedBox(width: 10),
-                Expanded(child: _StatTile(
-                  label: 'Distance',
-                  value: '${distance.toStringAsFixed(1)} km',
-                  color: const Color(0xFF60A5FA),
-                  icon:  Icons.route_rounded,
-                )),
-              ],
-              if (estMin > 0) ...[
-                const SizedBox(width: 10),
-                Expanded(child: _StatTile(
-                  label: 'Est. Time',
-                  value: '${estMin}m',
-                  color: DC.orange,
-                  icon:  Icons.access_time_rounded,
-                )),
-              ],
-            ]),
-
-            const SizedBox(height: 16),
-
-            // ── Route ────────────────────────────────────────────────────
-            _RouteSection(
-              pickup:      pickup,
-              delivery:    delivery,
-              toPickup:    toPickup,
-              moduleColor: moduleColor,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Drag handle
+          Padding(
+            padding: const EdgeInsets.only(top: 10, bottom: 6),
+            child: Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color:        Colors.white.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
+          ),
 
-            const SizedBox(height: 16),
-
-            // ── Countdown ────────────────────────────────────────────────
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SizedBox(
-                  width: 48, height: 48,
-                  child: Stack(alignment: Alignment.center, children: [
-                    CircularProgressIndicator(
-                      value:       progress,
-                      strokeWidth: 3.5,
-                      backgroundColor:
-                          Colors.white.withValues(alpha: 0.08),
-                      valueColor:
-                          AlwaysStoppedAnimation<Color>(timerColor),
-                    ),
-                    Text(
-                      '$secondsLeft',
-                      style: TextStyle(
-                        color:      timerColor,
-                        fontSize:   15,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
+          // Scrollable content
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.58,
+            ),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── Earnings row ───────────────────────────────────────────
+                  Row(children: [
+                    Expanded(child: _StatTile(
+                      label: 'Earnings',
+                      value: '\$${fee.toStringAsFixed(2)}',
+                      color: const Color(0xFF22C55E),
+                      icon:  Icons.attach_money_rounded,
+                    )),
+                    if (distance > 0) ...[
+                      const SizedBox(width: 10),
+                      Expanded(child: _StatTile(
+                        label: 'Distance',
+                        value: '${distance.toStringAsFixed(1)} km',
+                        color: const Color(0xFF60A5FA),
+                        icon:  Icons.route_rounded,
+                      )),
+                    ],
+                    if (estMin > 0) ...[
+                      const SizedBox(width: 10),
+                      Expanded(child: _StatTile(
+                        label: 'Est. Time',
+                        value: '${estMin}m',
+                        color: DC.orange,
+                        icon:  Icons.access_time_rounded,
+                      )),
+                    ],
                   ]),
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  'Respond before time runs out',
-                  style: TextStyle(
-                    color:    Colors.white.withValues(alpha: 0.40),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
+
+                  const SizedBox(height: 14),
+
+                  // ── Details (loading skeleton or cards) ────────────────────
+                  if (richLoading)
+                    _LoadingSkeleton()
+                  else
+                    _DetailCards(
+                      fcmOrder:    order,
+                      richOrder:   richOrder,
+                      moduleColor: moduleColor,
+                      toPickup:    toPickup,
+                      orderNum:    orderNum,
+                    ),
+
+                  const SizedBox(height: 14),
+                ],
+              ),
             ),
+          ),
 
-            const SizedBox(height: 16),
-
-            // ── Buttons ──────────────────────────────────────────────────
-            Row(children: [
+          // ── Sticky buttons at bottom ───────────────────────────────────────
+          Container(
+            padding: EdgeInsets.fromLTRB(
+                16, 12, 16, MediaQuery.of(context).padding.bottom + 16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0E1520),
+              border: Border(
+                top: BorderSide(
+                    color: Colors.white.withValues(alpha: 0.06), width: 1)),
+            ),
+            child: Row(children: [
               // Decline
               Expanded(
                 flex: 2,
@@ -643,176 +585,434 @@ class _OrderCard extends StatelessWidget {
                 ),
               ),
             ]),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Route section — pickup → delivery with real addresses
+// Detail Cards — customer, vendor, route, parcel/items
 // ─────────────────────────────────────────────────────────────────────────────
-class _RouteSection extends StatelessWidget {
-  final Map<String, dynamic> pickup, delivery;
-  final double toPickup;
+class _DetailCards extends StatelessWidget {
+  final Map<String, dynamic>  fcmOrder;
+  final Map<String, dynamic>? richOrder;
   final Color  moduleColor;
-  const _RouteSection({
-    required this.pickup,
-    required this.delivery,
-    required this.toPickup,
+  final double toPickup;
+  final String orderNum;
+
+  const _DetailCards({
+    required this.fcmOrder,
+    required this.richOrder,
     required this.moduleColor,
+    required this.toPickup,
+    required this.orderNum,
   });
 
   @override
   Widget build(BuildContext context) {
-    final pickupDistrict  = pickup['district']  as String? ?? '';
-    final pickupAddress   = pickup['address']   as String? ?? '';
-    final delivDistrict   = delivery['district']as String? ?? '';
-    final delivAddress    = delivery['address'] as String? ?? '';
+    final r      = richOrder;
+    final module = (r?['module_slug'] ?? fcmOrder['module_slug'] ?? '').toString();
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color:        Colors.white.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(16),
-        border:       Border.all(
-            color: Colors.white.withValues(alpha: 0.06)),
-      ),
-      child: Column(children: [
-        // Pickup
-        _RouteRow(
-          dotColor: moduleColor,
-          label:    'PICKUP',
-          district: pickupDistrict,
-          address:  pickupAddress,
-          badge:    toPickup > 0
-              ? '${toPickup.toStringAsFixed(1)} km away'
-              : null,
-        ),
-        // Connector line
-        Padding(
-          padding: const EdgeInsets.only(left: 10),
-          child: Row(children: [
-            Container(
-              width: 2, height: 20,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    moduleColor.withValues(alpha: 0.6),
-                    const Color(0xFF22C55E).withValues(alpha: 0.6),
-                  ],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
+    // Pickup / delivery from rich order or FCM
+    final pickup = (r?['pickup'] as Map?)?.cast<String, dynamic>() ?? {
+      'district': fcmOrder['pickup_district'] ?? '',
+      'address':  fcmOrder['pickup_address']  ?? '',
+    };
+    final delivery = (r?['delivery'] as Map?)?.cast<String, dynamic>() ?? {
+      'district': fcmOrder['delivery_district'] ?? '',
+      'address':  fcmOrder['delivery_address']  ?? '',
+    };
+
+    // Customer (person receiving)
+    final custName  = (r?['delivery']?['name']  ?? '').toString();
+    final custPhone = (r?['delivery']?['phone'] ?? '').toString();
+
+    // Vendor / sender
+    final vendorName  = (r?['pickup']?['name']    ?? '').toString();
+    final vendorPhone = (r?['pickup']?['phone']   ?? '').toString();
+    final vendorAddr  = (pickup['address']        ?? '').toString();
+    final vendorDistr = (pickup['district']       ?? '').toString();
+
+    // Parcel
+    final parcel = (r?['parcel'] as Map?)?.cast<String, dynamic>();
+
+    // Items (for food/grocery)
+    final items      = r?['items'] as List?;
+    final itemsCount = (r?['items_count'] as num?)?.toInt() ??
+                       (items?.length ?? 0);
+
+    final orderNumDisplay = orderNum.isNotEmpty ? orderNum
+        : (r?['order_number'] ?? '').toString();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ── Route card ─────────────────────────────────────────────────────
+        _InfoCard(
+          child: Column(children: [
+            _RouteRow(
+              dotColor: moduleColor,
+              label:    'PICKUP',
+              title:    pickup['district']?.toString() ?? '',
+              subtitle: pickup['address']?.toString()  ?? '',
+              trailing: toPickup > 0 ? '${toPickup.toStringAsFixed(1)} km away' : null,
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 11),
+              child: Container(
+                width: 2, height: 16,
+                color: Colors.white.withValues(alpha: 0.10),
               ),
+            ),
+            _RouteRow(
+              dotColor: const Color(0xFF22C55E),
+              label:    'DELIVER',
+              title:    delivery['district']?.toString() ?? '',
+              subtitle: delivery['address']?.toString()  ?? '',
             ),
           ]),
         ),
-        // Delivery
-        _RouteRow(
-          dotColor: const Color(0xFF22C55E),
-          label:    'DELIVER',
-          district: delivDistrict,
-          address:  delivAddress,
-        ),
-      ]),
+
+        const SizedBox(height: 10),
+
+        // ── Customer card ──────────────────────────────────────────────────
+        if (custName.isNotEmpty || custPhone.isNotEmpty)
+          _PeopleCard(
+            icon:   Icons.person_rounded,
+            label:  'Customer',
+            color:  const Color(0xFF60A5FA),
+            name:   custName,
+            phone:  custPhone,
+          ),
+
+        if (custName.isNotEmpty || custPhone.isNotEmpty)
+          const SizedBox(height: 10),
+
+        // ── Vendor / Sender card ───────────────────────────────────────────
+        if (vendorName.isNotEmpty || vendorPhone.isNotEmpty)
+          _PeopleCard(
+            icon:    module == 'eparcel' ? Icons.inbox_rounded : Icons.storefront_rounded,
+            label:   module == 'eparcel' ? 'Sender' : 'Restaurant / Store',
+            color:   moduleColor,
+            name:    vendorName,
+            phone:   vendorPhone,
+            address: vendorDistr.isNotEmpty ? vendorDistr : vendorAddr,
+          ),
+
+        if (vendorName.isNotEmpty || vendorPhone.isNotEmpty)
+          const SizedBox(height: 10),
+
+        // ── Parcel info ────────────────────────────────────────────────────
+        if (parcel != null) _ParcelCard(parcel: parcel, moduleColor: moduleColor),
+        if (parcel != null) const SizedBox(height: 10),
+
+        // ── Items summary (food/grocery) ────────────────────────────────────
+        if (itemsCount > 0 && parcel == null)
+          _InfoCard(
+            child: Row(children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color:        moduleColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.receipt_long_rounded, color: moduleColor, size: 18),
+              ),
+              const SizedBox(width: 12),
+              Expanded(child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$itemsCount item${itemsCount == 1 ? '' : 's'}',
+                    style: const TextStyle(
+                        color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
+                  ),
+                  if (items != null && items.isNotEmpty)
+                    Text(
+                      items.take(3).map((it) {
+                        final name = it['name'] ?? it['product_name'] ?? '';
+                        final qty  = it['quantity'] ?? 1;
+                        return '${qty}x $name';
+                      }).join('  •  '),
+                      style: TextStyle(
+                          color:    Colors.white.withValues(alpha: 0.40),
+                          fontSize: 11),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                ],
+              )),
+            ]),
+          ),
+
+        if (itemsCount > 0 && parcel == null) const SizedBox(height: 10),
+
+        // ── Order number ───────────────────────────────────────────────────
+        if (orderNumDisplay.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 2),
+            child: Text(
+              'Order #$orderNumDisplay',
+              style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.25), fontSize: 11),
+            ),
+          ),
+      ],
     );
   }
 }
 
-class _RouteRow extends StatelessWidget {
-  final Color   dotColor;
-  final String  label, district, address;
-  final String? badge;
-  const _RouteRow({
-    required this.dotColor,
+// ─────────────────────────────────────────────────────────────────────────────
+// Loading skeleton — shown while API call is in flight
+// ─────────────────────────────────────────────────────────────────────────────
+class _LoadingSkeleton extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Column(children: [
+      _SkeletonBox(height: 88),
+      const SizedBox(height: 10),
+      _SkeletonBox(height: 64),
+      const SizedBox(height: 10),
+      _SkeletonBox(height: 64),
+    ]);
+  }
+}
+
+class _SkeletonBox extends StatelessWidget {
+  final double height;
+  const _SkeletonBox({required this.height});
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height:      height,
+      decoration: BoxDecoration(
+        color:        Colors.white.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(14),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// People Card — customer or vendor/sender
+// ─────────────────────────────────────────────────────────────────────────────
+class _PeopleCard extends StatelessWidget {
+  final IconData icon;
+  final String   label, name, phone;
+  final String?  address;
+  final Color    color;
+
+  const _PeopleCard({
+    required this.icon,
     required this.label,
-    required this.district,
-    required this.address,
-    this.badge,
+    required this.color,
+    required this.name,
+    required this.phone,
+    this.address,
   });
 
   @override
   Widget build(BuildContext context) {
-    final hasAddress = district.isNotEmpty || address.isNotEmpty;
-    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Column(children: [
+    return _InfoCard(
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Container(
-          width: 22, height: 22,
+          padding: const EdgeInsets.all(9),
           decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: dotColor.withValues(alpha: 0.15),
-            border: Border.all(color: dotColor, width: 2),
+            color:        color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(10),
           ),
-          child: Center(
-            child: Container(
-              width: 7, height: 7,
-              decoration: BoxDecoration(
-                  shape: BoxShape.circle, color: dotColor),
-            ),
-          ),
+          child: Icon(icon, color: color, size: 18),
         ),
-      ]),
-      const SizedBox(width: 10),
-      Expanded(
-        child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-          Row(children: [
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(
-              label,
+              label.toUpperCase(),
               style: TextStyle(
-                color:         dotColor,
-                fontSize:      10,
-                fontWeight:    FontWeight.w700,
-                letterSpacing: 1.4,
-              ),
+                  color: color, fontSize: 9,
+                  fontWeight: FontWeight.w800, letterSpacing: 1.2),
             ),
-            if (badge != null) ...[
-              const SizedBox(width: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 7, vertical: 2),
-                decoration: BoxDecoration(
-                  color:        dotColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  badge!,
-                  style: TextStyle(
-                      color: dotColor, fontSize: 9, fontWeight: FontWeight.w700),
-                ),
+            const SizedBox(height: 3),
+            if (name.isNotEmpty)
+              Text(name,
+                  style: const TextStyle(
+                      color: Colors.white, fontSize: 14,
+                      fontWeight: FontWeight.w700)),
+            if (phone.isNotEmpty) ...[
+              const SizedBox(height: 2),
+              Text(
+                phone,
+                style: TextStyle(
+                    color:    Colors.white.withValues(alpha: 0.45),
+                    fontSize: 12),
               ),
             ],
-          ]),
-          const SizedBox(height: 2),
-          if (hasAddress) ...[
-            if (district.isNotEmpty)
+            if (address != null && address!.isNotEmpty) ...[
+              const SizedBox(height: 2),
               Text(
-                district,
-                style: const TextStyle(
-                    color:      Colors.white,
-                    fontSize:   13,
-                    fontWeight: FontWeight.w600),
-              ),
-            if (address.isNotEmpty)
-              Text(
-                address,
+                address!,
                 style: TextStyle(
-                    color:    Colors.white.withValues(alpha: 0.40),
+                    color:    Colors.white.withValues(alpha: 0.35),
                     fontSize: 11),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-          ] else
+            ],
+          ]),
+        ),
+      ]),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Parcel Card
+// ─────────────────────────────────────────────────────────────────────────────
+class _ParcelCard extends StatelessWidget {
+  final Map<String, dynamic> parcel;
+  final Color moduleColor;
+  const _ParcelCard({required this.parcel, required this.moduleColor});
+
+  @override
+  Widget build(BuildContext context) {
+    final weight = parcel['weight']?.toString();
+    final type   = parcel['package_type']?.toString();
+    final desc   = parcel['description']?.toString();
+
+    return _InfoCard(
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Container(
+          padding: const EdgeInsets.all(9),
+          decoration: BoxDecoration(
+            color:        moduleColor.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(Icons.inventory_2_rounded, color: moduleColor, size: 18),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(
-              'Address not available',
+              'PARCEL INFO',
               style: TextStyle(
-                  color:    Colors.white.withValues(alpha: 0.25),
-                  fontSize: 12),
+                  color: moduleColor, fontSize: 9,
+                  fontWeight: FontWeight.w800, letterSpacing: 1.2),
             ),
-          const SizedBox(height: 6),
+            const SizedBox(height: 4),
+            if (type != null && type.isNotEmpty)
+              Text(
+                type,
+                style: const TextStyle(
+                    color: Colors.white, fontSize: 13,
+                    fontWeight: FontWeight.w700),
+              ),
+            if (weight != null && weight.isNotEmpty) ...[
+              const SizedBox(height: 2),
+              Text(
+                'Weight: $weight',
+                style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.45), fontSize: 12),
+              ),
+            ],
+            if (desc != null && desc.isNotEmpty) ...[
+              const SizedBox(height: 2),
+              Text(
+                desc,
+                style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.35), fontSize: 11),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ]),
+        ),
+      ]),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Info Card container
+// ─────────────────────────────────────────────────────────────────────────────
+class _InfoCard extends StatelessWidget {
+  final Widget child;
+  const _InfoCard({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color:        Colors.white.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
+      ),
+      child: child,
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Route Row
+// ─────────────────────────────────────────────────────────────────────────────
+class _RouteRow extends StatelessWidget {
+  final Color   dotColor;
+  final String  label, title, subtitle;
+  final String? trailing;
+  const _RouteRow({
+    required this.dotColor,
+    required this.label,
+    required this.title,
+    required this.subtitle,
+    this.trailing,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Container(
+        width: 22, height: 22,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: dotColor.withValues(alpha: 0.15),
+          border: Border.all(color: dotColor, width: 2),
+        ),
+        child: Center(child: Container(
+          width: 7, height: 7,
+          decoration: BoxDecoration(shape: BoxShape.circle, color: dotColor),
+        )),
+      ),
+      const SizedBox(width: 10),
+      Expanded(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Text(label, style: TextStyle(
+                color: dotColor, fontSize: 9,
+                fontWeight: FontWeight.w800, letterSpacing: 1.2)),
+            if (trailing != null) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                    color: dotColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6)),
+                child: Text(trailing!, style: TextStyle(
+                    color: dotColor, fontSize: 9, fontWeight: FontWeight.w700)),
+              ),
+            ],
+          ]),
+          const SizedBox(height: 2),
+          if (title.isNotEmpty)
+            Text(title, style: const TextStyle(
+                color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+          if (subtitle.isNotEmpty)
+            Text(subtitle, style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.38), fontSize: 11),
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+          const SizedBox(height: 4),
         ]),
       ),
     ]);
@@ -820,11 +1020,11 @@ class _RouteRow extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Stat tile
+// Stat Tile
 // ─────────────────────────────────────────────────────────────────────────────
 class _StatTile extends StatelessWidget {
-  final String label, value;
-  final Color  color;
+  final String   label, value;
+  final Color    color;
   final IconData icon;
   const _StatTile({
     required this.label,
@@ -845,26 +1045,19 @@ class _StatTile extends StatelessWidget {
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         Icon(icon, color: color, size: 18),
         const SizedBox(height: 5),
-        Text(
-          value,
-          style: TextStyle(
-              color: color, fontSize: 16, fontWeight: FontWeight.w800),
-        ),
+        Text(value, style: TextStyle(
+            color: color, fontSize: 16, fontWeight: FontWeight.w800)),
         const SizedBox(height: 2),
-        Text(
-          label,
-          style: TextStyle(
-              color:    Colors.white.withValues(alpha: 0.35),
-              fontSize: 10,
-              fontWeight: FontWeight.w500),
-        ),
+        Text(label, style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.35),
+            fontSize: 10, fontWeight: FontWeight.w500)),
       ]),
     );
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Action button
+// Action Button
 // ─────────────────────────────────────────────────────────────────────────────
 class _ActionButton extends StatelessWidget {
   final String   label;
@@ -872,6 +1065,7 @@ class _ActionButton extends StatelessWidget {
   final Color    bgColor, textColor;
   final bool     loading;
   final VoidCallback onTap;
+
   const _ActionButton({
     required this.label,
     required this.icon,
@@ -903,24 +1097,17 @@ class _ActionButton extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: loading
-              ? [
-                  SizedBox(
-                    width: 20, height: 20,
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2, color: textColor),
-                  ),
-                ]
+              ? [SizedBox(
+                  width: 20, height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: textColor))]
               : [
                   Icon(icon, color: textColor, size: 20),
                   const SizedBox(width: 7),
-                  Text(
-                    label,
-                    style: TextStyle(
-                        color:      textColor,
-                        fontSize:   15,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.5),
-                  ),
+                  Text(label, style: TextStyle(
+                      color:         textColor,
+                      fontSize:      15,
+                      fontWeight:    FontWeight.w800,
+                      letterSpacing: 0.5)),
                 ],
         ),
       ),

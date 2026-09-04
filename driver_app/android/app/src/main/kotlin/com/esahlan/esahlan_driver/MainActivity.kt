@@ -1,10 +1,6 @@
 package com.esahlan.esahlan_driver
 
-import android.app.NotificationManager
 import android.content.Intent
-import android.net.Uri
-import android.os.Build
-import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -32,23 +28,6 @@ class MainActivity : FlutterActivity() {
                 "getOrderAction" -> {
                     val action = intent?.getStringExtra("order_action")
                     result.success(action)
-                }
-
-                // Android 14 (API 34)+: request USE_FULL_SCREEN_INTENT permission
-                // Opens system Settings for the user to grant it.
-                "requestFullScreenIntent" -> {
-                    if (Build.VERSION.SDK_INT >= 34) {
-                        val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-                        if (!nm.canUseFullScreenIntent()) {
-                            try {
-                                val i = Intent("android.settings.MANAGE_APP_USE_FULL_SCREEN_INTENTS").apply {
-                                    setData(Uri.parse("package:$packageName"))
-                                }
-                                startActivity(i)
-                            } catch (_: Exception) {}
-                        }
-                    }
-                    result.success(null)
                 }
 
                 else -> result.notImplemented()

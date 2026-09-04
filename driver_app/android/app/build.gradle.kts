@@ -44,6 +44,10 @@ android {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    // Expose Firebase Messaging SDK to app-level Kotlin code (EsahlanMessagingService).
+    // The Flutter firebase_messaging plugin pulls this in as 'implementation' (private),
+    // so we must add it explicitly here for our native service to extend/use it.
+    implementation("com.google.firebase:firebase-messaging:24.1.1")
 }
 
 flutter {

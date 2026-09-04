@@ -238,17 +238,11 @@ class DriverLocationService {
         await Permission.notification.request();
       }
 
-      // USE_FULL_SCREEN_INTENT — Android 14+ requires explicit user grant.
-      // Without this, the fullScreenIntent notification won't pop over the
-      // lock screen automatically (only shows as heads-up notification).
-      // Permission ID 1034 = android.Manifest.permission.USE_FULL_SCREEN_INTENT
-      // We use a MethodChannel call since permission_handler doesn't expose this yet.
-      try {
-        const ch = MethodChannel('esahlan_intent');
-        await ch.invokeMethod('requestFullScreenIntent');
-      } catch (_) {
-        // Plugin not ready yet — permission will be requested on next launch
-      }
+      // USE_FULL_SCREEN_INTENT — auto-granted on Android < 14 (API < 34) when
+      // declared in AndroidManifest.xml. No runtime action needed.
+      // On Android 14+, users must grant it manually in Settings if it wasn't
+      // already granted at install time. We no longer prompt for it here to
+      // avoid a disruptive Settings redirect on first launch.
     }
   }
 

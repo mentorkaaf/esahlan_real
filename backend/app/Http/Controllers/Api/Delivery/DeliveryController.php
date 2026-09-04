@@ -412,6 +412,26 @@ class DeliveryController extends Controller
         return response()->json(['success' => true, 'message' => 'Order skipped']);
     }
 
+    /**
+     * Full order details for the ring screen.
+     * Called by Flutter IncomingOrderScreen to load customer/vendor/parcel info
+     * that is not included in the FCM payload.
+     */
+    public function ringOrder(Request $request, Order $order)
+    {
+        $dm = $this->dm($request);
+        if (!$dm) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
+        }
+        // The driver must be assigned to this order (or it's available to them)
+        if ($order->deliveryman_id && $order->deliveryman_id !== $dm->id) {
+            return response()->json(['success' => false, 'message' => 'Not your order'], 403);
+        }
+
+        $formatted = $this->formatOrder($order, $dm);
+        return response()->json(['success' => true, 'data' => $formatted]);
+    }
+
     public function updateOrderStatus(Request $request, Order $order)
     {
         $dm = $this->dm($request);

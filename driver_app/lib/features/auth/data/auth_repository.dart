@@ -66,6 +66,11 @@ class AuthRepository {
     return res.data['data'] as List;
   }
 
+  Future<Map<String, dynamic>> ringOrderDetails(int orderId) async {
+    final res = await _dio.get('/delivery/orders/$orderId/ring');
+    return res.data['data'] as Map<String, dynamic>;
+  }
+
   Future<void> acceptOrder(int orderId) async {
     await _dio.post('/delivery/orders/$orderId/accept');
   }

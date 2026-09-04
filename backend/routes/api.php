@@ -918,6 +918,7 @@ Route::prefix('v1')->group(function () {
             Route::get('orders/available',                  [DeliveryController::class, 'availableOrders']);
             Route::get('orders/active',                     [DeliveryController::class, 'activeOrders']);
             Route::get('orders/history',                    [DeliveryController::class, 'orderHistory']);
+            Route::get('orders/{order}/ring',               [DeliveryController::class, 'ringOrder']);
             Route::post('orders/{order}/accept',            [DeliveryController::class, 'acceptOrder']);
             Route::post('orders/{order}/reject',            [DeliveryController::class, 'rejectOrder']);
             Route::post('orders/{order}/status',            [DeliveryController::class, 'updateOrderStatus']);
