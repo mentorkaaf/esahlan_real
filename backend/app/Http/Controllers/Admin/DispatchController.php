@@ -246,8 +246,8 @@ class DispatchController extends Controller
     public function liveDrivers()
     {
         // Show ALL approved drivers — online and offline — so admin has full visibility.
-        // Offline drivers appear on map with grey markers.
-        $drivers = Deliveryman::with('user:id,name,phone,fcm_token')
+        // Offline drivers appear on map with grey markers (no location filter).
+        $drivers = Deliveryman::with('user:id,name,phone')
             ->where('is_approved', true)
             ->get()
             ->map(function ($d) {
