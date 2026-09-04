@@ -164,7 +164,7 @@ function renderDrivers(drivers) {
         var freshSec = d.last_seen_at
             ? Math.floor((Date.now() - new Date(d.last_seen_at).getTime()) / 1000)
             : 9999;
-        var isFresh = freshSec <= 300; // 5 min
+        var isFresh = freshSec <= 660; // 11 min — FCM pings every 5 min; give 2× buffer
         if (isBusy) busy++; else if (isFresh) online++;
 
         var isStale = !isFresh;
@@ -243,7 +243,7 @@ function renderDrivers(drivers) {
             (function(){
                 var sec = d.last_seen_at ? Math.floor((Date.now() - new Date(d.last_seen_at).getTime())/1000) : 9999;
                 if (sec <= 30)  return '<span style="color:#22c55e;font-weight:700;">● Live</span>';
-                if (sec <= 300) return '<span style="color:#22c55e;">● ' + d.last_seen + '</span>';
+                if (sec <= 660) return '<span style="color:#22c55e;">● ' + d.last_seen + '</span>';
                 return '<span style="color:#ef4444;font-weight:700;">⚠ ' + d.last_seen + '</span>';
             })() +
             '</div>' +
