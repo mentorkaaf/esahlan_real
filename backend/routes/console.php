@@ -5,6 +5,17 @@ use App\Services\FeedRankingService;
 use App\Services\CryptoMarketService;
 use App\Jobs\ScanCryptoDeposits;
 
+// ── Driver tracking: silent FCM ping to wake stale online drivers ─────────
+// Sends a data-only FCM to every is_online=true driver who hasn't posted a
+// location in the last 3 minutes.  The Flutter _bgHandler receives it and
+// calls _postLocationHttp() — works even if the app is completely killed.
+// No notification is shown; only GPS is posted silently.
+Schedule::command('drivers:ping-location')
+    ->everyFiveMinutes()
+    ->name('drivers:ping-location')
+    ->withoutOverlapping()
+    ->runInBackground();
+
 // ── Driver tracking: auto-offline stale drivers every 5 minutes ──────────
 // Marks drivers offline when their background service stops posting locations
 // (foreground service posts every 5 s; 10-min gap = service is dead).
