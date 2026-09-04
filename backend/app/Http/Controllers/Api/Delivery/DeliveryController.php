@@ -557,11 +557,20 @@ class DeliveryController extends Controller
         if (!$dm) return response()->json(['success' => false], 404);
 
         $dm->loadMissing('user:id,name');
-        $dm->update([
+        // Auto-mark driver as online whenever a location ping arrives.
+        // This ensures the live map shows the driver even if they forgot to
+        // toggle "go online" in the app, and keeps the status fresh as long
+        // as the background service is posting locations.
+        $updateData = [
             'latitude'        => $request->latitude,
             'longitude'       => $request->longitude,
             'last_location_at'=> now(),
-        ]);
+        ];
+        if (!$dm->is_online) {
+            $updateData['is_online'] = true;
+            $updateData['status']    = $dm->status === 'offline' ? 'available' : $dm->status;
+        }
+        $dm->update($updateData);
 
         if ($request->order_id) {
             $order = Order::find($request->order_id);

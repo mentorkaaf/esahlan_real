@@ -158,9 +158,16 @@ function renderDrivers(drivers) {
 
         var pos = { lat: d.latitude, lng: d.longitude };
         var isBusy = d.status === 'busy';
-        if (isBusy) busy++; else if (d.is_online && !d.is_stale) online++;
+        // Use freshness (last seen ≤ 5 min) as the "online" signal,
+        // not just the is_online flag — background service may keep
+        // sending locations even before the driver taps "go online".
+        var freshSec = d.last_seen_at
+            ? Math.floor((Date.now() - new Date(d.last_seen_at).getTime()) / 1000)
+            : 9999;
+        var isFresh = freshSec <= 300; // 5 min
+        if (isBusy) busy++; else if (isFresh) online++;
 
-        var isStale = d.is_stale || false;
+        var isStale = !isFresh;
         // Green=online+fresh, Orange=busy, Grey=stale/offline
         var fillColor = isBusy ? '#f97316' : isStale ? '#9ca3af' : '#22c55e';
         var icon = makeBikeMarkerIcon(fillColor, isStale ? 0.75 : 1);
@@ -233,7 +240,12 @@ function renderDrivers(drivers) {
             '<div class="dp-meta">' +
             (d.order ? '📦 #' + d.order.order_number + ' &nbsp;·&nbsp; ' : '') +
             (d.vehicle_type ? vehicleIcon(d.vehicle_type) : '') + ' &nbsp;·&nbsp; ' +
-            (d.is_stale ? '<span style="color:#ef4444;font-weight:700;">⚠ Last seen ' + d.last_seen + '</span>' : '<span style="color:#22c55e;">● ' + d.last_seen + '</span>') +
+            (function(){
+                var sec = d.last_seen_at ? Math.floor((Date.now() - new Date(d.last_seen_at).getTime())/1000) : 9999;
+                if (sec <= 30)  return '<span style="color:#22c55e;font-weight:700;">● Live</span>';
+                if (sec <= 300) return '<span style="color:#22c55e;">● ' + d.last_seen + '</span>';
+                return '<span style="color:#ef4444;font-weight:700;">⚠ ' + d.last_seen + '</span>';
+            })() +
             '</div>' +
         '</div>';
     }).join('');
@@ -329,8 +341,7 @@ function clearRoute() {
                 // Channel: admin.dispatch | Event: .driver_location (broadcastAs name)
                 echo.channel('admin.dispatch').listen('.driver_location', function(e) {
                     console.log('[LiveMap] WS update', e);
-
-                    // Build / merge driver record
+                    var now = new Date().toISOString();
                     var existing = driversData[e.deliveryman_id] || {};
                     var updated  = Object.assign({}, existing, {
                         id:           e.deliveryman_id,
@@ -338,8 +349,10 @@ function clearRoute() {
                         latitude:     parseFloat(e.lat),
                         longitude:    parseFloat(e.lng),
                         status:       e.status || existing.status || 'available',
+                        is_online:    true,
+                        is_stale:     false,
                         last_seen:    'just now',
-                        last_seen_at: e.updated_at || new Date().toISOString(),
+                        last_seen_at: e.updated_at || now,
                     });
                     driversData[e.deliveryman_id] = updated;
                     renderDrivers(Object.values(driversData));

@@ -5,6 +5,15 @@ use App\Services\FeedRankingService;
 use App\Services\CryptoMarketService;
 use App\Jobs\ScanCryptoDeposits;
 
+// ── Driver tracking: auto-offline stale drivers every 5 minutes ──────────
+// Marks drivers offline when their background service stops posting locations
+// (foreground service posts every 5 s; 10-min gap = service is dead).
+Schedule::command('drivers:mark-stale-offline')
+    ->everyFiveMinutes()
+    ->name('drivers:mark-stale-offline')
+    ->withoutOverlapping()
+    ->runInBackground();
+
 // Recompute post quality scores every 5 minutes
 Schedule::call(fn () => FeedRankingService::recomputePostScores())
     ->everyFiveMinutes()

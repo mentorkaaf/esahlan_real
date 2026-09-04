@@ -6,6 +6,8 @@ import 'package:geolocator/geolocator.dart';
 import '../core/theme/driver_colors.dart';
 import '../core/services/app_update_checker.dart';
 import '../core/services/firebase_service.dart';
+import '../core/services/location_service.dart';
+import '../core/storage/local_storage.dart';
 
 class MainShell extends StatefulWidget {
   final Widget child;
@@ -65,6 +67,22 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed && _initialized) {
       _checkLocation();
       _checkPendingOrder();
+      // Ensure foreground service is still running if driver was online.
+      // The OS may have killed it while app was in background.
+      _ensureTrackingAlive();
+    }
+  }
+
+  // ── Re-start foreground service if it was killed by the OS ───────────────
+  Future<void> _ensureTrackingAlive() async {
+    final token = await LocalStorage.getToken();
+    if (token == null) return; // not logged in
+    final wasTracking = await LocalStorage.getBool('driver_was_tracking');
+    if (!wasTracking) return; // driver chose to be offline
+    if (!DriverLocationService.isRunning) {
+      // Service died — restart it silently
+      await DriverLocationService.startTracking();
+      debugPrint('[Shell] Foreground service restarted after OS kill');
     }
   }
 
