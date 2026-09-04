@@ -128,23 +128,7 @@ var trailPolylines = {};   // keyed by driver_id — GPS history polylines
 var activeTrailId  = null; // which driver's trail is currently shown
 var trailMinutes   = 60;   // default: last 1 hour
 
-// ── Dark map style ─────────────────────────────────────────────────────────
-var DARK_MAP_STYLE = [
-    {elementType:'geometry',stylers:[{color:'#0f172a'}]},
-    {elementType:'labels.text.stroke',stylers:[{color:'#0f172a'}]},
-    {elementType:'labels.text.fill',stylers:[{color:'#64748b'}]},
-    {featureType:'administrative.locality',elementType:'labels.text.fill',stylers:[{color:'#94a3b8'}]},
-    {featureType:'poi',stylers:[{visibility:'off'}]},
-    {featureType:'road',elementType:'geometry',stylers:[{color:'#1e293b'}]},
-    {featureType:'road',elementType:'geometry.stroke',stylers:[{color:'#0f172a'}]},
-    {featureType:'road',elementType:'labels.text.fill',stylers:[{color:'#475569'}]},
-    {featureType:'road.highway',elementType:'geometry',stylers:[{color:'#1e40af'}]},
-    {featureType:'road.highway',elementType:'geometry.stroke',stylers:[{color:'#172554'}]},
-    {featureType:'road.highway',elementType:'labels.text.fill',stylers:[{color:'#93c5fd'}]},
-    {featureType:'transit',stylers:[{visibility:'off'}]},
-    {featureType:'water',elementType:'geometry',stylers:[{color:'#0c1a2e'}]},
-    {featureType:'water',elementType:'labels.text.fill',stylers:[{color:'#1e40af'}]},
-];
+// ── Map style: default Google Maps (no custom style) ─────────────────────
 
 // ── Marker: rotating arrow + speed-based color ring ───────────────────────
 function makeDriverMarker(color, heading, speed, isStale, batteryLow) {
@@ -188,11 +172,10 @@ function initMap() {
         zoom: 13,
         center: { lat: 2.0469, lng: 45.3182 },
         mapTypeId: 'roadmap',
-        styles: DARK_MAP_STYLE,
         disableDefaultUI: false,
         zoomControl: true,
-        mapTypeControl: false,
-        streetViewControl: false,
+        mapTypeControl: true,
+        streetViewControl: true,
         fullscreenControl: true,
     });
     infoWindow = new google.maps.InfoWindow();
