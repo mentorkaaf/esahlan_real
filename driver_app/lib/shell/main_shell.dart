@@ -41,12 +41,21 @@ class _MainShellState extends ConsumerState<MainShell> with WidgetsBindingObserv
     // ── Wire up the in-app new-order navigation ──────────────────────────
     FirebaseService().onNewOrder = _handleIncomingOrder;
 
-    // Listen for new intents from OrderCallActivity (background → foreground)
+    // Listen for new intents from MainActivity (background → foreground via notification tap)
+    // Note: OrderCallActivity is removed; fullScreenIntent now launches MainActivity directly.
+    // When MainActivity receives the ring intent, onNewIntent fires this handler.
+    // Since no order_action extra is set, _handleOrderAction returns early,
+    // and didChangeAppLifecycleState.resumed → _checkPendingOrder() shows the ring screen.
     _intentCh.setMethodCallHandler((call) async {
       if (call.method == 'onNewIntent') {
         final action = call.arguments as String?;
         debugPrint('[Shell] onNewIntent order_action=$action');
-        await _handleOrderAction(action);
+        if (action != null && action.isNotEmpty) {
+          await _handleOrderAction(action);
+        } else {
+          // Ring notification tapped with no specific action → show ring screen
+          await _checkPendingOrder();
+        }
       }
     });
 
@@ -114,26 +123,17 @@ class _MainShellState extends ConsumerState<MainShell> with WidgetsBindingObserv
     }
   }
 
-  // ── Check if native OrderCallActivity set an accept/decline action ─────────
-  // Called on startup. The native activity writes 'accept' or 'decline' to
-  // SharedPreferences key 'flutter.pending_ring_action'. We consume it here
-  // and auto-process the action without showing the ring screen.
+  // ── Legacy: check if OrderCallActivity set an accept/decline action ─────────
+  // OrderCallActivity is no longer used (fullScreenIntent now launches
+  // MainActivity directly). This method is kept as a harmless no-op fallback
+  // in case a very old pending_ring_action was left from a previous install.
   Future<void> _checkNativeOrderAction() async {
     try {
-      // Read intent extras set by OrderCallActivity via MainActivity
-      final action = await _intentCh.invokeMethod<String?>('getOrderAction');
-      if (action != null && action.isNotEmpty) {
-        debugPrint('[Shell] native order_action from intent=$action');
-        await _handleOrderAction(action);
-        return; // don't also show ring screen
-      }
-
-      // Fallback: SharedPreferences (set by OrderCallActivity directly)
       final prefs = await SharedPreferences.getInstance();
       final saved = prefs.getString('pending_ring_action');
       if (saved != null && saved.isNotEmpty) {
         await prefs.remove('pending_ring_action');
-        debugPrint('[Shell] native order_action from prefs=$saved');
+        debugPrint('[Shell] legacy ring_action from prefs=$saved');
         await _handleOrderAction(saved);
       }
     } catch (e) {

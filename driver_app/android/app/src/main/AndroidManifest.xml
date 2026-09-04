@@ -58,21 +58,9 @@
             </intent-filter>
         </activity>
 
-        <!--
-             OrderCallActivity — native full-screen incoming-call UI.
-             Launched via fullScreenIntent from CallPlugin notification.
-             showWhenLocked + turnScreenOn: pops over lock screen instantly.
-             launchMode singleInstance: only one call screen at a time.
-        -->
-        <activity
-            android:name=".OrderCallActivity"
-            android:exported="false"
-            android:launchMode="singleInstance"
-            android:showWhenLocked="true"
-            android:turnScreenOn="true"
-            android:theme="@style/LaunchTheme"
-            android:excludeFromRecents="true"
-            android:configChanges="orientation|screenSize|keyboardHidden"/>
+        <!-- OrderCallActivity removed — fullScreenIntent now launches MainActivity
+             directly so the new Flutter IncomingOrderScreen shows for both
+             foreground and background/killed states. -->
 
         <meta-data
             android:name="flutterEmbedding"
@@ -106,8 +94,9 @@
              EsahlanMessagingService — native FCM handler.
              Extends FlutterFirebaseMessagingService so Flutter _bgHandler still
              runs for non-new_order messages (request_location, token refresh, etc).
-             For new_order when app is killed/background: shows fullScreenIntent
-             notification directly → OrderCallActivity, no Flutter engine needed.
+             For new_order when app is killed/background: saves order to SharedPrefs
+             then shows fullScreenIntent notification → MainActivity → Flutter
+             IncomingOrderScreen (checkPendingOrder reads the saved order).
         -->
         <service
             android:name=".EsahlanMessagingService"
