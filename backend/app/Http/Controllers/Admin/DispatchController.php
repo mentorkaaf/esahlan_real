@@ -235,6 +235,14 @@ class DispatchController extends Controller
                         unset($activeOrder->delivery_address, $activeOrder->vendor_id);
                     }
                 }
+                // Reliability: % of expected pings received (simple rolling metric)
+                $staleMin = $d->last_location_at
+                    ? \Carbon\Carbon::parse($d->last_location_at)->diffInMinutes(now())
+                    : 9999;
+                $reliability = $d->missed_pings > 0
+                    ? max(0, round(100 - ($d->missed_pings * 8)))  // -8% per missed ping
+                    : 100;
+
                 return [
                     'id'           => $d->id,
                     'name'         => self::cleanName($d->user?->name) ?: 'Driver #' . $d->id,
@@ -246,10 +254,16 @@ class DispatchController extends Controller
                     'last_seen'    => \Carbon\Carbon::parse($d->last_location_at)->diffForHumans(),
                     'last_seen_at' => $d->last_location_at,
                     'is_online'    => (bool) $d->is_online,
-                    'is_stale'           => $d->last_location_at && \Carbon\Carbon::parse($d->last_location_at)->diffInMinutes(now()) > 5,
+                    'is_stale'           => $staleMin > 5,
                     'rating'             => round($d->rating ?? 5, 1),
                     'order'              => $activeOrder,
                     'active_orders_count'=> $activeOrdersCount,
+                    // Telemetry
+                    'speed'         => $d->speed !== null ? round((float)$d->speed * 3.6, 1) : null, // km/h
+                    'heading'       => $d->heading !== null ? (float) $d->heading : null,
+                    'battery_level' => $d->battery_level !== null ? (int) $d->battery_level : null,
+                    'missed_pings'  => (int) ($d->missed_pings ?? 0),
+                    'reliability'   => $reliability,
                 ];
             });
 

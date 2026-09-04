@@ -3,26 +3,58 @@
 
 @push('styles')
 <style>
-#live-map { width:100%;height:calc(100vh - 200px);min-height:500px;border-radius:16px;overflow:hidden; }
-.map-toolbar { display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap; }
-.map-stat { background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:10px 16px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700; }
-.dot { width:10px;height:10px;border-radius:50%;display:inline-block; }
-.dot-green { background:#22c55e; }
-.dot-orange { background:#f97316; }
-.dot-gray { background:#9ca3af; }
-.pulse { animation:pulse 1.5s infinite; }
-@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
-#last-updated { font-size:11px;color:#9ca3af;margin-left:auto; }
-.driver-panel { position:absolute;right:16px;top:80px;width:280px;background:#fff;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.12);z-index:10;overflow:hidden;max-height:calc(100% - 100px);display:flex;flex-direction:column; }
-.dp-header { padding:14px 16px;background:#1e293b;color:#fff;font-weight:800;font-size:14px;display:flex;align-items:center;gap:8px; }
-.dp-list { overflow-y:auto;flex:1; }
-.dp-item { padding:12px 14px;border-bottom:1px solid #f3f4f6;cursor:pointer;transition:background .15s; }
-.dp-item:hover { background:#f9fafb; }
-.dp-name { font-weight:700;font-size:13px;color:#111;margin-bottom:3px; }
-.dp-meta { font-size:11px;color:#6b7280; }
-.dp-badge { display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700; }
-.dp-badge.available { background:#dcfce7;color:#15803d; }
-.dp-badge.busy { background:#fef9c3;color:#92400e; }
+/* ── Enterprise Dispatch Center ───────────────────────────────────────────── */
+#live-map { width:100%;height:calc(100vh - 170px);min-height:560px;border-radius:0;overflow:hidden; }
+.dispatch-wrap { position:relative;background:#0f172a;border-radius:16px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.35); }
+
+/* Stats bar */
+.dispatch-stats { display:flex;align-items:stretch;gap:0;background:#0f172a;border-bottom:1px solid rgba(255,255,255,.06);padding:0; }
+.ds-stat { display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px 24px;border-right:1px solid rgba(255,255,255,.06);min-width:120px;cursor:default; }
+.ds-stat:last-child { border-right:none;margin-left:auto; }
+.ds-val { font-size:22px;font-weight:900;color:#fff;line-height:1; }
+.ds-lbl { font-size:10px;color:#64748b;font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-top:3px; }
+.ds-dot { width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px;vertical-align:middle; }
+.dot-live { background:#22c55e;box-shadow:0 0 8px #22c55e; }
+.dot-busy { background:#f97316; }
+.dot-gray { background:#475569; }
+.pulse { animation:pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+#last-updated { font-size:10px;color:#475569;font-weight:500; }
+#ws-status { display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;background:rgba(34,197,94,.12);color:#22c55e;transition:all .3s; }
+#ws-status.offline { background:rgba(239,68,68,.12);color:#ef4444; }
+
+/* Driver panel */
+.driver-panel { position:absolute;right:12px;top:12px;width:290px;background:#0f172a;border:1px solid rgba(255,255,255,.08);border-radius:14px;z-index:10;overflow:hidden;max-height:calc(100% - 24px);display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,.4); }
+.dp-header { padding:12px 14px;background:rgba(255,255,255,.04);color:#e2e8f0;font-weight:800;font-size:13px;display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(255,255,255,.06); }
+.dp-search { width:100%;padding:8px 12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:8px;color:#e2e8f0;font-size:12px;margin:8px 0 4px;outline:none; }
+.dp-search::placeholder { color:#475569; }
+.dp-list { overflow-y:auto;flex:1;scrollbar-width:thin;scrollbar-color:#1e293b transparent; }
+.dp-item { padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;transition:background .15s; }
+.dp-item:hover { background:rgba(255,255,255,.05); }
+.dp-item.active { background:rgba(59,130,246,.12);border-left:3px solid #3b82f6; }
+.dp-name { font-weight:700;font-size:12px;color:#e2e8f0;margin-bottom:4px;display:flex;align-items:center;justify-content:space-between; }
+.dp-meta { font-size:10px;color:#64748b;display:flex;align-items:center;gap:6px;flex-wrap:wrap; }
+.dp-badge { display:inline-block;padding:1px 7px;border-radius:20px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.04em; }
+.dp-badge.available { background:rgba(34,197,94,.15);color:#4ade80; }
+.dp-badge.busy { background:rgba(249,115,22,.15);color:#fb923c; }
+.dp-badge.offline { background:rgba(100,116,139,.15);color:#94a3b8; }
+
+/* Speed / Battery chips */
+.chip { display:inline-flex;align-items:center;gap:3px;padding:1px 5px;border-radius:4px;font-size:9px;font-weight:700; }
+.chip-spd { background:rgba(59,130,246,.18);color:#93c5fd; }
+.chip-spd.fast { background:rgba(249,115,22,.18);color:#fb923c; }
+.chip-spd.vfast { background:rgba(239,68,68,.18);color:#f87171; }
+.chip-bat { background:rgba(34,197,94,.18);color:#4ade80; }
+.chip-bat.low { background:rgba(239,68,68,.18);color:#f87171; }
+.chip-bat.mid { background:rgba(249,115,22,.18);color:#fb923c; }
+.chip-rel { background:rgba(99,102,241,.18);color:#a5b4fc; }
+
+/* Offline alert banner */
+.alert-bar { display:none;position:absolute;top:0;left:0;right:0;z-index:20;padding:8px 16px;background:rgba(239,68,68,.9);color:#fff;font-size:12px;font-weight:700;text-align:center;backdrop-filter:blur(8px); }
+.alert-bar.show { display:block;animation:slideDown .3s ease; }
+@keyframes slideDown { from{transform:translateY(-100%)} to{transform:translateY(0)} }
+
+/* Map wrap */
 .map-wrap { position:relative; }
 </style>
 @endpush
@@ -42,30 +74,46 @@
     </a>
 </div>
 
-<div class="map-toolbar">
-    <div class="map-stat">
-        <span class="dot dot-green pulse"></span>
-        <span id="cnt-online">0</span> Online
-    </div>
-    <div class="map-stat">
-        <span class="dot dot-orange"></span>
-        <span id="cnt-busy">0</span> On Delivery
-    </div>
-    <div class="map-stat">
-        <span class="dot dot-gray"></span>
-        <span id="cnt-total">0</span> Total Active
-    </div>
-    <div id="last-updated">Updating...</div>
-</div>
-
-<div class="map-wrap">
-    <div id="live-map"></div>
-    <div class="driver-panel">
-        <div class="dp-header">
-            <i class="fas fa-motorcycle"></i> Active Drivers
-            <span id="dp-count" style="margin-left:auto;background:rgba(255,255,255,.2);padding:2px 8px;border-radius:20px;font-size:11px;">0</span>
+<div class="dispatch-wrap">
+    <!-- Stats bar -->
+    <div class="dispatch-stats">
+        <div class="ds-stat">
+            <div class="ds-val"><span class="ds-dot dot-live pulse"></span><span id="cnt-online">0</span></div>
+            <div class="ds-lbl">Live Online</div>
         </div>
-        <div class="dp-list" id="driver-list"></div>
+        <div class="ds-stat">
+            <div class="ds-val"><span class="ds-dot dot-busy"></span><span id="cnt-busy">0</span></div>
+            <div class="ds-lbl">On Delivery</div>
+        </div>
+        <div class="ds-stat">
+            <div class="ds-val"><span class="ds-dot dot-gray"></span><span id="cnt-total">0</span></div>
+            <div class="ds-lbl">Total Active</div>
+        </div>
+        <div class="ds-stat" style="border-right:none;">
+            <div class="ds-val" style="font-size:13px;"><span id="cnt-bat-warn" style="color:#f87171;">0</span> <span style="color:#64748b;font-size:11px;">low battery</span></div>
+            <div class="ds-lbl">Driver Alerts</div>
+        </div>
+        <div class="ds-stat" style="margin-left:auto;border-right:none;padding:8px 16px;">
+            <div id="ws-status"><span>● LIVE</span></div>
+            <div id="last-updated" style="margin-top:3px;">Updating...</div>
+        </div>
+    </div>
+
+    <!-- Map + panel -->
+    <div class="map-wrap">
+        <div id="alert-bar" class="alert-bar"></div>
+        <div id="live-map"></div>
+        <div class="driver-panel">
+            <div class="dp-header">
+                <i class="fas fa-satellite-dish" style="color:#22c55e;"></i>
+                Dispatch Center
+                <span id="dp-count" style="margin-left:auto;background:rgba(34,197,94,.15);color:#4ade80;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:900;">0</span>
+            </div>
+            <div style="padding:0 10px;">
+                <input id="driver-search" class="dp-search" type="text" placeholder="🔍  Search driver..." oninput="filterDrivers(this.value)">
+            </div>
+            <div class="dp-list" id="driver-list"></div>
+        </div>
     </div>
 </div>
 @endsection
@@ -80,33 +128,97 @@ var trailPolylines = {};   // keyed by driver_id — GPS history polylines
 var activeTrailId  = null; // which driver's trail is currently shown
 var trailMinutes   = 60;   // default: last 1 hour
 
-// ── Init Map ──────────────────────────────────────────────────────────────
-// Motorcycle/bike icon — circular badge, no pin shape
-function makeBikeMarkerIcon(color, opacity) {
-    opacity = (typeof opacity === 'number') ? opacity : 1;
-    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 44 44">'
-        + '<circle cx="22" cy="22" r="20" fill="' + color + '" fill-opacity="' + opacity + '" stroke="#ffffff" stroke-width="2.5"/>'
-        + '<path fill="#ffffff" fill-opacity="' + opacity + '" transform="translate(6,6) scale(1.33)" d="M19 8c-.6 0-1.1.1-1.6.3L15.5 6H17V4h-3l-1.5-2H9L7.5 4H5v1.5L3.3 7.7C2.5 8.1 2 9 2 10c0 1.7 1.3 3 3 3s3-1.3 3-3c0-.4-.1-.8-.2-1.1L9.2 8h5.6l1 1.3C15.3 9.8 15 10.4 15 11c0 1.7 1.3 3 3 3s3-1.3 3-3-1.3-3-2-3zm-14 3.5c-.8 0-1.5-.7-1.5-1.5S4.2 8.5 5 8.5c.6 0 1.1.3 1.3.8L5.5 10H5v1h.5c-.2.3-.3.5-.5.5zm13 0c-.8 0-1.5-.7-1.5-1.5s.7-1.5 1.5-1.5 1.5.7 1.5 1.5-.7 1.5-1.5 1.5z"/>'
+// ── Dark map style ─────────────────────────────────────────────────────────
+var DARK_MAP_STYLE = [
+    {elementType:'geometry',stylers:[{color:'#0f172a'}]},
+    {elementType:'labels.text.stroke',stylers:[{color:'#0f172a'}]},
+    {elementType:'labels.text.fill',stylers:[{color:'#64748b'}]},
+    {featureType:'administrative.locality',elementType:'labels.text.fill',stylers:[{color:'#94a3b8'}]},
+    {featureType:'poi',stylers:[{visibility:'off'}]},
+    {featureType:'road',elementType:'geometry',stylers:[{color:'#1e293b'}]},
+    {featureType:'road',elementType:'geometry.stroke',stylers:[{color:'#0f172a'}]},
+    {featureType:'road',elementType:'labels.text.fill',stylers:[{color:'#475569'}]},
+    {featureType:'road.highway',elementType:'geometry',stylers:[{color:'#1e40af'}]},
+    {featureType:'road.highway',elementType:'geometry.stroke',stylers:[{color:'#172554'}]},
+    {featureType:'road.highway',elementType:'labels.text.fill',stylers:[{color:'#93c5fd'}]},
+    {featureType:'transit',stylers:[{visibility:'off'}]},
+    {featureType:'water',elementType:'geometry',stylers:[{color:'#0c1a2e'}]},
+    {featureType:'water',elementType:'labels.text.fill',stylers:[{color:'#1e40af'}]},
+];
+
+// ── Marker: rotating arrow + speed-based color ring ───────────────────────
+function makeDriverMarker(color, heading, speed, isStale, batteryLow) {
+    var rot    = (heading != null && !isNaN(heading)) ? heading : 0;
+    var kmh    = speed || 0;
+    var ringC  = isStale ? '#475569'
+               : kmh > 60 ? '#ef4444'
+               : kmh > 30 ? '#f97316'
+               : '#22c55e';
+    var batWarn = (batteryLow && !isStale)
+        ? '<rect x="34" y="4" width="8" height="4" rx="1" fill="#ef4444"/><rect x="35" y="5" width="6" height="2" fill="#ef4444" opacity=".5"/>'
+        : '';
+    // Outer ring pulses when live
+    var pulse = isStale ? '' : '<circle cx="22" cy="22" r="21" fill="none" stroke="' + ringC + '" stroke-width="1.5" opacity=".3"><animate attributeName="r" values="21;24;21" dur="2s" repeatCount="indefinite"/><animate attributeName="opacity" values=".3;0;.3" dur="2s" repeatCount="indefinite"/></circle>';
+
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 44 44">'
+        // Direction arrow (rotated around center 22,22)
+        + '<g transform="rotate(' + rot + ' 22 22)">'
+        // Shadow
+        + '<ellipse cx="22" cy="26" rx="10" ry="4" fill="#000" opacity=".25"/>'
+        // Body circle
+        + '<circle cx="22" cy="22" r="16" fill="' + (isStale ? '#1e293b' : color) + '" stroke="' + ringC + '" stroke-width="2.5"/>'
+        // Motorcycle icon
+        + '<path fill="#fff" opacity="' + (isStale ? '.4' : '.95') + '" transform="translate(8,10) scale(1.15)" d="M19 8c-.6 0-1.1.1-1.6.3L15.5 6H17V4h-3l-1.5-2H9L7.5 4H5v1.5L3.3 7.7C2.5 8.1 2 9 2 10c0 1.7 1.3 3 3 3s3-1.3 3-3c0-.4-.1-.8-.2-1.1L9.2 8h5.6l1 1.3C15.3 9.8 15 10.4 15 11c0 1.7 1.3 3 3 3s3-1.3 3-3-1.3-3-2-3zm-14 3.5c-.8 0-1.5-.7-1.5-1.5S4.2 8.5 5 8.5c.6 0 1.1.3 1.3.8L5.5 10H5v1h.5c-.2.3-.3.5-.5.5zm13 0c-.8 0-1.5-.7-1.5-1.5s.7-1.5 1.5-1.5 1.5.7 1.5 1.5-.7 1.5-1.5 1.5z"/>'
+        // Heading arrow tip (when moving)
+        + (kmh > 3 ? '<polygon points="22,3 18,10 22,8 26,10" fill="' + ringC + '" opacity=".95"/>' : '')
+        + '</g>'
+        + pulse
+        + batWarn
         + '</svg>';
+
     return {
         url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg),
-        scaledSize: new google.maps.Size(44, 44),
-        anchor: new google.maps.Point(22, 22),
+        scaledSize: new google.maps.Size(48, 48),
+        anchor: new google.maps.Point(24, 24),
     };
 }
 
 function initMap() {
     map = new google.maps.Map(document.getElementById('live-map'), {
         zoom: 13,
-        center: { lat: 2.0469, lng: 45.3182 },  // Mogadishu default
+        center: { lat: 2.0469, lng: 45.3182 },
         mapTypeId: 'roadmap',
-        styles: [
-            { featureType:'transit', stylers:[{visibility:'off'}] }
-        ],
+        styles: DARK_MAP_STYLE,
+        disableDefaultUI: false,
+        zoomControl: true,
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: true,
     });
     infoWindow = new google.maps.InfoWindow();
     fetchDrivers();
     setInterval(fetchDrivers, 5000);
+    // Check offline alerts every 30s
+    setInterval(checkOfflineAlerts, 30000);
+}
+
+// ── Offline alert: flash banner when any driver unreachable >15 min ───────
+function checkOfflineAlerts() {
+    var bar = document.getElementById('alert-bar');
+    var stale = Object.values(driversData).filter(function(d) {
+        if (!d.wants_tracking && !d.is_online) return false;
+        var sec = d.last_seen_at
+            ? Math.floor((Date.now() - new Date(d.last_seen_at).getTime()) / 1000)
+            : 9999;
+        return sec > 900; // >15 min
+    });
+    if (stale.length > 0) {
+        var names = stale.map(function(d) { return d.name; }).join(', ');
+        bar.textContent = '⚠ UNREACHABLE: ' + names + ' — Last seen >' + Math.round(stale[0].last_seen_at ? (Date.now() - new Date(stale[0].last_seen_at).getTime()) / 60000 : 99) + ' min ago';
+        bar.classList.add('show');
+    } else {
+        bar.classList.remove('show');
+    }
 }
 
 // ── Strip emoji / non-BMP characters (fixes mojibake from DB) ────────────
@@ -142,12 +254,19 @@ function fetchDrivers() {
         .catch(() => {});
 }
 
-function renderDrivers(drivers) {
-    var online = 0, busy = 0;
+// ── Driver search filter ──────────────────────────────────────────────────
+var _searchQuery = '';
+function filterDrivers(q) {
+    _searchQuery = (q || '').toLowerCase();
+    renderDrivers(Object.values(driversData));
+}
 
-    // Remove markers for drivers no longer active
-    var activeIds = drivers.map(d => d.id);
-    Object.keys(driverMarkers).forEach(id => {
+function renderDrivers(drivers) {
+    var online = 0, busy = 0, batWarn = 0;
+
+    // Remove markers for drivers no longer in the list
+    var activeIds = drivers.map(function(d) { return d.id; });
+    Object.keys(driverMarkers).forEach(function(id) {
         if (!activeIds.includes(parseInt(id))) {
             driverMarkers[id].setMap(null);
             delete driverMarkers[id];
@@ -159,21 +278,27 @@ function renderDrivers(drivers) {
         if (!d.latitude || !d.longitude) return;
         driversData[d.id] = d;
 
-        var pos = { lat: d.latitude, lng: d.longitude };
+        var pos = { lat: parseFloat(d.latitude), lng: parseFloat(d.longitude) };
         var isBusy = d.status === 'busy';
-        // Use freshness (last seen ≤ 5 min) as the "online" signal,
-        // not just the is_online flag — background service may keep
-        // sending locations even before the driver taps "go online".
         var freshSec = d.last_seen_at
             ? Math.floor((Date.now() - new Date(d.last_seen_at).getTime()) / 1000)
             : 9999;
-        var isFresh = freshSec <= 660; // 11 min — FCM pings every 5 min; give 2× buffer
-        if (isBusy) busy++; else if (isFresh) online++;
+        var isFresh  = freshSec <= 660;
+        var isStale  = !isFresh;
+        var batLow   = d.battery_level != null && d.battery_level < 20;
+        var kmh      = d.speed || 0;
 
-        var isStale = !isFresh;
-        // Green=online+fresh, Orange=busy, Grey=stale/offline
-        var fillColor = isBusy ? '#f97316' : isStale ? '#9ca3af' : '#22c55e';
-        var icon = makeBikeMarkerIcon(fillColor, isStale ? 0.75 : 1);
+        if (isBusy) busy++;
+        else if (isFresh) online++;
+        if (batLow) batWarn++;
+
+        // Marker color: busy=orange, stale=dark, fast=red, normal=green
+        var markerColor = isBusy ? '#f97316'
+                        : isStale ? '#1e293b'
+                        : kmh > 60 ? '#ef4444'
+                        : kmh > 30 ? '#f97316'
+                        : '#0ea5e9';  // cyan-blue for normal live
+        var icon = makeDriverMarker(markerColor, d.heading, kmh, isStale, batLow);
 
         if (driverMarkers[d.id]) {
             driverMarkers[d.id].setPosition(pos);
@@ -192,13 +317,25 @@ function renderDrivers(drivers) {
                 var hasPick = dd.order && dd.order.pickup_lat && dd.order.pickup_lng;
                 var hasDeliv = dd.order && dd.order.delivery_lat && dd.order.delivery_lng;
 
-                var content = '<div style="font-family:sans-serif;min-width:210px;">' +
-                    '<div style="font-weight:800;font-size:14px;margin-bottom:6px;">' + dd.name + '</div>' +
-                    '<div style="font-size:12px;color:#666;margin-bottom:4px;"><i class="fas fa-phone"></i> ' + (dd.phone || '—') + '</div>' +
+                var rel   = dd.missed_pings > 0 ? Math.max(0, 100 - dd.missed_pings * 8) : 100;
+                var relColor = rel >= 80 ? '#22c55e' : rel >= 50 ? '#f97316' : '#ef4444';
+                var speedStr = (dd.speed != null) ? Math.round(dd.speed) + ' km/h' : '—';
+                var batStr   = (dd.battery_level != null) ? dd.battery_level + '%' : '—';
+                var batColor = (dd.battery_level != null && dd.battery_level < 20) ? '#ef4444' : '#22c55e';
+                var content = '<div style="font-family:sans-serif;min-width:230px;background:#0f172a;color:#e2e8f0;border-radius:10px;overflow:hidden;">' +
+                    '<div style="background:linear-gradient(135deg,#1e293b,#0f172a);padding:12px 14px;border-bottom:1px solid #334155;">' +
+                    '<div style="font-weight:800;font-size:15px;margin-bottom:3px;">' + dd.name + '</div>' +
+                    '<div style="font-size:11px;color:#64748b;"><i class="fas fa-phone"></i> ' + (dd.phone || '—') + ' &nbsp;·&nbsp; ' + (dd.vehicle_type ? vehicleIcon(dd.vehicle_type) : '—') + '</div>' +
+                    '</div>' +
+                    '<div style="padding:10px 14px;">' +
+                    '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">' +
+                    '<span style="background:#1e40af22;color:#60a5fa;border:1px solid #1e40af44;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;">⚡ ' + speedStr + '</span>' +
+                    '<span style="background:#' + (dd.battery_level < 20 ? 'ef444422' : '22c55e22') + ';color:' + batColor + ';border:1px solid ' + batColor + '44;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;">🔋 ' + batStr + '</span>' +
+                    '<span style="background:' + relColor + '22;color:' + relColor + ';border:1px solid ' + relColor + '44;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;">📡 ' + rel + '%</span>' +
+                    '</div>' +
                     '<div style="font-size:12px;margin-bottom:4px;"><b>Status:</b> <span style="color:' + (iB ? '#f97316' : '#22c55e') + '">' + dd.status.toUpperCase() + '</span></div>' +
-                    '<div style="font-size:12px;color:#666;"><b>Vehicle:</b> ' + (dd.vehicle_type ? vehicleIcon(dd.vehicle_type) : '—') + '</div>' +
-                    (dd.order ? '<div style="font-size:12px;margin-top:6px;padding:6px;background:#fef9c3;border-radius:6px;"><b>Order:</b> #' + dd.order.order_number + ' (' + dd.order.status + ')</div>' : '') +
-                    '<div style="font-size:10px;color:#9ca3af;margin-top:6px;">Last seen: ' + dd.last_seen + '</div>' +
+                    (dd.order ? '<div style="font-size:12px;margin-bottom:6px;padding:6px;background:#1e293b;border-radius:6px;border:1px solid #334155;"><b>Order:</b> #' + dd.order.order_number + ' (' + dd.order.status + ')</div>' : '') +
+                    '<div style="font-size:10px;color:#64748b;margin-bottom:8px;">Last seen: ' + dd.last_seen + '</div>' +
                     '<button onclick="requestLocation(' + dd.id + ', this)" style="margin-top:8px;width:100%;padding:6px;border:none;border-radius:6px;background:#1e40af;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">📍 Request Location</button>' +
                     // GPS trail controls
                     '<div style="margin-top:8px;background:#f8fafc;border-radius:8px;padding:8px;">' +
@@ -216,9 +353,9 @@ function renderDrivers(drivers) {
                     '</div>' +
                     (hasPick && hasDeliv ?
                         '<button onclick="drawDriverRoute(' + dd.latitude + ',' + dd.longitude + ',' + dd.order.pickup_lat + ',' + dd.order.pickup_lng + ',' + dd.order.delivery_lat + ',' + dd.order.delivery_lng + ')" style="margin-top:6px;width:100%;padding:6px;border:none;border-radius:6px;background:#f97316;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">🗺 Show Delivery Route</button>' +
-                        '<button onclick="clearRoute()" style="margin-top:4px;width:100%;padding:5px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;color:#374151;font-size:11px;cursor:pointer;">✕ Clear Route</button>'
+                        '<button onclick="clearRoute()" style="margin-top:4px;width:100%;padding:5px;border:1px solid #334155;border-radius:6px;background:#1e293b;color:#94a3b8;font-size:11px;cursor:pointer;">✕ Clear Route</button>'
                     : '') +
-                    '</div>';
+                    '</div></div>';
                 infoWindow.setContent(content);
                 infoWindow.open(map, marker);
 
@@ -237,32 +374,51 @@ function renderDrivers(drivers) {
     document.getElementById('cnt-busy').textContent   = busy;
     document.getElementById('cnt-total').textContent  = total;
     document.getElementById('dp-count').textContent   = total;
+    // Battery alert stat (if element exists)
+    var batEl = document.getElementById('cnt-bat-warn');
+    if (batEl) batEl.textContent = batWarn;
 
-    // Side panel
+    // Side panel — apply search filter
+    var filtered = _searchQuery
+        ? drivers.filter(function(d) { return stripEmoji(d.name).toLowerCase().indexOf(_searchQuery) !== -1; })
+        : drivers;
+
     var list = document.getElementById('driver-list');
-    if (drivers.length === 0) {
-        list.innerHTML = '<div style="padding:24px;text-align:center;color:#9ca3af;font-size:13px;"><i class="fas fa-motorcycle" style="font-size:24px;margin-bottom:8px;display:block;"></i>No active drivers</div>';
+    if (filtered.length === 0) {
+        list.innerHTML = '<div style="padding:24px;text-align:center;color:#64748b;font-size:13px;"><i class="fas fa-motorcycle" style="font-size:24px;margin-bottom:8px;display:block;opacity:.4;"></i>' + (_searchQuery ? 'No match found' : 'No active drivers') + '</div>';
         return;
     }
-    list.innerHTML = drivers.map(function(d) {
-        var isBusy = d.status === 'busy';
+    list.innerHTML = filtered.map(function(d) {
+        var isBusy  = d.status === 'busy';
+        var freshSec2 = d.last_seen_at ? Math.floor((Date.now() - new Date(d.last_seen_at).getTime())/1000) : 9999;
+        var isStale2 = freshSec2 > 660;
+        var kmh2     = d.speed || 0;
+        var batLow2  = d.battery_level != null && d.battery_level < 20;
+        var rel2     = d.missed_pings > 0 ? Math.max(0, 100 - d.missed_pings * 8) : 100;
+        var relColor2 = rel2 >= 80 ? '#22c55e' : rel2 >= 50 ? '#f59e0b' : '#ef4444';
+        var liveChip = isStale2
+            ? '<span style="color:#ef4444;font-size:10px;font-weight:700;">⚠ ' + d.last_seen + '</span>'
+            : freshSec2 <= 30
+                ? '<span style="color:#22c55e;font-size:10px;font-weight:700;">● Live</span>'
+                : '<span style="color:#22c55e;font-size:10px;">● ' + d.last_seen + '</span>';
         var ordersBadge = (isBusy && d.active_orders_count > 0)
-            ? '<span style="margin-left:5px;background:#f97316;color:#fff;border-radius:20px;padding:1px 7px;font-size:10px;font-weight:800;">' + d.active_orders_count + ' order' + (d.active_orders_count > 1 ? 's' : '') + '</span>'
+            ? '<span style="margin-left:5px;background:#f97316;color:#fff;border-radius:20px;padding:1px 6px;font-size:10px;font-weight:800;">' + d.active_orders_count + '×</span>'
             : '';
+        // Telemetry chips
+        var chips = '';
+        if (kmh2 > 0) chips += '<span style="background:#1e3a5f;color:#60a5fa;padding:1px 6px;border-radius:10px;font-size:10px;">⚡' + Math.round(kmh2) + 'km/h</span> ';
+        if (d.battery_level != null) chips += '<span style="background:' + (batLow2 ? '#3f1515' : '#152b1e') + ';color:' + (batLow2 ? '#f87171' : '#4ade80') + ';padding:1px 6px;border-radius:10px;font-size:10px;">🔋' + d.battery_level + '%</span> ';
+        chips += '<span style="background:' + relColor2 + '22;color:' + relColor2 + ';padding:1px 6px;border-radius:10px;font-size:10px;">📡' + rel2 + '%</span>';
         return '<div class="dp-item" onclick="panTo(' + d.latitude + ',' + d.longitude + ',' + d.id + ')">' +
-            '<div style="display:flex;align-items:center;justify-content:space-between;">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">' +
             '<div class="dp-name">' + stripEmoji(d.name) + ordersBadge + '</div>' +
             '<span class="dp-badge ' + d.status + '">' + d.status + '</span>' +
             '</div>' +
+            '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px;">' + chips + '</div>' +
             '<div class="dp-meta">' +
             (d.order ? '📦 #' + d.order.order_number + ' &nbsp;·&nbsp; ' : '') +
             (d.vehicle_type ? vehicleIcon(d.vehicle_type) : '') + ' &nbsp;·&nbsp; ' +
-            (function(){
-                var sec = d.last_seen_at ? Math.floor((Date.now() - new Date(d.last_seen_at).getTime())/1000) : 9999;
-                if (sec <= 30)  return '<span style="color:#22c55e;font-weight:700;">● Live</span>';
-                if (sec <= 660) return '<span style="color:#22c55e;">● ' + d.last_seen + '</span>';
-                return '<span style="color:#ef4444;font-weight:700;">⚠ ' + d.last_seen + '</span>';
-            })() +
+            liveChip +
             '</div>' +
         '</div>';
     }).join('');
@@ -475,15 +631,19 @@ function clearRoute() {
                     var now = new Date().toISOString();
                     var existing = driversData[e.deliveryman_id] || {};
                     var updated  = Object.assign({}, existing, {
-                        id:           e.deliveryman_id,
-                        name:         e.name || existing.name || 'Driver',
-                        latitude:     parseFloat(e.lat),
-                        longitude:    parseFloat(e.lng),
-                        status:       e.status || existing.status || 'available',
-                        is_online:    true,
-                        is_stale:     false,
-                        last_seen:    'just now',
-                        last_seen_at: e.updated_at || now,
+                        id:            e.deliveryman_id,
+                        name:          e.name || existing.name || 'Driver',
+                        latitude:      parseFloat(e.lat),
+                        longitude:     parseFloat(e.lng),
+                        status:        e.status || existing.status || 'available',
+                        is_online:     true,
+                        is_stale:      false,
+                        last_seen:     'just now',
+                        last_seen_at:  e.updated_at || now,
+                        speed:         e.speed     != null ? parseFloat(e.speed)     : existing.speed,
+                        heading:       e.heading   != null ? parseFloat(e.heading)   : existing.heading,
+                        battery_level: e.battery_level != null ? parseInt(e.battery_level) : existing.battery_level,
+                        missed_pings:  e.missed_pings  != null ? parseInt(e.missed_pings)  : 0,
                     });
                     driversData[e.deliveryman_id] = updated;
                     renderDrivers(Object.values(driversData));

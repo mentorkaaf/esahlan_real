@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:battery_plus/battery_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
@@ -51,13 +52,20 @@ Future<void> _postLocationHttp({int? orderId}) async {
       req.headers.set('Authorization', 'Bearer $token');
       req.headers.set('Content-Type', 'application/json');
       req.headers.set('Accept', 'application/json');
+      // Read battery level (best-effort — don't fail if unavailable)
+      int? batteryLevel;
+      try {
+        batteryLevel = await Battery().batteryLevel;
+      } catch (_) {}
+
       req.write(jsonEncode({
-        'latitude':  pos.latitude,
-        'longitude': pos.longitude,
-        'accuracy':  pos.accuracy,
-        'speed':     pos.speed,
-        'heading':   pos.heading,
-        'timestamp': pos.timestamp.toIso8601String(),
+        'latitude':      pos.latitude,
+        'longitude':     pos.longitude,
+        'accuracy':      pos.accuracy,
+        'speed':         pos.speed >= 0 ? pos.speed : null,
+        'heading':       pos.heading >= 0 ? pos.heading : null,
+        'timestamp':     pos.timestamp.toIso8601String(),
+        'battery_level': batteryLevel,
         if (orderId != null) 'order_id': orderId,
       }));
       final res = await req.close();

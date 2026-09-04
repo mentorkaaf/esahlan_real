@@ -38,6 +38,9 @@ dependencies:
   # App version & update check
   package_info_plus: ^8.0.0
 
+  # Battery level — sent with every GPS ping for admin map display
+  battery_plus: ^6.0.3
+
   # Audio — voice messages
   audioplayers: ^6.1.0
   audio_waveforms: ^1.2.0

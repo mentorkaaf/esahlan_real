@@ -561,11 +561,21 @@ class DeliveryController extends Controller
         // This ensures the live map shows the driver even if they forgot to
         // toggle "go online" in the app, and keeps the status fresh as long
         // as the background service is posting locations.
+        $speed    = $request->speed    !== null ? (float) $request->speed    : null;
+        $heading  = $request->heading  !== null ? (float) $request->heading  : null;
+        $battery  = $request->battery_level !== null ? (int) $request->battery_level : null;
+        $accuracy = $request->accuracy !== null ? (float) $request->accuracy : null;
+
         $updateData = [
             'latitude'        => $request->latitude,
             'longitude'       => $request->longitude,
             'last_location_at'=> now(),
+            'missed_pings'    => 0,   // reset reliability counter on every successful ping
         ];
+        if ($speed   !== null) $updateData['speed']   = $speed;
+        if ($heading !== null) $updateData['heading']  = $heading;
+        if ($battery !== null) $updateData['battery_level'] = $battery;
+
         if (!$dm->is_online) {
             $updateData['is_online'] = true;
             $updateData['status']    = $dm->status === 'offline' ? 'available' : $dm->status;
@@ -578,11 +588,15 @@ class DeliveryController extends Controller
         }
         $dm->update($updateData);
 
-        // ── Append to route history (used by admin live map polyline) ────────
+        // ── Append to route history (speed, heading, battery, accuracy) ──────
         DB::table('driver_location_history')->insert([
             'deliveryman_id' => $dm->id,
             'latitude'       => $request->latitude,
             'longitude'      => $request->longitude,
+            'speed'          => $speed,
+            'heading'        => $heading,
+            'accuracy'       => $accuracy,
+            'battery_level'  => $battery,
             'created_at'     => now(),
         ]);
 
@@ -605,15 +619,19 @@ class DeliveryController extends Controller
             }
         }
 
-        // Broadcast to admin drivers channel for live map
+        // Broadcast to admin drivers channel for live map (with telemetry)
         broadcast(new \App\Events\DriverLocationUpdated(
-            $dm->id,
-            $dm->user_id,
-            $dm->user?->name ?? 'Driver',
-            $request->latitude,
-            $request->longitude,
-            $dm->status,
-            $request->order_id,
+            deliverymanId: $dm->id,
+            userId:        $dm->user_id,
+            name:          $dm->user?->name ?? 'Driver',
+            lat:           (float) $request->latitude,
+            lng:           (float) $request->longitude,
+            status:        $dm->status,
+            orderId:       $request->order_id ? (int) $request->order_id : null,
+            speed:         $speed,
+            heading:       $heading,
+            batteryLevel:  $battery,
+            missedPings:   0,
         ))->toOthers();
 
         return response()->json(['success' => true]);

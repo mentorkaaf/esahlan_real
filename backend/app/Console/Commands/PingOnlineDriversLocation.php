@@ -72,6 +72,16 @@ class PingOnlineDriversLocation extends Command
         $sent   = 0;
         $failed = 0;
 
+        // Also increment missed_pings for drivers who haven't responded in 10+ min
+        // (they received FCM pings but still haven't posted location)
+        $veryStale = now()->subMinutes(10);
+        Deliveryman::where('wants_tracking', true)
+            ->where(function ($q) use ($veryStale) {
+                $q->whereNull('last_location_at')
+                  ->orWhere('last_location_at', '<', $veryStale);
+            })
+            ->increment('missed_pings');
+
         foreach ($rows as $row) {
             // Send a silent data-only FCM — no notification shown to driver
             $ok = FcmService::sendDataOnly($row->fcm_token, [

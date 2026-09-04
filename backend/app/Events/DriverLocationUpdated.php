@@ -24,7 +24,11 @@ class DriverLocationUpdated implements ShouldBroadcastNow
         public readonly float   $lat,
         public readonly float   $lng,
         public readonly string  $status,
-        public readonly ?int    $orderId = null,
+        public readonly ?int    $orderId     = null,
+        public readonly ?float  $speed       = null,   // m/s
+        public readonly ?float  $heading     = null,   // 0-360°
+        public readonly ?int    $batteryLevel = null,  // 0-100
+        public readonly ?int    $missedPings  = null,  // reliability
     ) {}
 
     public function broadcastOn(): array
@@ -47,6 +51,10 @@ class DriverLocationUpdated implements ShouldBroadcastNow
             'lng'            => $this->lng,
             'status'         => $this->status,
             'order_id'       => $this->orderId,
+            'speed'          => $this->speed,          // m/s — null if unknown
+            'heading'        => $this->heading,        // 0-360° — null if stationary
+            'battery_level'  => $this->batteryLevel,  // 0-100 — null if unavailable
+            'missed_pings'   => $this->missedPings,   // reliability counter
             'updated_at'     => now()->toIso8601String(),
         ];
     }
