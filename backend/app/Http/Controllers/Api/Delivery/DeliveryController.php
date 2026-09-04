@@ -578,6 +578,14 @@ class DeliveryController extends Controller
         }
         $dm->update($updateData);
 
+        // ── Append to route history (used by admin live map polyline) ────────
+        DB::table('driver_location_history')->insert([
+            'deliveryman_id' => $dm->id,
+            'latitude'       => $request->latitude,
+            'longitude'      => $request->longitude,
+            'created_at'     => now(),
+        ]);
+
         if ($request->order_id) {
             $order = Order::find($request->order_id);
             if ($order && $order->deliveryman_id === $dm->id) {

@@ -283,4 +283,41 @@ class DispatchController extends Controller
         ]);
     }
 
+    /**
+     * Return the GPS trail for one driver (for admin map polyline).
+     *
+     * GET /admin/dispatch/driver/{id}/route?minutes=60
+     *
+     * Response: { success: true, driver_id, name, points: [{lat, lng, ts}] }
+     * Max window: 1440 min (24 h). Default: 60 min.
+     * Points are ordered oldest → newest so the polyline draws correctly.
+     */
+    public function driverRoute(Request $request, int $deliverymanId)
+    {
+        $dm = Deliveryman::with('user:id,name')->find($deliverymanId);
+        if (!$dm) return response()->json(['success' => false, 'message' => 'Driver not found'], 404);
+
+        $minutes = (int) $request->get('minutes', 60);
+        $minutes = max(5, min($minutes, 1440)); // clamp 5 min – 24 h
+
+        $points = DB::table('driver_location_history')
+            ->where('deliveryman_id', $deliverymanId)
+            ->where('created_at', '>=', now()->subMinutes($minutes))
+            ->orderBy('created_at')
+            ->select(
+                DB::raw('CAST(latitude  AS DECIMAL(10,7)) as lat'),
+                DB::raw('CAST(longitude AS DECIMAL(10,7)) as lng'),
+                DB::raw('UNIX_TIMESTAMP(created_at) as ts'),
+            )
+            ->get();
+
+        return response()->json([
+            'success'   => true,
+            'driver_id' => $dm->id,
+            'name'      => $dm->user?->name,
+            'minutes'   => $minutes,
+            'points'    => $points,
+        ]);
+    }
+
 }

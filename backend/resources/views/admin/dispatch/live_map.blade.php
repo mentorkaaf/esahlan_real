@@ -74,8 +74,11 @@
 <script>
 // ── State ─────────────────────────────────────────────────────────────────
 var map, infoWindow;
-var driverMarkers = {};   // keyed by driver_id
-var driversData   = {};   // latest data per driver
+var driverMarkers  = {};   // keyed by driver_id
+var driversData    = {};   // latest data per driver
+var trailPolylines = {};   // keyed by driver_id — GPS history polylines
+var activeTrailId  = null; // which driver's trail is currently shown
+var trailMinutes   = 60;   // default: last 1 hour
 
 // ── Init Map ──────────────────────────────────────────────────────────────
 // Motorcycle/bike icon — circular badge, no pin shape
@@ -197,8 +200,22 @@ function renderDrivers(drivers) {
                     (dd.order ? '<div style="font-size:12px;margin-top:6px;padding:6px;background:#fef9c3;border-radius:6px;"><b>Order:</b> #' + dd.order.order_number + ' (' + dd.order.status + ')</div>' : '') +
                     '<div style="font-size:10px;color:#9ca3af;margin-top:6px;">Last seen: ' + dd.last_seen + '</div>' +
                     '<button onclick="requestLocation(' + dd.id + ', this)" style="margin-top:8px;width:100%;padding:6px;border:none;border-radius:6px;background:#1e40af;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">📍 Request Location</button>' +
+                    // GPS trail controls
+                    '<div style="margin-top:8px;background:#f8fafc;border-radius:8px;padding:8px;">' +
+                    '<div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:5px;">🛤 GPS Trail</div>' +
+                    '<div style="display:flex;gap:4px;margin-bottom:6px;">' +
+                    '<button class="trail-btn" onclick="setTrailMinutes(30,this)" style="flex:1;padding:4px;border:1px solid #e5e7eb;border-radius:5px;background:#fff;font-size:10px;cursor:pointer;">30m</button>' +
+                    '<button class="trail-btn" onclick="setTrailMinutes(60,this)" style="flex:1;padding:4px;border:1px solid #e5e7eb;border-radius:5px;background:#fff;font-size:10px;font-weight:800;cursor:pointer;">1h</button>' +
+                    '<button class="trail-btn" onclick="setTrailMinutes(240,this)" style="flex:1;padding:4px;border:1px solid #e5e7eb;border-radius:5px;background:#fff;font-size:10px;cursor:pointer;">4h</button>' +
+                    '<button class="trail-btn" onclick="setTrailMinutes(480,this)" style="flex:1;padding:4px;border:1px solid #e5e7eb;border-radius:5px;background:#fff;font-size:10px;cursor:pointer;">8h</button>' +
+                    '</div>' +
+                    '<div style="display:flex;gap:4px;">' +
+                    '<button onclick="showTrail(' + dd.id + ')" style="flex:1;padding:5px;border:none;border-radius:5px;background:#22c55e;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">▶ Show Trail</button>' +
+                    '<button onclick="hideTrail(' + dd.id + ')" style="flex:1;padding:5px;border:1px solid #e5e7eb;border-radius:5px;background:#fff;color:#374151;font-size:11px;cursor:pointer;">✕ Hide</button>' +
+                    '</div>' +
+                    '</div>' +
                     (hasPick && hasDeliv ?
-                        '<button onclick="drawDriverRoute(' + dd.latitude + ',' + dd.longitude + ',' + dd.order.pickup_lat + ',' + dd.order.pickup_lng + ',' + dd.order.delivery_lat + ',' + dd.order.delivery_lng + ')" style="margin-top:6px;width:100%;padding:6px;border:none;border-radius:6px;background:#f97316;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">🗺 Show Route</button>' +
+                        '<button onclick="drawDriverRoute(' + dd.latitude + ',' + dd.longitude + ',' + dd.order.pickup_lat + ',' + dd.order.pickup_lng + ',' + dd.order.delivery_lat + ',' + dd.order.delivery_lng + ')" style="margin-top:6px;width:100%;padding:6px;border:none;border-radius:6px;background:#f97316;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">🗺 Show Delivery Route</button>' +
                         '<button onclick="clearRoute()" style="margin-top:4px;width:100%;padding:5px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;color:#374151;font-size:11px;cursor:pointer;">✕ Clear Route</button>'
                     : '') +
                     '</div>';
@@ -271,6 +288,88 @@ function panTo(lat, lng, driverId) {
     map.setZoom(16);
     if (driverMarkers[driverId]) {
         google.maps.event.trigger(driverMarkers[driverId], 'click');
+    }
+    // Show this driver's trail automatically on panel click
+    showTrail(driverId);
+}
+
+// ── GPS Trail Polyline ────────────────────────────────────────────────────
+// Colors per driver (cycles through palette)
+var trailColors = ['#3b82f6','#8b5cf6','#ec4899','#14b8a6','#f59e0b','#ef4444'];
+var trailColorMap = {};
+
+function driverTrailColor(driverId) {
+    if (!trailColorMap[driverId]) {
+        var keys = Object.keys(trailColorMap);
+        trailColorMap[driverId] = trailColors[keys.length % trailColors.length];
+    }
+    return trailColorMap[driverId];
+}
+
+function showTrail(driverId) {
+    // Hide previous trail for a different driver
+    if (activeTrailId && activeTrailId !== driverId && trailPolylines[activeTrailId]) {
+        trailPolylines[activeTrailId].setMap(null);
+    }
+    activeTrailId = driverId;
+
+    // Fetch history from server
+    fetch('/admin/dispatch/drivers/' + driverId + '/route?minutes=' + trailMinutes)
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success || !data.points || data.points.length < 2) {
+                // Not enough points yet — start an empty polyline so real-time extends it
+                if (!trailPolylines[driverId]) {
+                    trailPolylines[driverId] = new google.maps.Polyline({
+                        map: map,
+                        path: [],
+                        strokeColor: driverTrailColor(driverId),
+                        strokeWeight: 4,
+                        strokeOpacity: 0.85,
+                        icons: [{ icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 3, strokeColor: '#fff' }, offset: '100%', repeat: '80px' }],
+                    });
+                }
+                return;
+            }
+            var path = data.points.map(p => ({ lat: parseFloat(p.lat), lng: parseFloat(p.lng) }));
+            if (trailPolylines[driverId]) {
+                trailPolylines[driverId].setPath(path);
+                trailPolylines[driverId].setMap(map);
+            } else {
+                trailPolylines[driverId] = new google.maps.Polyline({
+                    map: map,
+                    path: path,
+                    strokeColor: driverTrailColor(driverId),
+                    strokeWeight: 4,
+                    strokeOpacity: 0.85,
+                    icons: [{ icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 3, strokeColor: '#fff' }, offset: '100%', repeat: '80px' }],
+                });
+            }
+        })
+        .catch(() => {});
+}
+
+function hideTrail(driverId) {
+    if (trailPolylines[driverId]) {
+        trailPolylines[driverId].setMap(null);
+    }
+    if (activeTrailId === driverId) activeTrailId = null;
+}
+
+function setTrailMinutes(mins, btn) {
+    trailMinutes = mins;
+    document.querySelectorAll('.trail-btn').forEach(b => b.style.fontWeight = '400');
+    if (btn) btn.style.fontWeight = '800';
+    if (activeTrailId) showTrail(activeTrailId); // reload with new window
+}
+
+// Extend active trail in real-time when a new location arrives via WebSocket
+function extendTrail(driverId, lat, lng) {
+    if (!trailPolylines[driverId]) return; // not showing this driver's trail
+    var poly = trailPolylines[driverId];
+    if (poly.getMap()) {
+        var path = poly.getPath();
+        path.push(new google.maps.LatLng(parseFloat(lat), parseFloat(lng)));
     }
 }
 
@@ -356,6 +455,8 @@ function clearRoute() {
                     });
                     driversData[e.deliveryman_id] = updated;
                     renderDrivers(Object.values(driversData));
+                    // Extend the active trail polyline in real-time (no fetch needed)
+                    extendTrail(e.deliveryman_id, e.lat, e.lng);
                 });
 
                 echo.connector.pusher.connection.bind('state_change', function(states) {

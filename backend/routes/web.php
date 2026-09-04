@@ -1232,6 +1232,7 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
         Route::get('/dispatch/map', [DispatchController::class, 'liveMap'])->name('dispatch.map');
         Route::get('/dispatch/live-drivers', [DispatchController::class, 'liveDrivers'])->name('dispatch.live-drivers');
         Route::post('/dispatch/drivers/{id}/request-location', [DispatchController::class, 'requestLocation'])->name('dispatch.request-location');
+        Route::get('/dispatch/drivers/{id}/route', [DispatchController::class, 'driverRoute'])->name('dispatch.driver-route');
         Route::get('/dispatch/orders', [DispatchController::class, 'activeOrders'])->name('dispatch.orders');
         Route::post('/dispatch/assign', [DispatchController::class, 'manualAssign'])->name('dispatch.assign');
         Route::get('/dispatch/deliverymen/available', [DispatchController::class, 'availableDeliverymen'])->name('dispatch.deliverymen');

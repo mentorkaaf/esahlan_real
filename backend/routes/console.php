@@ -5,6 +5,12 @@ use App\Services\FeedRankingService;
 use App\Services\CryptoMarketService;
 use App\Jobs\ScanCryptoDeposits;
 
+// ── Driver route history: prune rows older than 24 h (runs hourly) ───────
+Schedule::command('drivers:prune-location-history')
+    ->hourly()
+    ->name('drivers:prune-location-history')
+    ->withoutOverlapping();
+
 // ── Driver tracking: silent FCM ping to wake stale online drivers ─────────
 // Sends a data-only FCM to every is_online=true driver who hasn't posted a
 // location in the last 3 minutes.  The Flutter _bgHandler receives it and
