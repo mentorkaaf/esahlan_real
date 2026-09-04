@@ -74,10 +74,11 @@ class DispatchController extends Controller
                     'vendor_lat'    => (float) ($o->vendor?->latitude ?? 0),
                     'vendor_lng'    => (float) ($o->vendor?->longitude ?? 0),
                     'vendor_logo'   => $o->vendor?->logo,
-                    'driver_name'   => self::cleanName($o->deliveryman?->user?->name),
-                    'driver_id'     => $o->deliveryman_id,
-                    'placed_at'     => $o->created_at?->diffForHumans(),
-                    'district'      => $addr['district'] ?? $addr['city'] ?? null,
+                    'driver_name'       => self::cleanName($o->deliveryman?->user?->name),
+                    'driver_id'         => $o->deliveryman_id,
+                    'acceptance_status' => $o->acceptance_status,  // null/pending/accepted/declined
+                    'placed_at'         => $o->created_at?->diffForHumans(),
+                    'district'          => $addr['district'] ?? $addr['city'] ?? null,
                 ];
             });
 
@@ -119,20 +120,25 @@ class DispatchController extends Controller
         $dm = Deliveryman::findOrFail($request->deliveryman_id);
 
         DB::transaction(function () use ($order, $dm) {
+            // Assign driver but DON'T set out_for_delivery yet.
+            // acceptance_status = 'pending' means we are WAITING for driver to accept.
+            // Status will change to out_for_delivery only when driver accepts via the app.
             $order->update([
-                'deliveryman_id' => $dm->id,
-                'status'         => 'out_for_delivery',
-                'dispatched_at'  => now(),
+                'deliveryman_id'    => $dm->id,
+                'dispatched_at'     => now(),
+                'acceptance_status' => 'pending',
+                'driver_accepted_at'=> null,  // clear any previous acceptance
             ]);
 
             OrderStatusHistory::create([
                 'order_id'   => $order->id,
-                'status'     => 'out_for_delivery',
-                'note'       => 'Dispatched to ' . ($dm->user?->name ?? 'driver'),
+                'status'     => $order->status,
+                'note'       => 'Assigned to ' . ($dm->user?->name ?? 'driver') . ' — waiting for acceptance',
                 'changed_by' => auth()->id(),
             ]);
 
-            $dm->update(['status' => 'busy', 'is_available' => false]);
+            // Don't set driver busy yet — only after they accept
+            // $dm->update(['status' => 'busy', 'is_available' => false]);
         });
 
         // Notify driver — full ring alarm with order details
@@ -190,7 +196,46 @@ class DispatchController extends Controller
             }
         } catch (\Throwable) {}
 
-        return response()->json(['success' => true, 'message' => 'Driver assigned successfully.']);
+        return response()->json(['success' => true, 'message' => 'Driver assigned — waiting for acceptance.']);
+    }
+
+    /**
+     * Force a driver online from the admin Live Tracking panel.
+     * Sets is_online=true in DB and sends FCM reminder to driver to open app.
+     *
+     * POST /admin/dispatch/drivers/{id}/force-online
+     */
+    public function forceDriverOnline(Request $request, int $deliverymanId)
+    {
+        $dm = Deliveryman::with('user:id,name,fcm_token')->find($deliverymanId);
+        if (!$dm) return response()->json(['success' => false, 'message' => 'Driver not found'], 404);
+
+        // Set online in DB
+        $dm->update([
+            'is_online'    => true,
+            'status'       => $dm->status === 'offline' ? 'available' : $dm->status,
+            'is_available' => true,
+        ]);
+
+        // Send FCM reminder to open app / start location service
+        $fcmToken = $dm->user?->fcm_token ?? $dm->fcm_token;
+        $sent = false;
+        if ($fcmToken) {
+            try {
+                $sent = \App\Services\FcmService::sendDataOnly($fcmToken, [
+                    'type'    => 'force_online_reminder',
+                    'message' => 'Admin has set you online. Please open the app to start location tracking.',
+                ]);
+            } catch (\Throwable $e) {
+                \Log::warning('[Dispatch] forceOnline FCM failed: ' . $e->getMessage());
+            }
+        }
+
+        return response()->json([
+            'success'     => true,
+            'driver_name' => $dm->user?->name ?? 'Driver #' . $dm->id,
+            'message'     => 'Driver set online' . ($sent ? ' + FCM reminder sent' : ' (no FCM token)'),
+        ]);
     }
 
     public function liveMap()
@@ -200,16 +245,10 @@ class DispatchController extends Controller
 
     public function liveDrivers()
     {
-        $drivers = Deliveryman::with('user:id,name,phone')
+        // Show ALL approved drivers — online and offline — so admin has full visibility.
+        // Offline drivers appear on map with grey markers.
+        $drivers = Deliveryman::with('user:id,name,phone,fcm_token')
             ->where('is_approved', true)
-            ->whereNotNull('latitude')
-            ->whereNotNull('longitude')
-            ->where(function($q) {
-                // Always show online drivers (any location age)
-                // Also show recently-seen drivers even if now offline (last 30 min)
-                $q->where('is_online', true)
-                   ->orWhere('last_location_at', '>=', now()->subMinutes(30));
-            })
             ->get()
             ->map(function ($d) {
                 $activeOrder = null;
@@ -243,27 +282,33 @@ class DispatchController extends Controller
                     ? max(0, round(100 - ($d->missed_pings * 8)))  // -8% per missed ping
                     : 100;
 
+                $isReallyOnline = (bool) $d->is_online && $staleMin <= 10;
+
                 return [
                     'id'           => $d->id,
                     'name'         => self::cleanName($d->user?->name) ?: 'Driver #' . $d->id,
                     'phone'        => $d->user?->phone,
                     'vehicle_type' => $d->vehicle_type,
-                    'status'       => $d->status,
-                    'latitude'     => (float) $d->latitude,
-                    'longitude'    => (float) $d->longitude,
-                    'last_seen'    => \Carbon\Carbon::parse($d->last_location_at)->diffForHumans(),
+                    'status'       => $d->is_online ? $d->status : 'offline',
+                    'latitude'     => $d->latitude  ? (float) $d->latitude  : null,
+                    'longitude'    => $d->longitude ? (float) $d->longitude : null,
+                    'last_seen'    => $d->last_location_at
+                                        ? \Carbon\Carbon::parse($d->last_location_at)->diffForHumans()
+                                        : 'Never',
                     'last_seen_at' => $d->last_location_at,
                     'is_online'    => (bool) $d->is_online,
+                    'is_really_online' => $isReallyOnline,
                     'is_stale'           => $staleMin > 5,
                     'rating'             => round($d->rating ?? 5, 1),
                     'order'              => $activeOrder,
                     'active_orders_count'=> $activeOrdersCount,
                     // Telemetry
-                    'speed'         => $d->speed !== null ? round((float)$d->speed * 3.6, 1) : null, // km/h
+                    'speed'         => $d->speed !== null ? round((float)$d->speed * 3.6, 1) : null,
                     'heading'       => $d->heading !== null ? (float) $d->heading : null,
                     'battery_level' => $d->battery_level !== null ? (int) $d->battery_level : null,
                     'missed_pings'  => (int) ($d->missed_pings ?? 0),
                     'reliability'   => $reliability,
+                    'has_fcm'       => !empty($d->user?->fcm_token ?? $d->fcm_token),
                 ];
             });
 

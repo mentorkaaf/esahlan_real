@@ -16,14 +16,15 @@ class Order extends Model
         'status','payment_status','payment_method','subtotal','delivery_fee',
         'tax_amount','discount_amount','coupon_discount','total_amount','commission','wallet_used',
         'notes','note','scheduled_at','placed_at','confirmed_at','ready_at','dispatched_at',
-        'driver_accepted_at','picked_up_at','delivered_at','cancelled_at','cancellation_reason',
+        'driver_accepted_at','acceptance_status','acceptance_responded_at',
+        'picked_up_at','delivered_at','cancelled_at','cancellation_reason',
         'refund_amount','coupon_id','delivery_address','meta','bonus_amount',
     ];
 
     protected $casts = [
         'delivery_address'=>'array','meta'=>'array',
         'scheduled_at'=>'datetime','placed_at'=>'datetime','confirmed_at'=>'datetime',
-        'ready_at'=>'datetime','dispatched_at'=>'datetime','driver_accepted_at'=>'datetime',
+        'ready_at'=>'datetime','dispatched_at'=>'datetime','driver_accepted_at'=>'datetime','acceptance_responded_at'=>'datetime',
         'picked_up_at'=>'datetime','delivered_at'=>'datetime','cancelled_at'=>'datetime',
         'subtotal'=>'float','delivery_fee'=>'float','tax_amount'=>'float',
         'discount_amount'=>'float','coupon_discount'=>'float','total_amount'=>'float',

@@ -11,6 +11,15 @@
 .dispatch-stats { display:flex;align-items:stretch;gap:0;background:#0f172a;border-bottom:1px solid rgba(255,255,255,.06);padding:0; }
 .ds-stat { display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px 24px;border-right:1px solid rgba(255,255,255,.06);min-width:120px;cursor:default; }
 .ds-stat:last-child { border-right:none;margin-left:auto; }
+/* Acceptance badges */
+.acc-pending  { background:rgba(249,115,22,.18);color:#fb923c;border:1px solid rgba(249,115,22,.35);padding:1px 7px;border-radius:20px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.05em; }
+.acc-accepted { background:rgba(34,197,94,.18);color:#4ade80;border:1px solid rgba(34,197,94,.35);padding:1px 7px;border-radius:20px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.05em; }
+.acc-declined { background:rgba(239,68,68,.18);color:#f87171;border:1px solid rgba(239,68,68,.35);padding:1px 7px;border-radius:20px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.05em; }
+/* Force Online button */
+.btn-force-online { padding:2px 8px;border:none;border-radius:6px;background:rgba(34,197,94,.2);color:#4ade80;font-size:10px;font-weight:700;cursor:pointer;transition:background .15s;border:1px solid rgba(34,197,94,.35); }
+.btn-force-online:hover { background:rgba(34,197,94,.35); }
+/* Offline section separator */
+.dp-section-hdr { padding:6px 14px;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#475569;background:rgba(255,255,255,.02);border-bottom:1px solid rgba(255,255,255,.04);border-top:1px solid rgba(255,255,255,.04);margin-top:4px; }
 .ds-val { font-size:22px;font-weight:900;color:#fff;line-height:1; }
 .ds-lbl { font-size:10px;color:#64748b;font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-top:3px; }
 .ds-dot { width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px;vertical-align:middle; }
@@ -88,6 +97,10 @@
         <div class="ds-stat">
             <div class="ds-val"><span class="ds-dot dot-gray"></span><span id="cnt-total">0</span></div>
             <div class="ds-lbl">Total Active</div>
+        </div>
+        <div class="ds-stat">
+            <div class="ds-val" style="font-size:13px;"><span id="cnt-offline" style="color:#94a3b8;">0</span></div>
+            <div class="ds-lbl">Offline</div>
         </div>
         <div class="ds-stat" style="border-right:none;">
             <div class="ds-val" style="font-size:13px;"><span id="cnt-bat-warn" style="color:#f87171;">0</span> <span style="color:#64748b;font-size:11px;">low battery</span></div>
@@ -245,43 +258,49 @@ function filterDrivers(q) {
 }
 
 function renderDrivers(drivers) {
-    var online = 0, busy = 0, batWarn = 0;
+    var online = 0, busy = 0, batWarn = 0, offlineCnt = 0;
 
-    // Remove markers for drivers no longer in the list
+    // Update state cache
+    drivers.forEach(function(d) { driversData[d.id] = d; });
+
+    // Remove markers for drivers no longer in list
     var activeIds = drivers.map(function(d) { return d.id; });
     Object.keys(driverMarkers).forEach(function(id) {
         if (!activeIds.includes(parseInt(id))) {
             driverMarkers[id].setMap(null);
             delete driverMarkers[id];
-            delete driversData[id];
         }
     });
 
     drivers.forEach(function(d) {
-        if (!d.latitude || !d.longitude) return;
         driversData[d.id] = d;
 
-        var pos = { lat: parseFloat(d.latitude), lng: parseFloat(d.longitude) };
-        var isBusy = d.status === 'busy';
-        var freshSec = d.last_seen_at
+        var isOffline = !d.is_online || d.status === 'offline';
+        var isBusy    = d.status === 'busy';
+        var freshSec  = d.last_seen_at
             ? Math.floor((Date.now() - new Date(d.last_seen_at).getTime()) / 1000)
             : 9999;
-        var isFresh  = freshSec <= 660;
-        var isStale  = !isFresh;
-        var batLow   = d.battery_level != null && d.battery_level < 20;
-        var kmh      = d.speed || 0;
+        var isFresh   = freshSec <= 660;
+        var isStale   = !isFresh || isOffline;
+        var batLow    = d.battery_level != null && d.battery_level < 20;
+        var kmh       = d.speed || 0;
 
-        if (isBusy) busy++;
-        else if (isFresh) online++;
-        if (batLow) batWarn++;
+        if (isOffline) offlineCnt++;
+        else if (isBusy) busy++;
+        else online++;
+        if (batLow && !isOffline) batWarn++;
 
-        // Marker color: busy=orange, stale=dark, fast=red, normal=green
-        var markerColor = isBusy ? '#f97316'
-                        : isStale ? '#1e293b'
+        // Skip map marker if no coordinates
+        if (!d.latitude || !d.longitude) return;
+
+        // Marker color
+        var markerColor = isOffline ? '#374151'
+                        : isBusy   ? '#f97316'
+                        : isStale  ? '#1e293b'
                         : kmh > 60 ? '#ef4444'
                         : kmh > 30 ? '#f97316'
-                        : '#0ea5e9';  // cyan-blue for normal live
-        var icon = makeDriverMarker(markerColor, d.heading, kmh, isStale, batLow);
+                        : '#0ea5e9';
+        var icon = makeDriverMarker(markerColor, d.heading, kmh, isStale || isOffline, batLow);
 
         if (driverMarkers[d.id]) {
             driverMarkers[d.id].setPosition(pos);
@@ -319,7 +338,10 @@ function renderDrivers(drivers) {
                     '<div style="font-size:12px;margin-bottom:4px;"><b>Status:</b> <span style="color:' + (iB ? '#f97316' : '#22c55e') + '">' + dd.status.toUpperCase() + '</span></div>' +
                     (dd.order ? '<div style="font-size:12px;margin-bottom:6px;padding:6px;background:#1e293b;border-radius:6px;border:1px solid #334155;"><b>Order:</b> #' + dd.order.order_number + ' (' + dd.order.status + ')</div>' : '') +
                     '<div style="font-size:10px;color:#64748b;margin-bottom:8px;">Last seen: ' + dd.last_seen + '</div>' +
-                    '<button onclick="requestLocation(' + dd.id + ', this)" style="margin-top:8px;width:100%;padding:6px;border:none;border-radius:6px;background:#1e40af;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">📍 Request Location</button>' +
+                    '<div style="display:flex;gap:6px;margin-top:8px;">' +
+                    '<button onclick="requestLocation(' + dd.id + ', this)" style="flex:1;padding:6px;border:none;border-radius:6px;background:#1e40af;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">📍 Location</button>' +
+                    (!dd.is_online ? '<button onclick="forceOnline(' + dd.id + ', this)" style="flex:1;padding:6px;border:none;border-radius:6px;background:#166534;color:#4ade80;font-size:12px;font-weight:700;cursor:pointer;">⚡ Set Online</button>' : '') +
+                    '</div>' +
                     // GPS trail controls
                     '<div style="margin-top:8px;background:#f8fafc;border-radius:8px;padding:8px;">' +
                     '<div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:5px;">🛤 GPS Trail</div>' +
@@ -353,11 +375,11 @@ function renderDrivers(drivers) {
 
     // Stats
     var total = online + busy;
-    document.getElementById('cnt-online').textContent = online;
-    document.getElementById('cnt-busy').textContent   = busy;
-    document.getElementById('cnt-total').textContent  = total;
-    document.getElementById('dp-count').textContent   = total;
-    // Battery alert stat (if element exists)
+    document.getElementById('cnt-online').textContent  = online;
+    document.getElementById('cnt-busy').textContent    = busy;
+    document.getElementById('cnt-total').textContent   = total;
+    document.getElementById('dp-count').textContent    = total;
+    document.getElementById('cnt-offline').textContent = offlineCnt;
     var batEl = document.getElementById('cnt-bat-warn');
     if (batEl) batEl.textContent = batWarn;
 
@@ -368,43 +390,104 @@ function renderDrivers(drivers) {
 
     var list = document.getElementById('driver-list');
     if (filtered.length === 0) {
-        list.innerHTML = '<div style="padding:24px;text-align:center;color:#64748b;font-size:13px;"><i class="fas fa-motorcycle" style="font-size:24px;margin-bottom:8px;display:block;opacity:.4;"></i>' + (_searchQuery ? 'No match found' : 'No active drivers') + '</div>';
+        list.innerHTML = '<div style="padding:24px;text-align:center;color:#64748b;font-size:13px;"><i class="fas fa-motorcycle" style="font-size:24px;margin-bottom:8px;display:block;opacity:.4;"></i>' + (_searchQuery ? 'No match found' : 'No drivers') + '</div>';
         return;
     }
-    list.innerHTML = filtered.map(function(d) {
-        var isBusy  = d.status === 'busy';
+
+    // Split online vs offline
+    var onlineDrivers  = filtered.filter(function(d) { return d.is_online && d.status !== 'offline'; });
+    var offlineDrivers = filtered.filter(function(d) { return !d.is_online || d.status === 'offline'; });
+
+    function buildDriverCard(d) {
+        var isOff   = !d.is_online || d.status === 'offline';
+        var isBusy2 = d.status === 'busy';
         var freshSec2 = d.last_seen_at ? Math.floor((Date.now() - new Date(d.last_seen_at).getTime())/1000) : 9999;
-        var isStale2 = freshSec2 > 660;
-        var kmh2     = d.speed || 0;
-        var batLow2  = d.battery_level != null && d.battery_level < 20;
-        var rel2     = d.missed_pings > 0 ? Math.max(0, 100 - d.missed_pings * 8) : 100;
+        var isStale2  = freshSec2 > 660;
+        var kmh2      = d.speed || 0;
+        var batLow2   = d.battery_level != null && d.battery_level < 20;
+        var rel2      = d.missed_pings > 0 ? Math.max(0, 100 - d.missed_pings * 8) : 100;
         var relColor2 = rel2 >= 80 ? '#22c55e' : rel2 >= 50 ? '#f59e0b' : '#ef4444';
-        var liveChip = isStale2
-            ? '<span style="color:#ef4444;font-size:10px;font-weight:700;">⚠ ' + d.last_seen + '</span>'
-            : freshSec2 <= 30
-                ? '<span style="color:#22c55e;font-size:10px;font-weight:700;">● Live</span>'
-                : '<span style="color:#22c55e;font-size:10px;">● ' + d.last_seen + '</span>';
-        var ordersBadge = (isBusy && d.active_orders_count > 0)
+        var liveChip  = isOff
+            ? '<span style="color:#475569;font-size:10px;">⭘ Offline &nbsp;·&nbsp; ' + d.last_seen + '</span>'
+            : isStale2
+                ? '<span style="color:#ef4444;font-size:10px;font-weight:700;">⚠ ' + d.last_seen + '</span>'
+                : freshSec2 <= 30
+                    ? '<span style="color:#22c55e;font-size:10px;font-weight:700;">● Live</span>'
+                    : '<span style="color:#22c55e;font-size:10px;">● ' + d.last_seen + '</span>';
+        var ordersBadge = (isBusy2 && d.active_orders_count > 0)
             ? '<span style="margin-left:5px;background:#f97316;color:#fff;border-radius:20px;padding:1px 6px;font-size:10px;font-weight:800;">' + d.active_orders_count + '×</span>'
             : '';
-        // Telemetry chips
         var chips = '';
-        if (kmh2 > 0) chips += '<span style="background:#1e3a5f;color:#60a5fa;padding:1px 6px;border-radius:10px;font-size:10px;">⚡' + Math.round(kmh2) + 'km/h</span> ';
-        if (d.battery_level != null) chips += '<span style="background:' + (batLow2 ? '#3f1515' : '#152b1e') + ';color:' + (batLow2 ? '#f87171' : '#4ade80') + ';padding:1px 6px;border-radius:10px;font-size:10px;">🔋' + d.battery_level + '%</span> ';
-        chips += '<span style="background:' + relColor2 + '22;color:' + relColor2 + ';padding:1px 6px;border-radius:10px;font-size:10px;">📡' + rel2 + '%</span>';
-        return '<div class="dp-item" onclick="panTo(' + d.latitude + ',' + d.longitude + ',' + d.id + ')">' +
+        if (!isOff && kmh2 > 0) chips += '<span style="background:#1e3a5f;color:#60a5fa;padding:1px 6px;border-radius:10px;font-size:10px;">⚡' + Math.round(kmh2) + 'km/h</span> ';
+        if (!isOff && d.battery_level != null) chips += '<span style="background:' + (batLow2 ? '#3f1515' : '#152b1e') + ';color:' + (batLow2 ? '#f87171' : '#4ade80') + ';padding:1px 6px;border-radius:10px;font-size:10px;">🔋' + d.battery_level + '%</span> ';
+        if (!isOff) chips += '<span style="background:' + relColor2 + '22;color:' + relColor2 + ';padding:1px 6px;border-radius:10px;font-size:10px;">📡' + rel2 + '%</span>';
+
+        var badgeClass = isOff ? 'offline' : (isBusy2 ? 'busy' : 'available');
+        var badgeText  = isOff ? 'offline' : d.status;
+
+        var forceOnlineBtn = isOff
+            ? '<button class="btn-force-online" id="fob-' + d.id + '" onclick="event.stopPropagation();forceOnline(' + d.id + ',this)">⚡ Set Online</button>'
+            : '';
+
+        var clickFn = (d.latitude && d.longitude)
+            ? 'panTo(' + d.latitude + ',' + d.longitude + ',' + d.id + ')'
+            : '';
+
+        return '<div class="dp-item" ' + (clickFn ? 'onclick="' + clickFn + '"' : '') + ' style="' + (isOff ? 'opacity:.7;' : '') + '">' +
             '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">' +
             '<div class="dp-name">' + stripEmoji(d.name) + ordersBadge + '</div>' +
-            '<span class="dp-badge ' + d.status + '">' + d.status + '</span>' +
+            '<span class="dp-badge ' + badgeClass + '">' + badgeText + '</span>' +
             '</div>' +
-            '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px;">' + chips + '</div>' +
-            '<div class="dp-meta">' +
-            (d.order ? '📦 #' + d.order.order_number + ' &nbsp;·&nbsp; ' : '') +
-            (d.vehicle_type ? vehicleIcon(d.vehicle_type) : '') + ' &nbsp;·&nbsp; ' +
-            liveChip +
+            (chips ? '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px;">' + chips + '</div>' : '') +
+            '<div class="dp-meta" style="justify-content:space-between;">' +
+            '<span>' + (d.vehicle_type ? vehicleIcon(d.vehicle_type) : '') + ' &nbsp;·&nbsp; ' + liveChip + '</span>' +
+            forceOnlineBtn +
             '</div>' +
         '</div>';
-    }).join('');
+    }
+
+    var html = '';
+    if (onlineDrivers.length > 0) {
+        html += '<div class="dp-section-hdr">🟢 ONLINE (' + onlineDrivers.length + ')</div>';
+        html += onlineDrivers.map(buildDriverCard).join('');
+    }
+    if (offlineDrivers.length > 0) {
+        html += '<div class="dp-section-hdr">⭘ OFFLINE (' + offlineDrivers.length + ')</div>';
+        html += offlineDrivers.map(buildDriverCard).join('');
+    }
+    list.innerHTML = html;
+}
+
+// ── Force Driver Online ───────────────────────────────────────────────────
+function forceOnline(driverId, btn) {
+    btn.disabled = true;
+    btn.textContent = '⏳';
+    fetch('/admin/dispatch/drivers/' + driverId + '/force-online', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '',
+            'Accept': 'application/json'
+        }
+    })
+    .then(r => r.json())
+    .then(function(d) {
+        if (d.success) {
+            btn.textContent = '✓ Set Online';
+            btn.style.color = '#4ade80';
+            showToast('✓ ' + d.driver_name + ' set online' + (d.message.includes('FCM') ? ' + reminder sent' : ''), '#22c55e');
+            // Refresh data
+            setTimeout(fetchDrivers, 1500);
+        } else {
+            btn.disabled = false;
+            btn.textContent = '⚡ Set Online';
+            showToast('✗ Failed: ' + (d.message || 'Error'), '#ef4444');
+        }
+    })
+    .catch(function() {
+        btn.disabled = false;
+        btn.textContent = '⚡ Set Online';
+        showToast('✗ Network error', '#ef4444');
+    });
 }
 
 function requestLocation(driverId, btn) {

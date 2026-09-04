@@ -109,6 +109,25 @@ var map, ordersData=[], driversData=[], markers=[], currentTab='orders', assignO
 var vehicleEmoji = {motorcycle:'Motorcycle',bajaj:'Bajaj',car:'Car',van:'Van',truck:'Truck',bicycle:'Bicycle',pickup:'Pickup'};
 var statusColor = {pending:'#F59E0B',confirmed:'#3B82F6',preparing:'#8B5CF6',ready_for_pickup:'#FF8A00',out_for_delivery:'#10B981'};
 
+// Build driver badge with acceptance_status indicator
+function buildDriverBadge(o) {
+    var acc = o.acceptance_status;
+    if (acc === 'pending') {
+        return '<div style="text-align:right;">' +
+            '<span style="font-size:11px;padding:2px 7px;background:#7c2d1222;color:#fb923c;border:1px solid #f97316;border-radius:6px;font-weight:700;">⏳ Waiting...</span>' +
+            '<div style="font-size:10px;color:#fb923c;margin-top:2px;">' + se(o.driver_name) + '</div>' +
+            '</div>';
+    } else if (acc === 'declined') {
+        return '<div style="text-align:right;">' +
+            '<span style="font-size:11px;padding:2px 7px;background:#ef444422;color:#f87171;border:1px solid #ef4444;border-radius:6px;font-weight:700;">✗ Declined</span>' +
+            '<div style="font-size:10px;color:#f87171;margin-top:2px;">' + se(o.driver_name) + '</div>' +
+            '</div>';
+    } else {
+        // accepted or null (old orders)
+        return '<span style="font-size:11px;padding:3px 8px;background:#e8f5e9;color:#2e7d32;border-radius:6px;font-weight:600;">✓ ' + se(o.driver_name) + '</span>';
+    }
+}
+
 // Strip emoji / mojibake characters from DB strings
 function se(str) {
     if (!str) return '';
@@ -250,9 +269,7 @@ function renderPanel() {
  '</div>'+
  '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">'+
  '<span style="font-weight:700;color:#10B981;font-size:13px;">$'+o.total.toFixed(2)+'</span>'+
- (hasDriver
- ? '<span style="font-size:11px;padding:3px 8px;background:#e8f5e9;color:#2e7d32;border-radius:6px;font-weight:600;">'+se(o.driver_name)+'</span>'
- : '<button onclick="event.stopPropagation();openAssign('+o.id+',\''+o.order_number+'\')" style="padding:4px 12px;background:#FF8A00;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">Assign</button>')+
+ (hasDriver ? buildDriverBadge(o) : '<button onclick="event.stopPropagation();openAssign('+o.id+',\''+o.order_number+'\')" style="padding:4px 12px;background:#FF8A00;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">Assign</button>')+
  '</div>'+
  '<div style="font-size:10px;color:#aaa;margin-top:4px;">'+o.placed_at+'</div>'+
  '</div>';

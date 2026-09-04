@@ -41,11 +41,10 @@ class _MainShellState extends ConsumerState<MainShell> with WidgetsBindingObserv
     // ── Wire up the in-app new-order navigation ──────────────────────────
     FirebaseService().onNewOrder = _handleIncomingOrder;
 
-    // Listen for new intents from MainActivity (background → foreground via notification tap)
-    // Note: OrderCallActivity is removed; fullScreenIntent now launches MainActivity directly.
-    // When MainActivity receives the ring intent, onNewIntent fires this handler.
-    // Since no order_action extra is set, _handleOrderAction returns early,
-    // and didChangeAppLifecycleState.resumed → _checkPendingOrder() shows the ring screen.
+    // Listen for new intents from OrderCallActivity → MainActivity.
+    // OrderCallActivity sends order_action="accept"/"decline" as an intent extra.
+    // For background state: onNewIntent fires with the action → _handleOrderAction runs.
+    // For killed state: action is read from SharedPrefs in _checkNativeOrderAction().
     _intentCh.setMethodCallHandler((call) async {
       if (call.method == 'onNewIntent') {
         final action = call.arguments as String?;
@@ -123,22 +122,19 @@ class _MainShellState extends ConsumerState<MainShell> with WidgetsBindingObserv
     }
   }
 
-  // ── Legacy: check if OrderCallActivity set an accept/decline action ─────────
-  // OrderCallActivity is no longer used (fullScreenIntent now launches
-  // MainActivity directly). This method is kept as a harmless no-op fallback
-  // in case a very old pending_ring_action was left from a previous install.
+  // ── Check native order action (no-op now) ────────────────────────────────────
+  // OrderCallActivity is now a notification-only alert (SEE ORDER button).
+  // It does NOT write accept/decline — those happen in IncomingOrderScreen.
+  // This method kept for safety (clears any leftover key from old installs).
   Future<void> _checkNativeOrderAction() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final saved = prefs.getString('pending_ring_action');
       if (saved != null && saved.isNotEmpty) {
         await prefs.remove('pending_ring_action');
-        debugPrint('[Shell] legacy ring_action from prefs=$saved');
-        await _handleOrderAction(saved);
+        debugPrint('[Shell] cleared legacy ring_action=$saved');
       }
-    } catch (e) {
-      debugPrint('[Shell] _checkNativeOrderAction error: $e');
-    }
+    } catch (_) {}
   }
 
   /// Process an accept/decline action that came from the native OrderCallActivity.
@@ -180,16 +176,10 @@ class _MainShellState extends ConsumerState<MainShell> with WidgetsBindingObserv
   }
 
   // ── Read pending order from SharedPreferences ────────────────────────────
-  // Called on startup AND on resume. Skipped if native action already
-  // consumed the order (accept/decline from OrderCallActivity).
+  // Called on startup AND on resume. OrderCallActivity shows a simple alert
+  // and when driver taps SEE ORDER → MainActivity opens → this reads the order
+  // and shows IncomingOrderScreen (the real ring screen with full details).
   Future<void> _checkPendingOrder() async {
-    // If native OrderCallActivity set an action, that method already consumed
-    // the pending order key. Nothing more to do here.
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      if (prefs.containsKey('pending_ring_action')) return;
-    } catch (_) {}
-
     final data = await FirebaseService.checkPendingOrder();
     if (data != null && mounted) {
       await Future.delayed(const Duration(milliseconds: 200));

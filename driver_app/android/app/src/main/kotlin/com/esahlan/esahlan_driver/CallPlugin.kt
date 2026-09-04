@@ -65,12 +65,14 @@ class CallPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
             val orderNum = data["order_number"] ?: ""
             val fee      = data["delivery_fee"]  ?: "0"
 
-            // Launch MainActivity (Flutter) directly — no intermediate OrderCallActivity.
-            // Flutter starts, main_shell._checkPendingOrder() reads the SharedPrefs order
-            // and navigates to IncomingOrderScreen (the new DoorDash-style Flutter screen).
-            val callIntent = Intent(context, MainActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                putExtra("ring_order", true)   // signal to MainActivity that this is a ring launch
+            // Launch OrderCallActivity — lightweight native UI, appears INSTANTLY over
+            // the lock screen with no Flutter startup delay.
+            // For FOREGROUND state: EsahlanMessagingService.isAppInForeground() returns
+            // true and calls super.onMessageReceived(), so Flutter handles it directly
+            // and this fullScreenIntent notification is never shown.
+            val callIntent = Intent(context, OrderCallActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                data.forEach { (k, v) -> putExtra(k, v) }
             }
             val flags = PendingIntent.FLAG_UPDATE_CURRENT or
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)

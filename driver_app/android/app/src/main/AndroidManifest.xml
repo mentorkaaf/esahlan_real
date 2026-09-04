@@ -58,9 +58,22 @@
             </intent-filter>
         </activity>
 
-        <!-- OrderCallActivity removed — fullScreenIntent now launches MainActivity
-             directly so the new Flutter IncomingOrderScreen shows for both
-             foreground and background/killed states. -->
+        <!--
+             OrderCallActivity — native full-screen ring UI shown via fullScreenIntent.
+             Appears INSTANTLY over the lock screen (no Flutter startup delay).
+             Foreground case is handled by EsahlanMessagingService.isAppInForeground()
+             which calls super.onMessageReceived() instead — Flutter IncomingOrderScreen
+             shows directly without this activity being launched.
+        -->
+        <activity
+            android:name=".OrderCallActivity"
+            android:exported="false"
+            android:launchMode="singleInstance"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@style/LaunchTheme"
+            android:excludeFromRecents="true"
+            android:configChanges="orientation|screenSize|keyboardHidden"/>
 
         <meta-data
             android:name="flutterEmbedding"

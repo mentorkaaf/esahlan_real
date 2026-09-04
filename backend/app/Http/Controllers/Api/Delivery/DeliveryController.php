@@ -332,9 +332,12 @@ class DeliveryController extends Controller
         DB::transaction(function () use ($order, $dm, $request) {
             // For self-pick (pool): assign driver. For admin-pre-assigned: driver_id already set.
             $updateData = [
-                'deliveryman_id'    => $dm->id,
-                'dispatched_at'     => $order->dispatched_at ?? now(),
-                'driver_accepted_at'=> now(),   // ← marks driver explicitly accepted
+                'deliveryman_id'          => $dm->id,
+                'dispatched_at'           => $order->dispatched_at ?? now(),
+                'driver_accepted_at'      => now(),        // ← explicit acceptance timestamp
+                'acceptance_status'       => 'accepted',   // ← admin can see "accepted"
+                'acceptance_responded_at' => now(),
+                'status'                  => 'out_for_delivery', // NOW set to out_for_delivery
             ];
 
             // Set delivery_fee from pricing if not already set
@@ -409,7 +412,28 @@ class DeliveryController extends Controller
     {
         $dm = $this->dm($request);
         if ($dm) $dm->increment('rejected_orders_count');
-        return response()->json(['success' => true, 'message' => 'Order skipped']);
+
+        // If this order was admin-assigned to this driver (pending acceptance),
+        // clear the assignment so admin knows the driver declined and can re-assign.
+        if ($order->deliveryman_id && $dm && $order->deliveryman_id === $dm->id
+            && ($order->acceptance_status === 'pending' || $order->acceptance_status === null)) {
+            $order->update([
+                'acceptance_status'       => 'declined',
+                'acceptance_responded_at' => now(),
+                'deliveryman_id'          => null,   // free the order for re-assignment
+                'dispatched_at'           => null,
+            ]);
+            OrderStatusHistory::create([
+                'order_id'   => $order->id,
+                'status'     => $order->status,
+                'note'       => 'Driver ' . ($dm->user?->name ?? '#' . $dm->id) . ' DECLINED the order',
+                'changed_by' => $request->user()->id,
+            ]);
+            // Restore driver to available (they were not set busy since acceptance was pending)
+            $dm->update(['status' => 'available', 'is_available' => true]);
+        }
+
+        return response()->json(['success' => true, 'message' => 'Order declined']);
     }
 
     /**
