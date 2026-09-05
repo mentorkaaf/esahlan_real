@@ -25,6 +25,10 @@ class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
   @override
   ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
+
+  /// Called by MainShell when admin force-online FCM arrives.
+  /// Refreshes dashboard data so toggle flips to Online instantly.
+  static VoidCallback? onForceOnlineReceived;
 }
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen>
@@ -40,10 +44,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       ..repeat(reverse: true);
     _pulseScale = Tween<double>(begin: 1.0, end: 1.06).animate(
         CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
+
+    // Register force-online callback so MainShell can trigger a refresh
+    DashboardScreen.onForceOnlineReceived = () {
+      if (mounted) ref.invalidate(_dashProvider);
+    };
   }
 
   @override
   void dispose() {
+    DashboardScreen.onForceOnlineReceived = null;
     _pulseCtrl.dispose();
     super.dispose();
   }

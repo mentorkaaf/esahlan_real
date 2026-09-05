@@ -48,6 +48,18 @@ Future<void> _bgHandler(RemoteMessage message) async {
     return;
   }
 
+  if (type == 'force_online_reminder') {
+    // Admin forced this driver online. Save flag so MainShell picks it up on resume.
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('pending_force_online', true);
+      debugPrint('[FCM:BG] force_online saved to prefs');
+    } catch (e) {
+      debugPrint('[FCM:BG] force_online prefs error: $e');
+    }
+    return;
+  }
+
   if (type == 'new_order') {
     // ── 1. Persist order so the app reads it after launch / resume ───────────
     try {
@@ -167,6 +179,9 @@ class FirebaseService {
 
   /// Called by MainShell when an order notification arrives while app is open.
   void Function(Map<String, dynamic> data)? onNewOrder;
+
+  /// Called by MainShell when admin forces this driver online (foreground only).
+  VoidCallback? onForceOnline;
 
   // ── Register _bgHandler BEFORE runApp ─────────────────────────────────────
   static Future<void> setupBeforeRunApp() async {
@@ -296,6 +311,12 @@ class FirebaseService {
 
     if (type == 'request_location') {
       await postLocationForFcm();
+      return;
+    }
+
+    if (type == 'force_online_reminder') {
+      debugPrint('[FCM:FG] force_online_reminder received');
+      onForceOnline?.call();
       return;
     }
 

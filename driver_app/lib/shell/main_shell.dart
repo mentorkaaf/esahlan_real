@@ -11,6 +11,7 @@ import '../core/services/firebase_service.dart';
 import '../core/services/location_service.dart';
 import '../core/storage/local_storage.dart';
 import '../features/auth/presentation/providers/auth_provider.dart';
+import '../features/dashboard/presentation/screens/dashboard_screen.dart';
 
 class MainShell extends ConsumerStatefulWidget {
   final Widget child;
@@ -39,7 +40,9 @@ class _MainShellState extends ConsumerState<MainShell> with WidgetsBindingObserv
     WidgetsBinding.instance.addObserver(this);
 
     // ── Wire up the in-app new-order navigation ──────────────────────────
-    FirebaseService().onNewOrder = _handleIncomingOrder;
+    FirebaseService().onNewOrder  = _handleIncomingOrder;
+    // ── Admin force-online (foreground) ──────────────────────────────────
+    FirebaseService().onForceOnline = _handleForceOnline;
 
     // Listen for new intents from OrderCallActivity → MainActivity.
     // OrderCallActivity sends order_action="accept"/"decline" as an intent extra.
@@ -79,7 +82,8 @@ class _MainShellState extends ConsumerState<MainShell> with WidgetsBindingObserv
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    FirebaseService().onNewOrder = null;
+    FirebaseService().onNewOrder   = null;
+    FirebaseService().onForceOnline = null;
     super.dispose();
   }
 
@@ -89,6 +93,7 @@ class _MainShellState extends ConsumerState<MainShell> with WidgetsBindingObserv
     if (state == AppLifecycleState.resumed && _initialized) {
       _checkLocation();
       _checkPendingOrder();
+      _checkPendingForceOnline();  // ← admin force-online (background/killed state)
       // Ensure foreground service is still running if driver was online.
       // The OS may have killed it while app was in background.
       _ensureTrackingAlive();
@@ -105,6 +110,39 @@ class _MainShellState extends ConsumerState<MainShell> with WidgetsBindingObserv
       // Service died — restart it silently
       await DriverLocationService.startTracking();
       debugPrint('[Shell] Foreground service restarted after OS kill');
+    }
+  }
+
+  // ── Admin force-online: foreground FCM handler ───────────────────────────
+  // Called directly by FirebaseService when force_online_reminder arrives
+  // while app is in FOREGROUND. Backend already set is_online=true in DB.
+  // We just need to: start location service + refresh dashboard UI.
+  Future<void> _handleForceOnline() async {
+    debugPrint('[Shell] force_online_reminder received (foreground)');
+    try {
+      if (!DriverLocationService.isRunning) {
+        await DriverLocationService.startTracking();
+        await LocalStorage.saveBool('driver_was_tracking', true);
+      }
+      // Notify dashboard screen to refresh its data from server
+      DashboardScreen.onForceOnlineReceived?.call();
+    } catch (e) {
+      debugPrint('[Shell] _handleForceOnline error: $e');
+    }
+  }
+
+  // ── Admin force-online: background/killed state check ────────────────────
+  // Called on resume. Reads SharedPrefs flag saved by _bgHandler.
+  Future<void> _checkPendingForceOnline() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final pending = prefs.getBool('pending_force_online') ?? false;
+      if (!pending) return;
+      await prefs.remove('pending_force_online');
+      debugPrint('[Shell] pending_force_online found — going online');
+      await _handleForceOnline();
+    } catch (e) {
+      debugPrint('[Shell] _checkPendingForceOnline error: $e');
     }
   }
 
