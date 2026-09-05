@@ -633,9 +633,12 @@ class DeliveryController extends Controller
         if ($heading !== null) $updateData['heading']  = $heading;
         if ($battery !== null) $updateData['battery_level'] = $battery;
 
-        if (!$dm->is_online) {
+        // Only auto-mark online if the driver has NOT explicitly gone offline via the toggle.
+        // status='offline' means the driver deliberately toggled off — respect that choice.
+        // Only auto-online drivers who have never toggled (status != 'offline').
+        if (!$dm->is_online && $dm->status !== 'offline') {
             $updateData['is_online'] = true;
-            $updateData['status']    = $dm->status === 'offline' ? 'available' : $dm->status;
+            $updateData['status']    = 'available';
         }
         // Every location ping implies the driver wants to be tracked.
         // This seeds wants_tracking=true for drivers on older app versions
