@@ -1,8 +1,13 @@
 package com.esahlan.esahlan_driver
 
 import android.app.ActivityManager
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
-import com.google.firebase.messaging.FirebaseMessagingService
+import android.content.Intent
+import android.os.Build
+import androidx.core.app.NotificationCompat
 import com.google.firebase.messaging.RemoteMessage
 import io.flutter.plugins.firebase.messaging.FlutterFirebaseMessagingService
 import org.json.JSONObject
@@ -11,26 +16,17 @@ import org.json.JSONObject
  * Native FCM service — intercepts new_order messages and launches
  * OrderCallActivity via fullScreenIntent, even when the app is KILLED.
  *
- * Why this is needed:
- *   Flutter's _bgHandler runs in a background Dart isolate. When the app is
- *   killed, CallPlugin is not registered on that isolate, so MethodChannel
- *   calls fail silently. The flutter_local_notifications fallback only opens
- *   MainActivity (cold start), not OrderCallActivity.
- *
- * What this service does for new_order:
- *   1. Saves order JSON to SharedPreferences (key Flutter reads on launch)
- *   2. Calls CallPlugin.showCallNotificationStatic() → fullScreenIntent → OrderCallActivity
- *   Does NOT call super (avoids double notification from Flutter _bgHandler).
- *
- * For all other message types (request_location, etc.):
- *   Calls super → FlutterFirebaseMessagingService → Dart _bgHandler handles them.
- *
- * When app is FOREGROUND:
- *   Flutter's FirebaseMessaging.onMessage stream handles new_order (shows in-app
- *   ring screen). We detect foreground state and call super instead, so the
- *   native notification doesn't pop over the already-visible Flutter UI.
+ * Also handles force_online_reminder natively:
+ *   - Shows a high-priority notification (tap → opens app)
+ *   - Saves pending_force_online flag to SharedPreferences
+ *   - Does NOT call super so Dart _bgHandler doesn't double-handle it
  */
 class EsahlanMessagingService : FlutterFirebaseMessagingService() {
+
+    companion object {
+        private const val FORCE_ONLINE_CH = "esahlan_admin_alerts"
+        private const val FORCE_ONLINE_ID = 99902
+    }
 
     override fun onMessageReceived(message: RemoteMessage) {
         val type = message.data["type"] ?: ""
@@ -49,7 +45,6 @@ class EsahlanMessagingService : FlutterFirebaseMessagingService() {
             } catch (_: Exception) {}
 
             // 2. Show fullScreenIntent notification → OrderCallActivity
-            //    Works on ALL Android versions (API 21+) without Flutter engine.
             CallPlugin.showCallNotificationStatic(
                 applicationContext,
                 message.data.mapValues { it.value }
@@ -59,9 +54,61 @@ class EsahlanMessagingService : FlutterFirebaseMessagingService() {
             return
         }
 
-        // ── App is FOREGROUND, or non-new_order message ────────────────────
-        // Let FlutterFirebaseMessagingService dispatch to Dart _bgHandler.
+        if (type == "force_online_reminder") {
+            // ── Admin forced this driver online ────────────────────────────
+            // 1. Save flag so MainShell picks it up on resume / after open
+            getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean("flutter.pending_force_online", true)
+                .apply()
+
+            // 2. Show notification so driver knows + can tap to open app
+            showForceOnlineNotification()
+
+            // 3. Let Dart _bgHandler also handle it (posts location immediately)
+            super.onMessageReceived(message)
+            return
+        }
+
+        // ── All other message types ────────────────────────────────────────
         super.onMessageReceived(message)
+    }
+
+    private fun showForceOnlineNotification() {
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val ch = NotificationChannel(
+                FORCE_ONLINE_CH,
+                "Admin Alerts",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Admin actions affecting your driver status"
+                enableVibration(true)
+            }
+            nm.createNotificationChannel(ch)
+        }
+
+        val openIntent = Intent(applicationContext, MainActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            putExtra("from_force_online", true)
+        }
+        val pi = PendingIntent.getActivity(
+            applicationContext, FORCE_ONLINE_ID, openIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
+        )
+
+        val notif = NotificationCompat.Builder(applicationContext, FORCE_ONLINE_CH)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle("⚡ Admin Set You Online")
+            .setContentText("You have been set online by admin. Tap to open the app.")
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(pi)
+            .build()
+
+        nm.notify(FORCE_ONLINE_ID, notif)
     }
 
     // ── Check if our app is currently in the foreground ──────────────────────
@@ -74,7 +121,7 @@ class EsahlanMessagingService : FlutterFirebaseMessagingService() {
                 it.processName == packageName
             }
         } catch (_: Exception) {
-            false // assume background/killed on error → show native UI
+            false
         }
     }
 }

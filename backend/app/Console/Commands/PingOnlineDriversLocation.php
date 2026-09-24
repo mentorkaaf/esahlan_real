@@ -46,7 +46,9 @@ class PingOnlineDriversLocation extends Command
         //   3. haven't posted a location in the last 3 minutes
         //      (if they're posting every 5 s via foreground service,
         //       they don't need a wake-up ping — saves FCM quota)
-        $staleThreshold = now()->subMinutes(3);
+        // 30 seconds: foreground service posts every 5s so these drivers are excluded.
+        // Only killed-app drivers (>30s stale) get a FCM wake-up.
+        $staleThreshold = now()->subSeconds(30);
 
         // Use wants_tracking (the driver's INTENT) not is_online (current freshness).
         // MarkStaleDriversOffline clears is_online after 10-min silence but never

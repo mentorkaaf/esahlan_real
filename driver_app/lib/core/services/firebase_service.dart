@@ -49,7 +49,8 @@ Future<void> _bgHandler(RemoteMessage message) async {
   }
 
   if (type == 'force_online_reminder') {
-    // Admin forced this driver online. Save flag so MainShell picks it up on resume.
+    // Admin forced this driver online.
+    // 1. Save flag so MainShell picks it up on resume and updates UI.
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('pending_force_online', true);
@@ -57,6 +58,9 @@ Future<void> _bgHandler(RemoteMessage message) async {
     } catch (e) {
       debugPrint('[FCM:BG] force_online prefs error: $e');
     }
+    // 2. Post one location immediately — admin can see driver on map right away
+    //    even if app stays killed. GPS works in background isolate.
+    await postLocationForFcm();
     return;
   }
 

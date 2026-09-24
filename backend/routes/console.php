@@ -13,11 +13,11 @@ Schedule::command('drivers:prune-location-history')
 
 // ── Driver tracking: silent FCM ping to wake stale online drivers ─────────
 // Sends a data-only FCM to every wants_tracking=true driver who hasn't posted
-// a location in the last 3 minutes. Runs every 2 minutes for faster recovery
-// when driver's foreground service is killed by the OS.
+// a location in the last 30 seconds. Runs every minute so even killed-app
+// drivers get a location update each minute via FCM → _bgHandler → GPS.
 // The Flutter _bgHandler receives it silently → _postLocationHttp().
 Schedule::command('drivers:ping-location')
-    ->everyTwoMinutes()
+    ->everyMinute()
     ->name('drivers:ping-location')
     ->withoutOverlapping()
     ->runInBackground();

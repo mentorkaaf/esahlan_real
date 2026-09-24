@@ -210,11 +210,13 @@ class DispatchController extends Controller
         $dm = Deliveryman::with('user:id,name,fcm_token')->find($deliverymanId);
         if (!$dm) return response()->json(['success' => false, 'message' => 'Driver not found'], 404);
 
-        // Set online in DB
+        // Set online in DB — wants_tracking=true ensures FCM pings keep firing
+        // even if the driver's foreground service is dead (killed-app scenario).
         $dm->update([
-            'is_online'    => true,
-            'status'       => $dm->status === 'offline' ? 'available' : $dm->status,
-            'is_available' => true,
+            'is_online'      => true,
+            'status'         => $dm->status === 'offline' ? 'available' : $dm->status,
+            'is_available'   => true,
+            'wants_tracking' => true,
         ]);
 
         // Send FCM reminder to open app / start location service
