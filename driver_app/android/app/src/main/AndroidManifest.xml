@@ -2,6 +2,7 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
@@ -79,11 +80,28 @@
             android:name="flutterEmbedding"
             android:value="2"/>
 
-        <!-- flutter_foreground_task: background location service -->
+        <!-- flutter_foreground_task: background location service.
+             stopWithTask="false" → service keeps running even when user swipes
+             the app from the recent-apps list (the #1 cause of tracking stopping).
+             START_STICKY (set by the plugin) restarts after OS OOM kills. -->
         <service
             android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
             android:foregroundServiceType="location"
-            android:exported="false"/>
+            android:exported="false"
+            android:stopWithTask="false"
+            tools:node="merge"/>
+
+        <!-- Watchdog: AlarmManager fires every 5 min, restarts service if dead.
+             Also handles BOOT and connectivity restore. -->
+        <receiver
+            android:name=".LocationWatchdogReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+                <action android:name="com.esahlan.driver.WATCHDOG"/>
+            </intent-filter>
+        </receiver>
 
         <!-- Auto-start tracking on device boot -->
         <receiver

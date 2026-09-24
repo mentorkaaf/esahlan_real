@@ -13,6 +13,13 @@ class MainActivity : FlutterActivity() {
 
     private var intentChannel: MethodChannel? = null
 
+    override fun onCreate(savedInstanceState: android.os.Bundle?) {
+        super.onCreate(savedInstanceState)
+        // Start the 5-minute watchdog loop that keeps location tracking alive
+        // even if the foreground service is killed by aggressive OEM battery managers.
+        LocationWatchdogReceiver.schedule(applicationContext)
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
