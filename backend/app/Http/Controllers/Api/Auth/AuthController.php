@@ -545,7 +545,14 @@ class AuthController extends Controller
             SecurityAuditService::fromRequest($request),
             ['user_id' => $request->user()->id]
         ));
-        $request->user()->update(['status' => 'deleted']);
+        // Soft-delete: mark inactive + anonymise PII so the account cannot be used
+        $request->user()->update([
+            'status'   => 'inactive',
+            'name'     => 'Deleted User',
+            'email'    => 'deleted_' . $request->user()->id . '@deleted.esahlan.com',
+            'phone'    => null,
+            'fcm_token'=> null,
+        ]);
         $request->user()->tokens()->delete();
         return response()->json(['success' => true, 'message' => 'Account deleted']);
     }

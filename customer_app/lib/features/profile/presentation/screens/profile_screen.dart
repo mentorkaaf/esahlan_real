@@ -299,6 +299,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               _buildChangeRegion(context, isDark),
               const SizedBox(height: 12),
               _buildSignOut(context, isDark),
+              const SizedBox(height: 8),
+              _buildDeleteAccount(context, isDark),
               Padding(
                 padding: EdgeInsets.only(top: 20, bottom: bottomPad),
                 child: const Text('eSahlan v1.0.0', style: TextStyle(color: AppColors.textLight, fontSize: 12)),
@@ -1052,6 +1054,69 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
+  // ── Delete Account ────────────────────────────────────────────────────────────
+
+  Future<void> _doDeleteAccount() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+    try {
+      await ref.read(deleteAccountProvider)();
+      // Success: loader dismisses automatically when state clears and router redirects to login
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop(); // close loader
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  void _confirmDeleteAccount() {
+    final l = AppL10n.of(context);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(children: [
+          const Icon(Icons.delete_forever_rounded, color: Colors.red, size: 22),
+          const SizedBox(width: 8),
+          Text(l.deleteAccountTitle, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+        ]),
+        content: Text(l.deleteAccountWarn),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        actions: [
+          Row(children: [
+            Expanded(child: OutlinedButton(
+              onPressed: () => Navigator.pop(ctx),
+              style: OutlinedButton.styleFrom(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              child: Text(l.cancel, style: const TextStyle(fontWeight: FontWeight.w700)),
+            )),
+            const SizedBox(width: 10),
+            Expanded(child: ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _doDeleteAccount();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              child: Text(l.deleteAccountConfirm, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+            )),
+          ]),
+        ],
+      ),
+    );
+  }
+
   // ── Sign out ─────────────────────────────────────────────────────────────────
 
   Widget _buildSignOut(BuildContext context, bool isDark) {
@@ -1080,6 +1145,37 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 Text(l.signOutSub, style: const TextStyle(fontSize: 11, color: Colors.redAccent)),
               ])),
               const Icon(Icons.chevron_right_rounded, color: Colors.red, size: 20),
+            ]);
+          }),
+        ),
+      ),
+    );
+  }
+  Widget _buildDeleteAccount(BuildContext context, bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: GestureDetector(
+        onTap: _confirmDeleteAccount,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1A0A0A) : const Color(0xFFFFF0F0),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.red.withAlpha(40)),
+          ),
+          child: Builder(builder: (ctx) {
+            final l = AppL10n.of(ctx);
+            return Row(children: [
+              Container(
+                width: 36, height: 36,
+                decoration: BoxDecoration(color: Colors.red.withAlpha(15), borderRadius: BorderRadius.circular(10)),
+                child: const Icon(Icons.delete_forever_rounded, color: Colors.red, size: 18),
+              ),
+              const SizedBox(width: 14),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(l.deleteAccount, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.red)),
+                Text(l.deleteAccountSub, style: const TextStyle(fontSize: 11, color: Colors.redAccent)),
+              ])),
             ]);
           }),
         ),

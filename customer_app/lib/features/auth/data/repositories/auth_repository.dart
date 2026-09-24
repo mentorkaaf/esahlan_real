@@ -156,6 +156,19 @@ class AuthRepository {
     await LocalStorage.clear();
   }
 
+  Future<void> deleteAccount() async {
+    try {
+      await _dio.delete('/auth/delete-account');
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+    if (!kIsWeb) {
+      FirebaseService().deleteToken().catchError((_) {});
+    }
+    RealtimeClient.instance.disconnect().catchError((_) {});
+    await LocalStorage.clear();
+  }
+
   Future<void> updateLocation(double lat, double lng) async {
     try {
       await _dio.post('/auth/location', data: {'latitude': lat, 'longitude': lng});

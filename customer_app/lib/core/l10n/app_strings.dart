@@ -229,7 +229,12 @@ class AppL10n {
   String get termsOfService => _t('termsOfService', _lang);
   String get privacyPolicy  => _t('privacyPolicy', _lang);
   String get contactUs      => _t('contactUs', _lang);
-  String get deleteAccount  => _t('deleteAccount', _lang);
+  String get deleteAccount        => _t('deleteAccount', _lang);
+  String get deleteAccountSub     => _t('deleteAccountSub', _lang);
+  String get deleteAccountTitle   => _t('deleteAccountTitle', _lang);
+  String get deleteAccountWarn    => _t('deleteAccountWarn', _lang);
+  String get deleteAccountConfirm => _t('deleteAccountConfirm', _lang);
+  String get deleteAccountSuccess => _t('deleteAccountSuccess', _lang);
   String get signOut        => _t('signOut', _lang);
   String get signOutSub     => _t('signOutSub', _lang);
   String get signOutTitle   => _t('signOutTitle', _lang);
@@ -819,7 +824,12 @@ const _db = <String, Map<String, String>>{
   'termsOfService':{'en': 'Terms of Service','so': 'Xeerarka adeegga',   'ar': 'شروط الخدمة'},
   'privacyPolicy':{'en': 'Privacy Policy',   'so': 'Siyaasadda asturnaanta','ar': 'سياسة الخصوصية'},
   'contactUs':    {'en': 'Contact Us',       'so': 'Nala soo xiriir',    'ar': 'اتصل بنا'},
-  'deleteAccount':{'en': 'Delete Account',   'so': 'Akoonka tirtir',     'ar': 'حذف الحساب'},
+  'deleteAccount':       {'en': 'Delete Account',                  'so': 'Akoonka tirtir',              'ar': 'حذف الحساب'},
+  'deleteAccountSub':    {'en': 'Permanently remove your account', 'so': 'Akoonkaaga si joogto ah u tirtir','ar': 'حذف حسابك نهائياً'},
+  'deleteAccountTitle':  {'en': 'Delete Account?',                 'so': 'Ma tirtiraysa akoonkaaga?',    'ar': 'حذف الحساب؟'},
+  'deleteAccountWarn':   {'en': 'This action is permanent and cannot be undone. All your data, orders, and history will be permanently deleted.', 'so': 'Falkan waa mid joogto ah oo aan la laabta karin. Dhammaan xogtaada, dalabyadaada, iyo taariikhda si joogto ah ayaa la tirtiri doonaa.', 'ar': 'هذا الإجراء دائم ولا يمكن التراجع عنه. سيتم حذف جميع بياناتك وطلباتك وسجلك بشكل دائم.'},
+  'deleteAccountConfirm':{'en': 'Yes, Delete My Account',          'so': 'Haa, Akoonkeyga Tirtir',       'ar': 'نعم، احذف حسابي'},
+  'deleteAccountSuccess':{'en': 'Account deleted successfully',    'so': 'Akoonku si guul leh ayuu u tirtirnay', 'ar': 'تم حذف الحساب بنجاح'},
   'signOut':      {'en': 'Sign Out',         'so': 'Ka bax',             'ar': 'تسجيل الخروج'},
   'signOutSub':   {'en': 'You can always log back in', 'so': 'Mar walba waxaad dib u geli kartaa', 'ar': 'يمكنك تسجيل الدخول مجدداً'},
   'signOutTitle': {'en': 'Sign Out?',        'so': 'Ma ka baxaysaa?',    'ar': 'تسجيل الخروج؟'},
@@ -891,6 +901,8 @@ const _db = <String, Map<String, String>>{
   // Home
   'ourServices':     {'en': 'Our Services',                 'so': 'Adeegyadeena',                     'ar': 'خدماتنا'},
   'exploreNow':      {'en': 'Explore Now',                  'so': 'Hadda baadhi',                     'ar': 'استكشف الآن'},
+  'searchMinLength': {'en': 'Enter at least 2 characters to search', 'so': 'Geli ugu yaraan 2 xaraf si aad u raadiso', 'ar': 'أدخل حرفين على الأقل للبحث'},
+  'searchVendors': {'en': 'Stores and restaurants', 'so': 'Dukaamada iyo makhaayadaha', 'ar': 'المتاجر والمطاعم'},
   'searchHint':      {'en': 'Search services, restaurants, houses...','so': 'Adeegyada, makhaayadaha, guryaha raadi...','ar': 'ابحث عن خدمات، مطاعم، منازل...'},
 
   // Community Chat

@@ -121,6 +121,24 @@ final updateProfileProvider = Provider<Future<void> Function(Map<String, dynamic
   };
 });
 
+// Delete account
+final deleteAccountProvider = Provider<Future<void> Function()>((ref) {
+  return () async {
+    if (!kIsWeb) LocationService.stopTracking();
+    await ref.read(authRepositoryProvider).deleteAccount();
+    ref.invalidate(authStateProvider);
+    ref.invalidate(rewardsProvider);
+    try {
+      ref.read(authChangeNotifierProvider).notify();
+    } catch (_) {}
+    if (kIsWeb) {
+      try {
+        ref.read(routerProvider).go('/auth/login');
+      } catch (_) {}
+    }
+  };
+});
+
 // Logout
 final logoutProvider = Provider<Future<void> Function()>((ref) {
   return () async {
