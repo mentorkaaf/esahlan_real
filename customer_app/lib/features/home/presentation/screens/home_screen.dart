@@ -1,4 +1,5 @@
-﻿import 'dart:async';
+import 'dart:async';
+import 'home_search_screen.dart';
 import '../../../../core/theme/theme_x.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -122,7 +123,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final appBarBg = Theme.of(context).appBarTheme.backgroundColor ?? Colors.white;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final user = ref.watch(authStateProvider).valueOrNull;
     final isDesktop = kIsWeb && MediaQuery.sizeOf(context).width >= 900;
 
@@ -189,35 +189,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                           color: cs.onSurface, size: 18),
                     ]),
                     const SizedBox(height: 10),
-                    Container(
+                    SizedBox(
                       height: 46,
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).scaffoldBackgroundColor,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: isDark
-                              ? const Color(0xFF2A2B48)
-                              : AppColors.divider,
+                      child: HomeSearchField(
+                        onSearch: (query) => context.push(
+                          Uri(path: '/home/search', queryParameters: {'q': query})
+                              .toString(),
                         ),
                       ),
-                      child: Row(children: [
-                        const SizedBox(width: 14),
-                        const Icon(Icons.search_rounded, color: AppColors.textGrey, size: 20),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            AppL10n.of(context).searchHint,
-                            style: TextStyle(
-                              color: isDark
-                                  ? const Color(0xFF5A5A7A)
-                                  : AppColors.textLight,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ),
-                        const Icon(Icons.mic_outlined, color: AppColors.textGrey, size: 20),
-                        const SizedBox(width: 14),
-                      ]),
                     ),
                   ],
                 ),

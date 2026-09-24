@@ -28,6 +28,7 @@ import '../../features/auth/presentation/screens/otp_screen.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/home/presentation/screens/main_shell.dart';
 import '../../features/home/presentation/screens/home_screen.dart';
+import '../../features/home/presentation/screens/home_search_screen.dart';
 import '../../features/home/presentation/screens/vendors_screen.dart';
 import '../../features/home/presentation/screens/vendor_detail_screen.dart';
 import '../../features/cart/presentation/screens/cart_screen.dart';
@@ -476,6 +477,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(path: '/live/past', builder: (_, __) => const PastLivesScreen()),
+
+      GoRoute(
+        path: '/home/search',
+        builder: (_, state) => HomeSearchScreen(
+          initialQuery: state.uri.queryParameters['q'] ?? '',
+        ),
+      ),
 
       // Detail routes
       GoRoute(

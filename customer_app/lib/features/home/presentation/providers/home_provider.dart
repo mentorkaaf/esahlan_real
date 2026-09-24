@@ -64,3 +64,8 @@ final vendorProductsProvider = FutureProvider.family<List<ProductModel>, int>((r
   ref.cacheFor(_kCacheTtl);
   return ref.read(homeRepositoryProvider).getVendorProducts(vendorId);
 });
+
+final homeSearchProvider = FutureProvider.autoDispose
+    .family<Map<String, dynamic>, String>((ref, query) {
+  return ref.read(homeRepositoryProvider).searchAll(query);
+});

@@ -130,10 +130,10 @@ class HomeRepository {
     }
   }
 
-  Future<List<Map<String, dynamic>>> searchAll(String query) async {
+  Future<Map<String, dynamic>> searchAll(String query) async {
     try {
       final res = await _dio.get('/search', queryParameters: {'q': query});
-      return [res.data['data'] as Map<String, dynamic>];
+      return res.data['data'] as Map<String, dynamic>;
     } on DioException catch (e) {
       throw ApiException.fromDio(e);
     }
