@@ -11,6 +11,7 @@ import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:flutter_callkit_incoming/entities/entities.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../api/api_client.dart';
 import '../constants/app_constants.dart';
@@ -23,8 +24,37 @@ import '../theme/app_theme.dart';
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
+  // Re-upload token on every background wake — repairs server-side clears
+  // and catches Firebase token rotations even when app is never opened.
+  await _bgCheckToken();
   if (message.data['type'] == 'incoming_call') {
     await _showCallkitIncoming(message.data);
+  }
+}
+
+// Top-level so it runs inside the background isolate without class context.
+Future<void> _bgCheckToken() async {
+  try {
+    final token = await FirebaseMessaging.instance.getToken();
+    if (token == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getString(AppConstants.fcmTokenKey) == token) return;
+    final auth = await LocalStorage.getToken();
+    if (auth == null) return; // not logged in
+    final dio = Dio();
+    await dio.post(
+      '${AppConstants.baseUrl}/auth/fcm-token',
+      data: {'fcm_token': token},
+      options: Options(
+        headers: {'Authorization': 'Bearer $auth', 'Accept': 'application/json'},
+        sendTimeout: const Duration(seconds: 10),
+        receiveTimeout: const Duration(seconds: 10),
+      ),
+    );
+    await prefs.setString(AppConstants.fcmTokenKey, token);
+    debugPrint('[FCM:BG] Token refreshed ✓');
+  } catch (e) {
+    debugPrint('[FCM:BG] Token check skipped: $e');
   }
 }
 

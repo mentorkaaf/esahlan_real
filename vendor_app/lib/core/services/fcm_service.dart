@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -6,15 +7,45 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../api/api_client.dart';
 
+const _kVendorBaseUrl = 'https://esahlan.com/api/v1';
+const _kVendorFcmCacheKey = 'vendor_fcm_token'; // already used by _tryUploadToken
+
+// Top-level — runs inside the background isolate.
+Future<void> _bgCheckVendorToken() async {
+  try {
+    final token = await FirebaseMessaging.instance.getToken();
+    if (token == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getString(_kVendorFcmCacheKey) == token) return;
+    // Read auth token from SharedPreferences (vendor_app stores it under 'vendor_token')
+    final auth = prefs.getString('vendor_token');
+    if (auth == null) return;
+    final dio = Dio();
+    await dio.post(
+      '$_kVendorBaseUrl/vendor/fcm-token',
+      data: {'fcm_token': token},
+      options: Options(
+        headers: {'Authorization': 'Bearer $auth', 'Accept': 'application/json'},
+        sendTimeout: const Duration(seconds: 10),
+        receiveTimeout: const Duration(seconds: 10),
+      ),
+    );
+    await prefs.setString(_kVendorFcmCacheKey, token);
+    debugPrint('[FCM:BG] Vendor token refreshed ✓');
+  } catch (e) {
+    debugPrint('[FCM:BG] Vendor token check skipped: $e');
+  }
+}
+
 // ── Background isolate handler ──────────────────────────────────────────────
-// Called when app is killed or in background. Must be top-level.
 @pragma('vm:entry-point')
 Future<void> _firebaseBackgroundHandler(RemoteMessage message) async {
   try {
     await Firebase.initializeApp();
   } catch (_) {}
-  // Notification payload → OS auto-shows in system tray.
-  // We do nothing here — OS handles display.
+  // Re-upload token on every background wake — repairs server-side clears.
+  await _bgCheckVendorToken();
+  // Notification payload → OS auto-shows in system tray for other types.
 }
 
 // ── Channel constant (must match backend FcmService channel_id) ──────────────
@@ -126,17 +157,29 @@ class VendorFcmService {
     }
   }
 
-  // ── Internal: upload token (skips if same as cached) ──────────────────────
+  static const _kLastUploadKey = 'vendor_fcm_uploaded_at';
+  static const _kForceIntervalH = 12;
+
+  // ── Internal: upload token — skips only when token matches AND < 12h since last upload ──
   static Future<void> _tryUploadToken([String? token]) async {
     try {
       token ??= await FirebaseMessaging.instance.getToken();
       if (token == null) return;
       final prefs = await SharedPreferences.getInstance();
-      if (prefs.getString('vendor_fcm_token') == token) return;
-      await prefs.setString('vendor_fcm_token', token);
+      final cached   = prefs.getString(_kVendorFcmCacheKey);
+      final lastStr  = prefs.getString(_kLastUploadKey);
+      final lastAt   = lastStr != null ? DateTime.tryParse(lastStr) : null;
+      final stale    = lastAt == null ||
+          DateTime.now().difference(lastAt).inHours >= _kForceIntervalH;
+      if (cached == token && !stale) return;
       await ApiClient().post('/vendor/fcm-token', data: {'fcm_token': token});
+      await prefs.setString(_kVendorFcmCacheKey, token);
+      await prefs.setString(_kLastUploadKey, DateTime.now().toIso8601String());
     } catch (_) {}
   }
+
+  // ── Called on app resume to refresh token if stale ────────────────────────
+  static Future<void> refreshTokenIfNeeded() => _tryUploadToken();
 
   // ── Show notification in foreground ───────────────────────────────────────
   static void _onForeground(RemoteMessage message) {

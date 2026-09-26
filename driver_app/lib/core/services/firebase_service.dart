@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui';
+import 'package:dio/dio.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -9,6 +10,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../api/api_client.dart';
+import '../constants/app_constants.dart';
 import '../storage/local_storage.dart';
 import 'location_service.dart';
 import '../../firebase_options.dart';
@@ -33,6 +35,32 @@ const _kNativeCallCh     = 'esahlan_call';        // MethodChannel → CallPlugi
 //   1. Save order to SharedPreferences  ← app reads this on launch / resume
 //   2. Show fullScreenIntent alarm      ← pops over lock screen, rings
 // ─────────────────────────────────────────────────────────────────────────────
+// Top-level so it runs inside the background isolate without class context.
+Future<void> _bgCheckDriverToken() async {
+  try {
+    final token = await FirebaseMessaging.instance.getToken();
+    if (token == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getString('driver_fcm_token_cached') == token) return;
+    final auth = await LocalStorage.getToken();
+    if (auth == null) return;
+    final dio = Dio();
+    await dio.post(
+      '${AppConstants.baseUrl}/delivery/fcm-token',
+      data: {'token': token},
+      options: Options(
+        headers: {'Authorization': 'Bearer $auth', 'Accept': 'application/json'},
+        sendTimeout: const Duration(seconds: 10),
+        receiveTimeout: const Duration(seconds: 10),
+      ),
+    );
+    await prefs.setString('driver_fcm_token_cached', token);
+    debugPrint('[FCM:BG] Driver token refreshed ✓');
+  } catch (e) {
+    debugPrint('[FCM:BG] Driver token check skipped: $e');
+  }
+}
+
 @pragma('vm:entry-point')
 Future<void> _bgHandler(RemoteMessage message) async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,8 +68,13 @@ Future<void> _bgHandler(RemoteMessage message) async {
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   } catch (_) {}
 
+  // Re-upload token on every background wake — repairs server-side clears.
+  await _bgCheckDriverToken();
+
   final type = message.data['type'] ?? '';
   debugPrint('[FCM:BG] type=$type');
+
+  if (type == 'token_check') return; // ping handled — token already refreshed above
 
   if (type == 'request_location') {
     await postLocationForFcm();

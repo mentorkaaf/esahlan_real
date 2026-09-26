@@ -364,6 +364,21 @@ class FcmService
 
         if ($code !== 200) {
             Log::warning('[FCM] sendDataOnly failed', ['code' => $code, 'resp' => $resp, 'token' => '...'.substr($fcmToken,-20)]);
+            // Auto-clear stale tokens — same logic as sendToToken
+            if ($code === 404 || $code === 403) {
+                $parsed  = json_decode($resp, true);
+                $errCode = $parsed['error']['details'][0]['errorCode']
+                    ?? $parsed['error']['status'] ?? '';
+                $clearable = in_array($errCode, ['UNREGISTERED', 'SENDER_ID_MISMATCH', 'PERMISSION_DENIED'])
+                    || str_contains(strtolower($parsed['error']['message'] ?? ''), 'senderid mismatch');
+                if ($clearable) {
+                    \App\Models\User::where('fcm_token', $fcmToken)->update(['fcm_token' => null]);
+                    \App\Models\Vendor::where('vendor_fcm_token', $fcmToken)->update(['vendor_fcm_token' => null]);
+                    try { \App\Models\Deliveryman::whereHas('user', fn($q)=>$q->where('fcm_token',$fcmToken))->update([]); } catch(\Throwable $e){}
+                    try { \App\Models\Global\GlobalUser::where('fcm_token', $fcmToken)->update(['fcm_token' => null]); } catch(\Throwable $e){}
+                    Log::info('[FCM] sendDataOnly cleared stale token', ['code' => $code, 'errorCode' => $errCode, 'token' => '...'.substr($fcmToken,-20)]);
+                }
+            }
             return false;
         }
         $parsed = json_decode($resp, true);

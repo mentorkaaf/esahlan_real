@@ -144,6 +144,16 @@ Schedule::command('admin:server-health-check')
     ->withoutOverlapping()
     ->runInBackground();
 
+// ── FCM token refresh — daily at 02:00 ──────────────────────────────────
+// Sends a silent token_check ping to ALL customers, vendors, and drivers.
+// App wakes in background and re-uploads its current FCM token if changed.
+// Invalid tokens (404 UNREGISTERED) are auto-cleared by FcmService.
+Schedule::command('fcm:refresh-tokens')
+    ->dailyAt('02:00')
+    ->name('fcm:refresh-tokens')
+    ->withoutOverlapping()
+    ->runInBackground();
+
 // ── FCM token validation — daily at 03:00 ───────────────────────────────
 // Sends a silent ping to every stored FCM token.
 // Invalid tokens (403 SenderId mismatch, 404 UNREGISTERED) are auto-cleared.
