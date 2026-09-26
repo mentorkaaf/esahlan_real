@@ -33,7 +33,10 @@ class _AgentShellState extends ConsumerState<AgentShell> with WidgetsBindingObse
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _checkPendingRoute();
+    if (state == AppLifecycleState.resumed) {
+      _checkPendingRoute();
+      VendorFcmService.refreshTokenIfNeeded().catchError((_) {});
+    }
   }
 
   void _checkPendingRoute() {

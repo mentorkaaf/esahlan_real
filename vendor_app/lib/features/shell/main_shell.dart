@@ -7,6 +7,7 @@ import '../store/store_screen.dart';
 import '../wallet/wallet_screen.dart';
 import '../wholesale/wholesale_screen.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/services/fcm_service.dart';
 import '../../core/services/vendor_repository.dart';
 import '../../core/services/app_update_checker.dart';
 import '../../core/theme/vc.dart';
@@ -25,7 +26,7 @@ class MainShell extends ConsumerStatefulWidget {
   ConsumerState<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends ConsumerState<MainShell> {
+class _MainShellState extends ConsumerState<MainShell> with WidgetsBindingObserver {
   late int _index;
   String _moduleSlug = 'efood';
 
@@ -47,11 +48,25 @@ class _MainShellState extends ConsumerState<MainShell> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _index = widget.initialIndex;
     _loadModule();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) AppUpdateChecker.check(context, 'vendor');
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      VendorFcmService.refreshTokenIfNeeded().catchError((_) {});
+    }
   }
 
   Future<void> _loadModule() async {
