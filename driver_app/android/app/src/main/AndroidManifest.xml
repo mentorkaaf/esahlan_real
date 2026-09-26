@@ -91,14 +91,15 @@
             android:stopWithTask="false"
             tools:node="merge"/>
 
-        <!-- Watchdog: AlarmManager fires every 5 min, restarts service if dead.
-             Also handles BOOT and connectivity restore. -->
+        <!-- Watchdog: AlarmManager fires every 5 min, posts GPS + restarts service if dead.
+             CONNECTIVITY_CHANGE fires the instant internet comes back. -->
         <receiver
             android:name=".LocationWatchdogReceiver"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+                <action android:name="android.net.conn.CONNECTIVITY_CHANGE"/>
                 <action android:name="com.esahlan.driver.WATCHDOG"/>
             </intent-filter>
         </receiver>

@@ -7,16 +7,26 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.os.Looper
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import com.google.firebase.messaging.RemoteMessage
 import io.flutter.plugins.firebase.messaging.FlutterFirebaseMessagingService
 import org.json.JSONObject
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 
 /**
  * Native FCM service — intercepts new_order messages and launches
@@ -126,6 +136,18 @@ class EsahlanMessagingService : FlutterFirebaseMessagingService() {
             return
         }
 
+        if (type == "request_location" || type == "token_check") {
+            // Handle location ping natively — no Flutter startup needed.
+            // This fires even when app is fully killed and Flutter never wakes.
+            // After posting GPS, backend sets is_online=true automatically.
+            if (type == "request_location") {
+                postLocationNative()
+            }
+            // Also let Flutter _bgHandler run (refreshes FCM token on token_check)
+            super.onMessageReceived(message)
+            return
+        }
+
         if (type == "force_online_reminder") {
             // ── Admin forced this driver online ────────────────────────────
             // 1. Save flag so MainShell picks it up on resume / after open
@@ -181,6 +203,64 @@ class EsahlanMessagingService : FlutterFirebaseMessagingService() {
             .build()
 
         nm.notify(FORCE_ONLINE_ID, notif)
+    }
+
+    // ── Native location post — works without Flutter running ─────────────────
+    private fun postLocationNative() {
+        val authToken = readDriverAuthToken() ?: return
+        try {
+            val fusedClient = LocationServices.getFusedLocationProviderClient(applicationContext)
+            fusedClient.lastLocation
+                .addOnSuccessListener { location ->
+                    if (location != null) {
+                        Thread { postGps(location.latitude, location.longitude, authToken) }.start()
+                    } else {
+                        requestOneFix(authToken)
+                    }
+                }
+        } catch (e: SecurityException) {
+            Log.w(TAG, "Location permission missing: $e")
+        } catch (e: Exception) {
+            Log.w(TAG, "postLocationNative error: $e")
+        }
+    }
+
+    private fun requestOneFix(authToken: String) {
+        try {
+            val fusedClient = LocationServices.getFusedLocationProviderClient(applicationContext)
+            val req = LocationRequest.Builder(Priority.PRIORITY_BALANCED_POWER_ACCURACY, 5000L)
+                .setMaxUpdates(1).build()
+            fusedClient.requestLocationUpdates(req, object : LocationCallback() {
+                override fun onLocationResult(result: LocationResult) {
+                    fusedClient.removeLocationUpdates(this)
+                    val loc = result.lastLocation ?: return
+                    Thread { postGps(loc.latitude, loc.longitude, authToken) }.start()
+                }
+            }, Looper.getMainLooper())
+        } catch (e: Exception) {
+            Log.w(TAG, "requestOneFix error: $e")
+        }
+    }
+
+    private fun postGps(lat: Double, lng: Double, authToken: String) {
+        try {
+            val ts = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
+                timeZone = TimeZone.getTimeZone("UTC")
+            }.format(Date())
+            val url  = URL("$BASE_URL/delivery/location")
+            val conn = url.openConnection() as HttpURLConnection
+            conn.requestMethod = "POST"
+            conn.setRequestProperty("Content-Type", "application/json")
+            conn.setRequestProperty("Accept", "application/json")
+            conn.setRequestProperty("Authorization", "Bearer $authToken")
+            conn.doOutput = true; conn.connectTimeout = 12_000; conn.readTimeout = 12_000
+            val body = """{"latitude":$lat,"longitude":$lng,"accuracy":null,"speed":null,"heading":null,"timestamp":"$ts","battery_level":null}"""
+            OutputStreamWriter(conn.outputStream).use { it.write(body) }
+            val code = conn.responseCode; conn.disconnect()
+            Log.i(TAG, "Native GPS posted ($lat,$lng) HTTP $code")
+        } catch (e: Exception) {
+            Log.w(TAG, "postGps error: $e")
+        }
     }
 
     // ── Check if our app is currently in the foreground ──────────────────────

@@ -48,6 +48,8 @@ dependencies {
     implementation("com.google.firebase:firebase-messaging:24.1.1")
     // EncryptedSharedPreferences for reading flutter_secure_storage auth token natively
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
+    // FusedLocationProviderClient — direct GPS in native watchdog/receiver
+    implementation("com.google.android.gms:play-services-location:21.3.0")
 }
 
 flutter {
