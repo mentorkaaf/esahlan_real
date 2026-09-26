@@ -633,10 +633,12 @@ class DeliveryController extends Controller
         if ($heading !== null) $updateData['heading']  = $heading;
         if ($battery !== null) $updateData['battery_level'] = $battery;
 
-        // Only auto-mark online if the driver has NOT explicitly gone offline via the toggle.
-        // status='offline' means the driver deliberately toggled off — respect that choice.
-        // Only auto-online drivers who have never toggled (status != 'offline').
-        if (!$dm->is_online && $dm->status !== 'offline') {
+        // Always restore is_online=true whenever a location ping arrives.
+        // A live location means the driver is reachable — force them back on the
+        // map regardless of their last toggle state. The FCM ping scheduler wakes
+        // all drivers with internet every minute, so this keeps every driver
+        // visible on the live map as long as their phone has connectivity.
+        if (!$dm->is_online) {
             $updateData['is_online'] = true;
             $updateData['status']    = 'available';
         }

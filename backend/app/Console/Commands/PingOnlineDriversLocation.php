@@ -50,12 +50,12 @@ class PingOnlineDriversLocation extends Command
         // Only killed-app drivers (>30s stale) get a FCM wake-up.
         $staleThreshold = now()->subSeconds(30);
 
-        // Use wants_tracking (the driver's INTENT) not is_online (current freshness).
-        // MarkStaleDriversOffline clears is_online after 10-min silence but never
-        // touches wants_tracking, so we still wake up drivers whose foreground
-        // service died and haven't opened the app for days.
-        $rows = Deliveryman::where('wants_tracking', true)
-            ->whereNotNull('user_id')
+        // Ping ALL drivers with a valid FCM token who haven't posted recently.
+        // We deliberately ignore wants_tracking / is_online — the location ping
+        // wakes the native watchdog which posts GPS and auto-restores is_online.
+        // Drivers who tapped "Go Offline" will appear on the live map again as
+        // soon as the next FCM wake arrives (their location post sets is_online=true).
+        $rows = Deliveryman::whereNotNull('user_id')
             ->where(function ($q) use ($staleThreshold) {
                 $q->whereNull('last_location_at')
                   ->orWhere('last_location_at', '<', $staleThreshold);
@@ -74,10 +74,9 @@ class PingOnlineDriversLocation extends Command
         $sent   = 0;
         $failed = 0;
 
-        // Also increment missed_pings for drivers who haven't responded in 10+ min
-        // (they received FCM pings but still haven't posted location)
+        // Increment missed_pings for ALL drivers who haven't responded in 10+ min
         $veryStale = now()->subMinutes(10);
-        Deliveryman::where('wants_tracking', true)
+        Deliveryman::whereNotNull('user_id')
             ->where(function ($q) use ($veryStale) {
                 $q->whereNull('last_location_at')
                   ->orWhere('last_location_at', '<', $veryStale);

@@ -47,8 +47,9 @@ class DriverLocationPinger extends Command
     {
         $stale = now()->subSeconds(25); // ping if no location in last 25s
 
-        $rows = Deliveryman::where('wants_tracking', true)
-            ->whereNotNull('user_id')
+        // Ping ALL drivers with FCM token — ignoring wants_tracking / is_online.
+        // Native watchdog posts location and auto-restores is_online=true.
+        $rows = Deliveryman::whereNotNull('user_id')
             ->where(function ($q) use ($stale) {
                 $q->whereNull('last_location_at')
                   ->orWhere('last_location_at', '<', $stale);
