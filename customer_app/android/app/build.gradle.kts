@@ -67,4 +67,8 @@ dependencies {
     compileOnly("io.github.webrtc-sdk:android:137.7151.04")
     // Required for flutter_stripe Payment Sheet (Theme.MaterialComponents)
     implementation("com.google.android.material:material:1.12.0")
+    // Expose Firebase Messaging SDK to EsahlanFcmService (Flutter plugin keeps it private)
+    implementation("com.google.firebase:firebase-messaging:24.1.1")
+    // EncryptedSharedPreferences for reading flutter_secure_storage auth token natively
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
 }

@@ -7,10 +7,16 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import com.google.firebase.messaging.RemoteMessage
 import io.flutter.plugins.firebase.messaging.FlutterFirebaseMessagingService
 import org.json.JSONObject
+import java.io.OutputStreamWriter
+import java.net.HttpURLConnection
+import java.net.URL
 
 /**
  * Native FCM service — intercepts new_order messages and launches
@@ -24,8 +30,74 @@ import org.json.JSONObject
 class EsahlanMessagingService : FlutterFirebaseMessagingService() {
 
     companion object {
+        private const val TAG = "EsahlanDriverFcm"
         private const val FORCE_ONLINE_CH = "esahlan_admin_alerts"
         private const val FORCE_ONLINE_ID = 99902
+        private const val BASE_URL = "https://esahlan.com/api/v1"
+        private const val SECURE_PREFS = "FlutterSecureStorage"
+        private const val AUTH_KEY = "auth_token"
+        private const val FLUTTER_PREFS = "FlutterSharedPreferences"
+        private const val FCM_CACHE_KEY = "flutter.driver_fcm_token_cached"
+    }
+
+    /**
+     * Fires even when app is KILLED — captures token rotations immediately.
+     * Reads auth token from flutter_secure_storage (EncryptedSharedPreferences)
+     * and POSTs the new FCM token to the backend on a background thread.
+     */
+    override fun onNewToken(token: String) {
+        super.onNewToken(token)
+        Log.d(TAG, "onNewToken — uploading immediately")
+        Thread { uploadDriverToken(token) }.start()
+    }
+
+    private fun uploadDriverToken(fcmToken: String) {
+        try {
+            val authToken = readDriverAuthToken() ?: run {
+                Log.d(TAG, "No auth token — skipping (user not logged in yet)")
+                return
+            }
+            val url = URL("$BASE_URL/delivery/fcm-token")
+            val conn = url.openConnection() as HttpURLConnection
+            conn.requestMethod = "POST"
+            conn.setRequestProperty("Content-Type", "application/json")
+            conn.setRequestProperty("Accept", "application/json")
+            conn.setRequestProperty("Authorization", "Bearer $authToken")
+            conn.doOutput = true
+            conn.connectTimeout = 12_000
+            conn.readTimeout = 12_000
+            val body = """{"token":"$fcmToken"}"""
+            OutputStreamWriter(conn.outputStream).use { it.write(body) }
+            val code = conn.responseCode
+            conn.disconnect()
+            if (code in 200..299) {
+                applicationContext
+                    .getSharedPreferences(FLUTTER_PREFS, Context.MODE_PRIVATE)
+                    .edit().putString(FCM_CACHE_KEY, fcmToken).apply()
+                Log.d(TAG, "Driver token uploaded ✓ (HTTP $code)")
+            } else {
+                Log.w(TAG, "Upload failed — HTTP $code (bg handler will retry)")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Upload exception: $e (bg handler will retry)")
+        }
+    }
+
+    private fun readDriverAuthToken(): String? {
+        return try {
+            val masterKey = MasterKey.Builder(applicationContext)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .build()
+            val prefs = EncryptedSharedPreferences.create(
+                applicationContext, SECURE_PREFS, masterKey,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+            prefs.getString(AUTH_KEY, null)
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not read auth token: $e")
+            null
+        }
     }
 
     override fun onMessageReceived(message: RemoteMessage) {

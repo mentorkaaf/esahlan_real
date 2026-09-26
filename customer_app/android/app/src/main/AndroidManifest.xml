@@ -1,4 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Permissions -->
     <uses-permission android:name="android.permission.INTERNET"/>
@@ -62,9 +63,15 @@
             </intent-filter>
         </activity>
 
-        <!-- FCM Service -->
+        <!-- Remove Flutter plugin's default FCM service so EsahlanFcmService takes its place -->
         <service
-            android:name="com.google.firebase.messaging.FirebaseMessagingService"
+            android:name="io.flutter.plugins.firebase.messaging.FlutterFirebaseMessagingService"
+            tools:node="remove"/>
+
+        <!-- EsahlanFcmService — onNewToken() uploads token even when app is killed.
+             Extends FlutterFirebaseMessagingService so Flutter _bgHandler still runs. -->
+        <service
+            android:name=".EsahlanFcmService"
             android:exported="false">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT"/>
