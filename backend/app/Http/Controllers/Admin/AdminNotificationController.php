@@ -164,7 +164,12 @@ class AdminNotificationController extends Controller
         $stats   = NotificationLog::statsFor($id);
 
         $rows = NotificationLog::where('push_notification_id', $id)
-            ->with('user:id,name,phone,email')
+            ->with([
+                'user:id,name,phone,email',
+                'vendor:id,name,phone,email',
+                'deliveryman:id,user_id',
+                'deliveryman.user:id,name,phone,email',
+            ])
             ->latest()
             ->get();
 

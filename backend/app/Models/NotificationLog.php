@@ -32,6 +32,35 @@ class NotificationLog extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function vendor(): BelongsTo
+    {
+        return $this->belongsTo(Vendor::class);
+    }
+
+    public function deliveryman(): BelongsTo
+    {
+        return $this->belongsTo(Deliveryman::class);
+    }
+
+    /** Returns the display name+phone regardless of user_type */
+    public function getActorAttribute(): ?array
+    {
+        if ($this->user_type === 'vendor') {
+            $v = $this->vendor;
+            return $v ? ['name' => $v->name, 'sub' => $v->phone ?? $v->email] : null;
+        }
+        if ($this->user_type === 'driver') {
+            $d = $this->deliveryman;
+            if ($d) {
+                $u = $d->user ?? null;
+                return ['name' => $u?->name ?? 'Driver #'.$d->id, 'sub' => $u?->phone ?? $u?->email ?? ''];
+            }
+            return null;
+        }
+        $u = $this->user;
+        return $u ? ['name' => $u->name, 'sub' => $u->phone ?? $u->email] : null;
+    }
+
     // ── Stats helpers ─────────────────────────────────────────────────────────
     public static function statsFor(int $pushNotificationId): array
     {

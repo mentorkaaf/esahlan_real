@@ -86,9 +86,10 @@
                     @forelse($rows as $row)
                     <tr>
                         <td>
-                            @if($row->user)
-                                <span class="fw-bold">{{ $row->user->name }}</span>
-                                <br><small class="text-muted">{{ $row->user->phone ?? $row->user->email }}</small>
+                            @php $actor = $row->actor; @endphp
+                            @if($actor)
+                                <span class="fw-bold">{{ $actor['name'] }}</span>
+                                @if($actor['sub'])<br><small class="text-muted">{{ $actor['sub'] }}</small>@endif
                             @else
                                 <span class="text-muted">ID #{{ $row->user_id }}</span>
                             @endif
