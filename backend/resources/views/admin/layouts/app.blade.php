@@ -81,6 +81,52 @@
         .brand-name { font-size: 17px; font-weight: 900; color: #fff; letter-spacing: -.5px; }
         .brand-sub  { font-size: 9px; color: rgba(255,138,0,0.65); letter-spacing: 2.5px; text-transform: uppercase; margin-top: 2px; font-weight: 700; }
 
+        /* ── Sidebar search ── */
+        .sidebar-search-wrap {
+            padding: 8px 12px 4px;
+            flex-shrink: 0;
+        }
+        .sidebar-search-box {
+            display: flex; align-items: center; gap: 8px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 10px;
+            padding: 7px 11px;
+            transition: border-color .15s, background .15s;
+        }
+        .sidebar-search-box:focus-within {
+            border-color: rgba(255,138,0,0.45);
+            background: rgba(255,138,0,0.06);
+        }
+        .sidebar-search-box i { color: rgba(255,255,255,0.28); font-size: 12px; flex-shrink: 0; }
+        .sidebar-search-input {
+            background: none; border: none; outline: none;
+            color: #fff; font-size: 12.5px; font-family: inherit;
+            width: 100%; font-weight: 500;
+        }
+        .sidebar-search-input::placeholder { color: rgba(255,255,255,0.28); }
+        .sidebar-search-clear {
+            background: none; border: none; cursor: pointer;
+            color: rgba(255,255,255,0.25); font-size: 11px; padding: 0; flex-shrink: 0;
+            display: none;
+            transition: color .15s;
+        }
+        .sidebar-search-clear:hover { color: rgba(255,255,255,0.6); }
+        body.sb-collapsed .sidebar-search-wrap { display: none; }
+
+        /* search results state */
+        .nav-link.sb-hidden, .nav-section-label.sb-hidden,
+        .nav-submenu.sb-hidden { display: none !important; }
+        .sb-no-results {
+            display: none; text-align: center; padding: 20px 12px;
+            color: rgba(255,255,255,0.25); font-size: 12px;
+        }
+        .sb-highlight {
+            background: rgba(255,138,0,0.3);
+            border-radius: 2px; padding: 0 2px;
+            color: #FF8A00; font-weight: 700;
+        }
+
         .sidebar-scroll { flex: 1; overflow-y: auto; padding: 8px 0 20px; }
         .sidebar-scroll::-webkit-scrollbar { width: 3px; }
         .sidebar-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
@@ -684,7 +730,23 @@
         </div>
     </a>
 
-    <div class="sidebar-scroll">
+    {{-- ── Sidebar Search ── --}}
+    <div class="sidebar-search-wrap">
+        <div class="sidebar-search-box">
+            <i class="fas fa-search"></i>
+            <input type="text" class="sidebar-search-input" id="sbSearch"
+                   placeholder="Search menu…" autocomplete="off" spellcheck="false">
+            <button class="sidebar-search-clear" id="sbClear" tabindex="-1">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="sidebar-scroll" id="sbScrollArea">
+        <div class="sb-no-results" id="sbNoResults">
+            <i class="fas fa-search" style="font-size:20px;margin-bottom:8px;display:block;opacity:.3"></i>
+            No menu items found
+        </div>
         @php $u = auth()->user(); @endphp
 
         {{-- ══ OVERVIEW ══ --}}
@@ -1329,6 +1391,125 @@ function openModal(id)  { document.getElementById(id)?.classList.add('open'); }
 function closeModal(id) { document.getElementById(id)?.classList.remove('open'); }
 document.addEventListener('click', e => { if (e.target.classList.contains('modal-overlay')) closeModal(e.target.id); });
 function toggleNav(btn, menuId) { btn.classList.toggle('open'); document.getElementById(menuId)?.classList.toggle('open'); }
+
+// ── Sidebar Search ────────────────────────────────────────────────────────────
+(function() {
+    const input   = document.getElementById('sbSearch');
+    const clear   = document.getElementById('sbClear');
+    const noRes   = document.getElementById('sbNoResults');
+    const scroll  = document.getElementById('sbScrollArea');
+    if (!input) return;
+
+    function getLinks() {
+        return scroll.querySelectorAll('a.nav-link, .nav-link.nav-toggle-btn');
+    }
+    function getLabels() {
+        return scroll.querySelectorAll('.nav-section-label');
+    }
+    function getSubmenus() {
+        return scroll.querySelectorAll('.nav-submenu');
+    }
+
+    // Store original text for each link (strip icon, get nav-text span content)
+    getLinks().forEach(el => {
+        const span = el.querySelector('.nav-text');
+        if (span) el.dataset.sbText = span.textContent.trim().toLowerCase();
+    });
+
+    function resetHighlights() {
+        scroll.querySelectorAll('.sb-highlight').forEach(h => {
+            h.outerHTML = h.textContent;
+        });
+    }
+
+    function highlight(span, query) {
+        const text  = span.textContent;
+        const lower = text.toLowerCase();
+        const idx   = lower.indexOf(query);
+        if (idx < 0) return;
+        span.innerHTML =
+            escHtml(text.slice(0, idx)) +
+            '<mark class="sb-highlight">' + escHtml(text.slice(idx, idx + query.length)) + '</mark>' +
+            escHtml(text.slice(idx + query.length));
+    }
+
+    function escHtml(s) {
+        return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function doSearch(query) {
+        query = query.trim().toLowerCase();
+        clear.style.display = query ? 'block' : 'none';
+
+        // Reset everything first
+        resetHighlights();
+        getLinks().forEach(el => el.classList.remove('sb-hidden'));
+        getLabels().forEach(el => el.classList.remove('sb-hidden'));
+        getSubmenus().forEach(el => el.classList.remove('sb-hidden'));
+        noRes.style.display = 'none';
+
+        if (!query) return;
+
+        // Open all submenus during search so children are visible
+        getSubmenus().forEach(el => el.classList.add('open'));
+
+        let anyVisible = false;
+
+        getLinks().forEach(el => {
+            const text = el.dataset.sbText || '';
+            const match = text.includes(query);
+            el.classList.toggle('sb-hidden', !match);
+            if (match) {
+                anyVisible = true;
+                const span = el.querySelector('.nav-text');
+                if (span) highlight(span, query);
+            }
+        });
+
+        // Hide section labels that have no visible links
+        getLabels().forEach(label => {
+            let sibling = label.nextElementSibling;
+            let hasVisible = false;
+            while (sibling && !sibling.classList.contains('nav-section-label')) {
+                if (sibling.classList.contains('nav-link') && !sibling.classList.contains('sb-hidden')) {
+                    hasVisible = true; break;
+                }
+                if (sibling.classList.contains('nav-submenu')) {
+                    const kids = sibling.querySelectorAll('.nav-link:not(.sb-hidden)');
+                    if (kids.length) { hasVisible = true; break; }
+                }
+                sibling = sibling.nextElementSibling;
+            }
+            label.classList.toggle('sb-hidden', !hasVisible);
+        });
+
+        noRes.style.display = anyVisible ? 'none' : 'block';
+    }
+
+    input.addEventListener('input', () => doSearch(input.value));
+
+    clear.addEventListener('click', () => {
+        input.value = '';
+        input.focus();
+        doSearch('');
+        // Restore submenu state (close them back)
+        getSubmenus().forEach(el => el.classList.remove('open'));
+    });
+
+    // Keyboard shortcut: / focuses sidebar search
+    document.addEventListener('keydown', e => {
+        if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+            e.preventDefault();
+            input.focus();
+        }
+        if (e.key === 'Escape' && document.activeElement === input) {
+            input.value = '';
+            doSearch('');
+            getSubmenus().forEach(el => el.classList.remove('open'));
+            input.blur();
+        }
+    });
+})();
 const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 async function postRequest(url, data = {}) {
     const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken }, body: JSON.stringify(data) });
