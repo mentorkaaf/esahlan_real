@@ -566,76 +566,94 @@ function _drawRoadSnappedTrail(driverId, points, color) {
     clearDriverTrail(driverId);
     trailRenderers[driverId] = [];
 
-    var latLngs = points.map(function(p) {
-        return { lat: parseFloat(p.lat), lng: parseFloat(p.lng) };
-    });
-
-    if (latLngs.length < 2) {
-        showToast('📍 Trail data is insufficient.', '#f59e0b');
+    if (!points || points.length < 2) {
+        showToast('📍 Trail data not enough yet.', '#f59e0b');
         return;
     }
 
-    // Fit map first so user sees something immediately
-    var bounds = new google.maps.LatLngBounds();
-    latLngs.forEach(function(p) { bounds.extend(p); });
-    map.fitBounds(bounds, { padding: 80 });
-
-    // Route each consecutive pair via DirectionsService so lines follow actual roads.
-    // Batch up to 9 points per request (origin + 7 waypoints + dest = 8 road segments).
-    var BATCH   = 9;
-    var total   = latLngs.length;
-    var svc     = new google.maps.DirectionsService();
-    var batches = [];
-    for (var i = 0; i < total - 1; i += BATCH - 1) {
-        var slice = latLngs.slice(i, Math.min(i + BATCH, total));
-        if (slice.length >= 2) batches.push({ pts: slice, idx: batches.length });
-    }
-    var batchCount  = batches.length;
-    var doneCount   = 0;
-
-    batches.forEach(function(b) {
-        var opacity = 0.25 + (b.idx / Math.max(batchCount - 1, 1)) * 0.70;
-        var weight  = (b.idx === batchCount - 1) ? 7 : 5;
-        var orig    = b.pts[0];
-        var dest    = b.pts[b.pts.length - 1];
-        var wps     = b.pts.slice(1, -1).map(function(p) {
-            return { location: p, stopover: false };
-        });
-
-        svc.route({
-            origin: orig, destination: dest,
-            waypoints: wps, optimizeWaypoints: false,
-            travelMode: google.maps.TravelMode.DRIVING,
-        }, function(result, status) {
-            if (status === 'OK') {
-                var renderer = new google.maps.DirectionsRenderer({
-                    map: map,
-                    suppressMarkers: true,
-                    preserveViewport: true,
-                    polylineOptions: {
-                        strokeColor: color,
-                        strokeWeight: weight,
-                        strokeOpacity: opacity,
-                        icons: [],
-                    },
-                });
-                renderer.setDirections(result);
-                trailRenderers[driverId].push(renderer);
-            } else {
-                // Fallback: straight line for this segment
-                var poly = new google.maps.Polyline({
-                    map: map, path: b.pts,
-                    strokeColor: color, strokeWeight: weight,
-                    strokeOpacity: opacity, geodesic: true,
-                });
-                trailRenderers[driverId].push(poly);
-            }
-            doneCount++;
-            if (doneCount === batchCount) {
-                showToast('✅ Trail · ' + total + ' pts · ' + trailMinutes + 'min', color);
-            }
-        });
+    var total   = points.length;
+    var latLngs = points.map(function(p) {
+        return new google.maps.LatLng(parseFloat(p.lat), parseFloat(p.lng));
     });
+
+    // ── 1. Draw trail as gradient segments (time-based: old=faint → new=bright) ─
+    var SEGS    = Math.min(6, total - 1);
+    var segSize = Math.ceil(total / SEGS);
+    for (var s = 0; s < SEGS; s++) {
+        var st  = s * segSize;
+        var en  = Math.min(st + segSize + 1, total);
+        if (st >= total - 1) break;
+        var opacity = 0.20 + (s / Math.max(SEGS - 1, 1)) * 0.75;
+        var weight  = (s >= SEGS - 2) ? 6 : 4;
+        var poly    = new google.maps.Polyline({
+            map: map, path: latLngs.slice(st, en),
+            strokeColor: color, strokeWeight: weight,
+            strokeOpacity: opacity, geodesic: true, zIndex: s + 1,
+        });
+        trailRenderers[driverId].push(poly);
+    }
+
+    // ── 2. Direction arrows using real GPS heading (every N points) ──────────
+    var arrowEvery = Math.max(1, Math.floor(total / 10)); // max ~10 arrows
+    for (var i = arrowEvery; i < total - 1; i += arrowEvery) {
+        var pt      = points[i];
+        var heading = parseFloat(pt.heading) || 0;
+        // Only draw arrow if heading is non-zero (device reported direction)
+        var arrowMkr = new google.maps.Marker({
+            position: latLngs[i], map: map, zIndex: 8,
+            icon: {
+                path:          google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+                scale:         3,
+                fillColor:     color,
+                fillOpacity:   0.75,
+                strokeColor:   '#ffffff',
+                strokeWeight:  1.5,
+                rotation:      heading,
+                anchor:        new google.maps.Point(0, 2.5),
+            },
+        });
+        trailRenderers[driverId].push(arrowMkr);
+    }
+
+    // ── 3. Start marker (hollow circle — where driver started) ────────────────
+    var startMkr = new google.maps.Marker({
+        position: latLngs[0], map: map, zIndex: 10,
+        title: 'Trail start',
+        icon: {
+            path:        google.maps.SymbolPath.CIRCLE,
+            scale:       7,
+            fillColor:   '#ffffff',
+            fillOpacity: 0.9,
+            strokeColor: color,
+            strokeWeight: 3,
+        },
+    });
+    trailRenderers[driverId].push(startMkr);
+
+    // ── 4. End arrow marker (bright green — latest direction) ──────────────────
+    var lastPt      = points[total - 1];
+    var lastHeading = parseFloat(lastPt.heading) || 0;
+    var endMkr = new google.maps.Marker({
+        position: latLngs[total - 1], map: map, zIndex: 15,
+        title: 'Latest position',
+        icon: {
+            path:        google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+            scale:       6,
+            fillColor:   '#22c55e',
+            fillOpacity: 1,
+            strokeColor: '#ffffff',
+            strokeWeight: 2,
+            rotation:    lastHeading,
+            anchor:      new google.maps.Point(0, 2.5),
+        },
+    });
+    trailRenderers[driverId].push(endMkr);
+
+    // ── 5. Fit map to trail ────────────────────────────────────────────────────
+    var bounds = new google.maps.LatLngBounds();
+    latLngs.forEach(function(ll) { bounds.extend(ll); });
+    map.fitBounds(bounds, { padding: 80 });
+    showToast('🛤 Trail · ' + total + ' pts · ' + trailMinutes + 'min', color);
 }
 
 // Small toast notification on the map

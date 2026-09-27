@@ -374,23 +374,24 @@ class DispatchController extends Controller
             )
             ->get();
 
-        // Deduplicate: skip points within 15m of previous (GPS jitter at idle)
+        // Deduplicate: skip points within 8m of previous (removes GPS jitter, keeps movement)
         $points = collect();
         $prev   = null;
         foreach ($allPoints as $p) {
             if (!$prev) { $points->push($p); $prev = $p; continue; }
             $dlat = ($p->lat - $prev->lat) * 111320;
-            $dlng = ($p->lng - $prev->lng) * 111320 * cos(deg2rad($prev->lat));
+            $dlng = ($p->lng - $prev->lng) * 111320 * cos(deg2rad((float)$prev->lat));
             $dist = sqrt($dlat * $dlat + $dlng * $dlng);
-            if ($dist >= 15) { $points->push($p); $prev = $p; }
+            if ($dist >= 8) { $points->push($p); $prev = $p; }
         }
 
         return response()->json([
-            'success'   => true,
-            'driver_id' => $dm->id,
-            'name'      => $dm->user?->name,
-            'minutes'   => $minutes,
-            'points'    => $points->values(),
+            'success'    => true,
+            'driver_id'  => $dm->id,
+            'name'       => $dm->user?->name,
+            'minutes'    => $minutes,
+            'points'     => $points->values(),
+            'total_raw'  => $allPoints->count(),
         ]);
     }
 
