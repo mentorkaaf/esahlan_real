@@ -392,5 +392,6 @@ class DispatchController extends Controller
             'minutes'   => $minutes,
             'points'    => $points->values(),
         ]);
+    }
 
 }
