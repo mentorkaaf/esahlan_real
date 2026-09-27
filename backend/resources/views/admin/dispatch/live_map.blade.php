@@ -561,82 +561,39 @@ function showTrail(driverId) {
         });
 }
 
-// Downsample GPS array to at most maxPts evenly spaced points
-function _downsample(pts, maxPts) {
-    if (pts.length <= maxPts) return pts;
-    var step = pts.length / maxPts;
-    var out  = [];
-    for (var i = 0; i < maxPts - 1; i++) out.push(pts[Math.round(i * step)]);
-    out.push(pts[pts.length - 1]); // always include latest
-    return out;
-}
 
 function _drawRoadSnappedTrail(driverId, rawPoints, color) {
     clearDriverTrail(driverId);
     trailRenderers[driverId] = [];
 
-    // Downsample: max 80 pts → up to 9 batches of 10
-    var sampled   = _downsample(rawPoints, 80);
-    var BATCH     = 10; // 8 waypoints + origin + destination
-    var batches   = [];
-    for (var i = 0; i < sampled.length - 1; i += BATCH - 1) {
-        var slice = sampled.slice(i, i + BATCH);
-        if (slice.length >= 2) batches.push(slice);
+    // Split into 6 segments for gradient opacity (older=faint, newer=bright)
+    var SEGS    = 6;
+    var total   = rawPoints.length;
+    var segSize = Math.ceil(total / SEGS);
+
+    for (var s = 0; s < SEGS; s++) {
+        var start   = s * segSize;
+        var end     = Math.min(start + segSize + 1, total); // +1 so segments connect
+        if (start >= total - 1) break;
+        var slice   = rawPoints.slice(start, end);
+        var opacity = 0.25 + (s / (SEGS - 1)) * 0.70; // 0.25 oldest → 0.95 newest
+        var weight  = (s === SEGS - 1) ? 7 : 5;
+        var path    = slice.map(function(p) {
+            return { lat: parseFloat(p.lat), lng: parseFloat(p.lng) };
+        });
+        var poly = new google.maps.Polyline({
+            map: map, path: path,
+            strokeColor: color, strokeWeight: weight, strokeOpacity: opacity,
+            geodesic: true, zIndex: s + 1,
+        });
+        trailRenderers[driverId].push(poly);
     }
-    var total  = batches.length;
-    var svc    = new google.maps.DirectionsService();
-    var done   = 0;
 
-    batches.forEach(function(batch, bIdx) {
-        var opacity = 0.35 + (bIdx / Math.max(total - 1, 1)) * 0.60; // 0.35 oldest → 0.95 newest
-        var isLast  = bIdx === total - 1;
-        var orig    = { lat: parseFloat(batch[0].lat), lng: parseFloat(batch[0].lng) };
-        var dest    = { lat: parseFloat(batch[batch.length-1].lat), lng: parseFloat(batch[batch.length-1].lng) };
-        var wps     = batch.slice(1, -1).map(function(p) {
-            return { location: { lat: parseFloat(p.lat), lng: parseFloat(p.lng) }, stopover: false };
-        });
-
-        svc.route({
-            origin: orig, destination: dest,
-            waypoints: wps, optimizeWaypoints: false,
-            travelMode: google.maps.TravelMode.DRIVING,
-        }, function(result, status) {
-            if (status === 'OK') {
-                var renderer = new google.maps.DirectionsRenderer({
-                    map: map,
-                    suppressMarkers: true,
-                    preserveViewport: true,
-                    polylineOptions: {
-                        strokeColor:   color,
-                        strokeWeight:  isLast ? 7 : 5,
-                        strokeOpacity: opacity,
-                        icons: [],
-                    },
-                });
-                renderer.setDirections(result);
-                trailRenderers[driverId].push(renderer);
-            } else {
-                // Directions failed (no road data) — fallback dashed raw line for this segment
-                var path = batch.map(function(p) { return { lat: parseFloat(p.lat), lng: parseFloat(p.lng) }; });
-                var fb = new google.maps.Polyline({
-                    map: map, path: path,
-                    strokeColor: color, strokeWeight: 4, strokeOpacity: opacity,
-                    icons: [{ icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 4 }, offset: '0', repeat: '12px' }],
-                });
-                trailPolylines[driverId] = fb; // track for cleanup
-                trailRenderers[driverId].push(fb);
-            }
-
-            done++;
-            if (done === total) {
-                // All batches done — fit bounds
-                var bounds = new google.maps.LatLngBounds();
-                rawPoints.forEach(function(p) { bounds.extend({ lat: parseFloat(p.lat), lng: parseFloat(p.lng) }); });
-                map.fitBounds(bounds, { padding: 80 });
-                showToast('✅ Road-snapped trail · ' + rawPoints.length + ' pts · ' + trailMinutes + 'min', color);
-            }
-        });
-    });
+    // Fit map to trail
+    var bounds = new google.maps.LatLngBounds();
+    rawPoints.forEach(function(p) { bounds.extend({ lat: parseFloat(p.lat), lng: parseFloat(p.lng) }); });
+    map.fitBounds(bounds, { padding: 80 });
+    showToast('✅ Trail · ' + rawPoints.length + ' pts · ' + trailMinutes + 'min', color);
 }
 
 // Small toast notification on the map
