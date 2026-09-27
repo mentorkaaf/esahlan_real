@@ -562,64 +562,16 @@ function showTrail(driverId) {
 }
 
 
-var GMAPS_KEY = '{{ \App\Models\Setting::get('google_maps_api_key', config('services.maps_api_key', env('GOOGLE_MAPS_API_KEY'))) }}';
-
-function _drawRoadSnappedTrail(driverId, rawPoints, color) {
+function _drawRoadSnappedTrail(driverId, points, color) {
     clearDriverTrail(driverId);
     trailRenderers[driverId] = [];
 
-    // snapToRoads supports max 100 pts per call; batch if needed
-    var BATCH  = 100;
-    var chunks = [];
-    for (var i = 0; i < rawPoints.length; i += BATCH) {
-        // overlap by 1 so chunks connect
-        chunks.push(rawPoints.slice(i === 0 ? 0 : i - 1, i + BATCH));
-    }
-
-    var snapped   = [];
-    var remaining = chunks.length;
-
-    chunks.forEach(function(chunk, idx) {
-        var pathParam = chunk.map(function(p) {
-            return parseFloat(p.lat).toFixed(7) + ',' + parseFloat(p.lng).toFixed(7);
-        }).join('|');
-
-        fetch('https://roads.googleapis.com/v1/snapToRoads?interpolate=true&key=' + GMAPS_KEY + '&path=' + encodeURIComponent(pathParam))
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                // Store result with chunk index so we can merge in order
-                snapped[idx] = (data.snappedPoints || []).map(function(sp) {
-                    return { lat: sp.location.latitude, lng: sp.location.longitude };
-                });
-            })
-            .catch(function() {
-                // Fallback: raw points for this chunk
-                snapped[idx] = chunk.map(function(p) {
-                    return { lat: parseFloat(p.lat), lng: parseFloat(p.lng) };
-                });
-            })
-            .finally(function() {
-                remaining--;
-                if (remaining === 0) _renderSnappedTrail(driverId, snapped, rawPoints, color);
-            });
+    // Points are already road-snapped by backend (server-side Roads API call)
+    var fullPath = points.map(function(p) {
+        return { lat: parseFloat(p.lat), lng: parseFloat(p.lng) };
     });
-}
 
-function _renderSnappedTrail(driverId, snappedChunks, rawPoints, color) {
-    // Merge all chunks into one ordered path
-    var fullPath = [];
-    for (var i = 0; i < snappedChunks.length; i++) {
-        var chunk = snappedChunks[i] || [];
-        // Skip first point of chunk (except chunk 0) — it's the overlap point from previous chunk
-        var start = (i === 0) ? 0 : 1;
-        for (var j = start; j < chunk.length; j++) fullPath.push(chunk[j]);
-    }
-    if (fullPath.length === 0) {
-        // snapToRoads failed entirely — raw fallback
-        fullPath = rawPoints.map(function(p) { return { lat: parseFloat(p.lat), lng: parseFloat(p.lng) }; });
-    }
-
-    // Draw as 6 gradient segments
+    // Draw as 6 gradient segments: oldest=faint, newest=bright
     var SEGS    = 6;
     var total   = fullPath.length;
     var segSize = Math.ceil(total / SEGS);
@@ -637,9 +589,9 @@ function _renderSnappedTrail(driverId, snappedChunks, rawPoints, color) {
         trailRenderers[driverId].push(poly);
     }
 
-    // Fit bounds
+    // Fit map to trail bounds
     var bounds = new google.maps.LatLngBounds();
-    rawPoints.forEach(function(p) { bounds.extend({ lat: parseFloat(p.lat), lng: parseFloat(p.lng) }); });
+    fullPath.forEach(function(p) { bounds.extend(p); });
     map.fitBounds(bounds, { padding: 80 });
     showToast('✅ Trail · ' + fullPath.length + ' pts · ' + trailMinutes + 'min', color);
 }

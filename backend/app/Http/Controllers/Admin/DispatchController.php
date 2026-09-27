@@ -8,6 +8,7 @@ use App\Models\OrderStatusHistory;
 use App\Models\Wallet;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 
 class DispatchController extends Controller
 {
@@ -385,13 +386,69 @@ class DispatchController extends Controller
             if ($dist >= 15) { $points->push($p); $prev = $p; }
         }
 
+        // Snap GPS points to actual roads via Google Roads API (server-side — no CORS)
+        $snapped = $this->snapToRoads($points->values()->toArray());
+
         return response()->json([
             'success'   => true,
             'driver_id' => $dm->id,
             'name'      => $dm->user?->name,
             'minutes'   => $minutes,
-            'points'    => $points,
+            'points'    => $snapped,
         ]);
+    }
+
+    private function snapToRoads(array $points): array
+    {
+        if (count($points) < 2) return $points;
+
+        $apiKey = \App\Models\Setting::get('google_maps_api_key',
+            config('services.maps_api_key', env('GOOGLE_MAPS_API_KEY')));
+
+        if (!$apiKey) return $points;
+
+        // Roads API: max 100 points per request
+        $BATCH   = 100;
+        $snapped = [];
+
+        for ($i = 0; $i < count($points); $i += $BATCH) {
+            // Overlap by 1 point so segments connect
+            $chunk     = array_slice($points, $i === 0 ? 0 : $i - 1, $BATCH);
+            $pathParam = implode('|', array_map(fn($p) => $p->lat . ',' . $p->lng, $chunk));
+
+            try {
+                $res = Http::timeout(8)->get('https://roads.googleapis.com/v1/snapToRoads', [
+                    'interpolate' => 'true',
+                    'key'         => $apiKey,
+                    'path'        => $pathParam,
+                ]);
+
+                if ($res->ok() && isset($res->json()['snappedPoints'])) {
+                    $pts = $res->json()['snappedPoints'];
+                    // Skip first point of non-first chunks (it's the overlap)
+                    $start = ($i === 0) ? 0 : 1;
+                    foreach (array_slice($pts, $start) as $sp) {
+                        $snapped[] = [
+                            'lat' => $sp['location']['latitude'],
+                            'lng' => $sp['location']['longitude'],
+                        ];
+                    }
+                } else {
+                    // API error — fallback: use raw chunk points
+                    $start = ($i === 0) ? 0 : 1;
+                    foreach (array_slice($chunk, $start) as $p) {
+                        $snapped[] = ['lat' => $p->lat, 'lng' => $p->lng];
+                    }
+                }
+            } catch (\Exception $e) {
+                $start = ($i === 0) ? 0 : 1;
+                foreach (array_slice($chunk, $start) as $p) {
+                    $snapped[] = ['lat' => $p->lat, 'lng' => $p->lng];
+                }
+            }
+        }
+
+        return $snapped ?: $points;
     }
 
 }
