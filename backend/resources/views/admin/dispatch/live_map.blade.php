@@ -608,12 +608,9 @@ function _drawRoadSnappedTrail(driverId, rawPoints, color) {
                     preserveViewport: true,
                     polylineOptions: {
                         strokeColor:   color,
-                        strokeWeight:  isLast ? 6 : 5,
+                        strokeWeight:  isLast ? 7 : 5,
                         strokeOpacity: opacity,
-                        icons: isLast ? [{
-                            icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 3.5, strokeColor: '#ffffff', strokeWeight: 2, fillColor: color, fillOpacity: 1 },
-                            offset: '100%', repeat: '70px'
-                        }] : [],
+                        icons: [],
                     },
                 });
                 renderer.setDirections(result);
