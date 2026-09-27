@@ -566,34 +566,76 @@ function _drawRoadSnappedTrail(driverId, points, color) {
     clearDriverTrail(driverId);
     trailRenderers[driverId] = [];
 
-    // Points are already road-snapped by backend (server-side Roads API call)
-    var fullPath = points.map(function(p) {
+    var latLngs = points.map(function(p) {
         return { lat: parseFloat(p.lat), lng: parseFloat(p.lng) };
     });
 
-    // Draw as 6 gradient segments: oldest=faint, newest=bright
-    var SEGS    = 6;
-    var total   = fullPath.length;
-    var segSize = Math.ceil(total / SEGS);
-    for (var s = 0; s < SEGS; s++) {
-        var st  = s * segSize;
-        var en  = Math.min(st + segSize + 1, total);
-        if (st >= total - 1) break;
-        var opacity = 0.20 + (s / (SEGS - 1)) * 0.75;
-        var weight  = (s === SEGS - 1) ? 7 : 5;
-        var poly = new google.maps.Polyline({
-            map: map, path: fullPath.slice(st, en),
-            strokeColor: color, strokeWeight: weight,
-            strokeOpacity: opacity, geodesic: true, zIndex: s + 1,
-        });
-        trailRenderers[driverId].push(poly);
+    if (latLngs.length < 2) {
+        showToast('📍 Trail data is insufficient.', '#f59e0b');
+        return;
     }
 
-    // Fit map to trail bounds
+    // Fit map first so user sees something immediately
     var bounds = new google.maps.LatLngBounds();
-    fullPath.forEach(function(p) { bounds.extend(p); });
+    latLngs.forEach(function(p) { bounds.extend(p); });
     map.fitBounds(bounds, { padding: 80 });
-    showToast('✅ Trail · ' + fullPath.length + ' pts · ' + trailMinutes + 'min', color);
+
+    // Route each consecutive pair via DirectionsService so lines follow actual roads.
+    // Batch up to 9 points per request (origin + 7 waypoints + dest = 8 road segments).
+    var BATCH   = 9;
+    var total   = latLngs.length;
+    var svc     = new google.maps.DirectionsService();
+    var batches = [];
+    for (var i = 0; i < total - 1; i += BATCH - 1) {
+        var slice = latLngs.slice(i, Math.min(i + BATCH, total));
+        if (slice.length >= 2) batches.push({ pts: slice, idx: batches.length });
+    }
+    var batchCount  = batches.length;
+    var doneCount   = 0;
+
+    batches.forEach(function(b) {
+        var opacity = 0.25 + (b.idx / Math.max(batchCount - 1, 1)) * 0.70;
+        var weight  = (b.idx === batchCount - 1) ? 7 : 5;
+        var orig    = b.pts[0];
+        var dest    = b.pts[b.pts.length - 1];
+        var wps     = b.pts.slice(1, -1).map(function(p) {
+            return { location: p, stopover: false };
+        });
+
+        svc.route({
+            origin: orig, destination: dest,
+            waypoints: wps, optimizeWaypoints: false,
+            travelMode: google.maps.TravelMode.DRIVING,
+        }, function(result, status) {
+            if (status === 'OK') {
+                var renderer = new google.maps.DirectionsRenderer({
+                    map: map,
+                    suppressMarkers: true,
+                    preserveViewport: true,
+                    polylineOptions: {
+                        strokeColor: color,
+                        strokeWeight: weight,
+                        strokeOpacity: opacity,
+                        icons: [],
+                    },
+                });
+                renderer.setDirections(result);
+                trailRenderers[driverId].push(renderer);
+            } else {
+                // Fallback: straight line for this segment
+                var poly = new google.maps.Polyline({
+                    map: map, path: b.pts,
+                    strokeColor: color, strokeWeight: weight,
+                    strokeOpacity: opacity, geodesic: true,
+                });
+                trailRenderers[driverId].push(poly);
+            }
+            doneCount++;
+            if (doneCount === batchCount) {
+                showToast('✅ Trail · ' + total + ' pts · ' + trailMinutes + 'min', color);
+            }
+        });
+    });
 }
 
 // Small toast notification on the map
