@@ -361,7 +361,7 @@ class DispatchController extends Controller
         $minutes = (int) $request->get('minutes', 60);
         $minutes = max(5, min($minutes, 1440)); // clamp 5 min – 24 h
 
-        $points = DB::table('driver_location_history')
+        $allPoints = DB::table('driver_location_history')
             ->where('deliveryman_id', $deliverymanId)
             ->where('created_at', '>=', now()->subMinutes($minutes))
             ->orderBy('created_at')
@@ -369,8 +369,21 @@ class DispatchController extends Controller
                 DB::raw('CAST(latitude  AS DECIMAL(10,7)) as lat'),
                 DB::raw('CAST(longitude AS DECIMAL(10,7)) as lng'),
                 DB::raw('UNIX_TIMESTAMP(created_at) as ts'),
+                DB::raw('COALESCE(speed, 0) as speed'),
+                DB::raw('COALESCE(heading, 0) as heading'),
             )
             ->get();
+
+        // Deduplicate: skip points within 15m of previous (GPS jitter at idle)
+        $points = collect();
+        $prev   = null;
+        foreach ($allPoints as $p) {
+            if (!$prev) { $points->push($p); $prev = $p; continue; }
+            $dlat = ($p->lat - $prev->lat) * 111320;
+            $dlng = ($p->lng - $prev->lng) * 111320 * cos(deg2rad($prev->lat));
+            $dist = sqrt($dlat * $dlat + $dlng * $dlng);
+            if ($dist >= 15) { $points->push($p); $prev = $p; }
+        }
 
         return response()->json([
             'success'   => true,
