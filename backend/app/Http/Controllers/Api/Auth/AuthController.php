@@ -560,7 +560,32 @@ class AuthController extends Controller
     public function updateFcmToken(Request $request)
     {
         $request->validate(['fcm_token' => 'nullable|string']);
-        $request->user()->update(['fcm_token' => $request->fcm_token]);
+        $user = $request->user();
+        $user->update(['fcm_token' => $request->fcm_token]);
+
+        // Send welcome notification once to every new customer (within 48h of registration)
+        if (
+            $request->fcm_token &&
+            !$user->welcome_notif_sent &&
+            $user->created_at->diffInHours(now()) <= 48 &&
+            ($user->role?->slug === 'customer' || $user->role_id !== null)
+        ) {
+            try {
+                \App\Services\FcmService::sendToToken(
+                    $request->fcm_token,
+                    'Kusoo dhawoow eSahlan! 🎉',
+                    'Everything you need, simplified.',
+                    ['type' => 'welcome'],
+                    null,
+                    'esahlan_high_v3',
+                    null,
+                    $user->id,
+                    'customer'
+                );
+                $user->update(['welcome_notif_sent' => true]);
+            } catch (\Throwable) {}
+        }
+
         return response()->json(['success' => true, 'message' => 'FCM token updated']);
     }
 
