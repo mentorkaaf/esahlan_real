@@ -562,38 +562,86 @@ function showTrail(driverId) {
 }
 
 
+var GMAPS_KEY = '{{ \App\Models\Setting::get('google_maps_api_key', config('services.maps_api_key', env('GOOGLE_MAPS_API_KEY'))) }}';
+
 function _drawRoadSnappedTrail(driverId, rawPoints, color) {
     clearDriverTrail(driverId);
     trailRenderers[driverId] = [];
 
-    // Split into 6 segments for gradient opacity (older=faint, newer=bright)
-    var SEGS    = 6;
-    var total   = rawPoints.length;
-    var segSize = Math.ceil(total / SEGS);
+    // snapToRoads supports max 100 pts per call; batch if needed
+    var BATCH  = 100;
+    var chunks = [];
+    for (var i = 0; i < rawPoints.length; i += BATCH) {
+        // overlap by 1 so chunks connect
+        chunks.push(rawPoints.slice(i === 0 ? 0 : i - 1, i + BATCH));
+    }
 
+    var snapped   = [];
+    var remaining = chunks.length;
+
+    chunks.forEach(function(chunk, idx) {
+        var pathParam = chunk.map(function(p) {
+            return parseFloat(p.lat).toFixed(7) + ',' + parseFloat(p.lng).toFixed(7);
+        }).join('|');
+
+        fetch('https://roads.googleapis.com/v1/snapToRoads?interpolate=true&key=' + GMAPS_KEY + '&path=' + encodeURIComponent(pathParam))
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                // Store result with chunk index so we can merge in order
+                snapped[idx] = (data.snappedPoints || []).map(function(sp) {
+                    return { lat: sp.location.latitude, lng: sp.location.longitude };
+                });
+            })
+            .catch(function() {
+                // Fallback: raw points for this chunk
+                snapped[idx] = chunk.map(function(p) {
+                    return { lat: parseFloat(p.lat), lng: parseFloat(p.lng) };
+                });
+            })
+            .finally(function() {
+                remaining--;
+                if (remaining === 0) _renderSnappedTrail(driverId, snapped, rawPoints, color);
+            });
+    });
+}
+
+function _renderSnappedTrail(driverId, snappedChunks, rawPoints, color) {
+    // Merge all chunks into one ordered path
+    var fullPath = [];
+    for (var i = 0; i < snappedChunks.length; i++) {
+        var chunk = snappedChunks[i] || [];
+        // Skip first point of chunk (except chunk 0) — it's the overlap point from previous chunk
+        var start = (i === 0) ? 0 : 1;
+        for (var j = start; j < chunk.length; j++) fullPath.push(chunk[j]);
+    }
+    if (fullPath.length === 0) {
+        // snapToRoads failed entirely — raw fallback
+        fullPath = rawPoints.map(function(p) { return { lat: parseFloat(p.lat), lng: parseFloat(p.lng) }; });
+    }
+
+    // Draw as 6 gradient segments
+    var SEGS    = 6;
+    var total   = fullPath.length;
+    var segSize = Math.ceil(total / SEGS);
     for (var s = 0; s < SEGS; s++) {
-        var start   = s * segSize;
-        var end     = Math.min(start + segSize + 1, total); // +1 so segments connect
-        if (start >= total - 1) break;
-        var slice   = rawPoints.slice(start, end);
-        var opacity = 0.25 + (s / (SEGS - 1)) * 0.70; // 0.25 oldest → 0.95 newest
+        var st  = s * segSize;
+        var en  = Math.min(st + segSize + 1, total);
+        if (st >= total - 1) break;
+        var opacity = 0.20 + (s / (SEGS - 1)) * 0.75;
         var weight  = (s === SEGS - 1) ? 7 : 5;
-        var path    = slice.map(function(p) {
-            return { lat: parseFloat(p.lat), lng: parseFloat(p.lng) };
-        });
         var poly = new google.maps.Polyline({
-            map: map, path: path,
-            strokeColor: color, strokeWeight: weight, strokeOpacity: opacity,
-            geodesic: true, zIndex: s + 1,
+            map: map, path: fullPath.slice(st, en),
+            strokeColor: color, strokeWeight: weight,
+            strokeOpacity: opacity, geodesic: true, zIndex: s + 1,
         });
         trailRenderers[driverId].push(poly);
     }
 
-    // Fit map to trail
+    // Fit bounds
     var bounds = new google.maps.LatLngBounds();
     rawPoints.forEach(function(p) { bounds.extend({ lat: parseFloat(p.lat), lng: parseFloat(p.lng) }); });
     map.fitBounds(bounds, { padding: 80 });
-    showToast('✅ Trail · ' + rawPoints.length + ' pts · ' + trailMinutes + 'min', color);
+    showToast('✅ Trail · ' + fullPath.length + ' pts · ' + trailMinutes + 'min', color);
 }
 
 // Small toast notification on the map
