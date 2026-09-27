@@ -520,7 +520,6 @@ function panTo(lat, lng, driverId) {
 var trailColors   = ['#3b82f6','#8b5cf6','#ec4899','#14b8a6','#f59e0b','#ef4444'];
 var trailColorMap = {};
 var trailRenderers  = {};  // { driverId: [DirectionsRenderer | Polyline, ...] }
-var recentPolylines = {};  // { driverId: Polyline } — live tail (last 30 raw pts)
 
 function driverTrailColor(driverId) {
     if (!trailColorMap[driverId]) {
@@ -534,7 +533,6 @@ function clearDriverTrail(driverId) {
     (trailRenderers[driverId] || []).forEach(function(r) { if (r && r.setMap) r.setMap(null); });
     delete trailRenderers[driverId];
     if (trailPolylines[driverId]) { trailPolylines[driverId].setMap(null); delete trailPolylines[driverId]; }
-    if (recentPolylines[driverId]) { recentPolylines[driverId].setMap(null); delete recentPolylines[driverId]; }
 }
 
 function showTrail(driverId) {
@@ -549,9 +547,7 @@ function showTrail(driverId) {
         .then(function(data) {
             if (btn) { btn.textContent = '▶ Show Trail'; btn.disabled = false; }
             if (!data.success || !data.points || data.points.length < 2) {
-                // No history yet — create empty live tail so real-time can fill it
-                _createLiveTail(driverId, [], driverTrailColor(driverId));
-                showToast('📍 No trail yet — will grow as driver moves.', '#f59e0b');
+                showToast('📍 No trail yet for this window.', '#f59e0b');
                 return;
             }
             var color = driverTrailColor(driverId);
@@ -636,29 +632,13 @@ function _drawRoadSnappedTrail(driverId, rawPoints, color) {
 
             done++;
             if (done === total) {
-                // All batches done — fit bounds + create live tail
+                // All batches done — fit bounds
                 var bounds = new google.maps.LatLngBounds();
                 rawPoints.forEach(function(p) { bounds.extend({ lat: parseFloat(p.lat), lng: parseFloat(p.lng) }); });
                 map.fitBounds(bounds, { padding: 80 });
-                _createLiveTail(driverId, rawPoints.slice(-30), color);
                 showToast('✅ Road-snapped trail · ' + rawPoints.length + ' pts · ' + trailMinutes + 'min', color);
             }
         });
-    });
-}
-
-// Live tail — thin bright animated line for the most recent raw GPS points
-function _createLiveTail(driverId, recentPts, color) {
-    if (recentPolylines[driverId]) { recentPolylines[driverId].setMap(null); }
-    var path = recentPts.map(function(p) { return { lat: parseFloat(p.lat), lng: parseFloat(p.lng) }; });
-    recentPolylines[driverId] = new google.maps.Polyline({
-        map: map, path: path,
-        strokeColor: '#ffffff', strokeWeight: 3, strokeOpacity: 0.95,
-        icons: [{
-            icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 2.5, strokeColor: color, strokeWeight: 1.5, fillColor: color, fillOpacity: 0.9 },
-            offset: '100%', repeat: '25px'
-        }],
-        zIndex: 20,
     });
 }
 
@@ -691,18 +671,9 @@ function setTrailMinutes(mins, btn) {
     if (activeTrailId) showTrail(activeTrailId);
 }
 
-// Extend live tail in real-time when a WebSocket location arrives
+// Real-time location arrives — trail reloads only on explicit user request
 function extendTrail(driverId, lat, lng) {
-    if (activeTrailId !== driverId) return;
-    var line = recentPolylines[driverId];
-    if (line && line.getMap()) {
-        var path = line.getPath();
-        path.push(new google.maps.LatLng(parseFloat(lat), parseFloat(lng)));
-        while (path.getLength() > 40) path.removeAt(0); // keep tail max 40 pts
-    } else {
-        // Trail visible but no live tail yet — create it
-        _createLiveTail(driverId, [{ lat: lat, lng: lng }], driverTrailColor(driverId));
-    }
+    // No live tail; driver marker position is updated by the main location handler
 }
 
 // ── Route drawing — Directions API ────────────────────────────────────────
