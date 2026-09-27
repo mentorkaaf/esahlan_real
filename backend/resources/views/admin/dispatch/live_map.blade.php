@@ -567,7 +567,7 @@ function _drawRoadSnappedTrail(driverId, points, color) {
     trailRenderers[driverId] = [];
 
     if (!points || points.length < 2) {
-        showToast('📍 Trail data not enough yet.', '#f59e0b');
+        showToast('📍 Not enough GPS data yet.', '#f59e0b');
         return;
     }
 
@@ -576,83 +576,87 @@ function _drawRoadSnappedTrail(driverId, points, color) {
         return new google.maps.LatLng(parseFloat(p.lat), parseFloat(p.lng));
     });
 
-    // ── 1. Draw trail as gradient segments (time-based: old=faint → new=bright) ─
-    var SEGS    = Math.min(6, total - 1);
-    var segSize = Math.ceil(total / SEGS);
-    for (var s = 0; s < SEGS; s++) {
-        var st  = s * segSize;
-        var en  = Math.min(st + segSize + 1, total);
-        if (st >= total - 1) break;
-        var opacity = 0.20 + (s / Math.max(SEGS - 1, 1)) * 0.75;
-        var weight  = (s >= SEGS - 2) ? 6 : 4;
-        var poly    = new google.maps.Polyline({
-            map: map, path: latLngs.slice(st, en),
-            strokeColor: color, strokeWeight: weight,
-            strokeOpacity: opacity, geodesic: true, zIndex: s + 1,
-        });
-        trailRenderers[driverId].push(poly);
-    }
-
-    // ── 2. Direction arrows using real GPS heading (every N points) ──────────
-    var arrowEvery = Math.max(1, Math.floor(total / 10)); // max ~10 arrows
-    for (var i = arrowEvery; i < total - 1; i += arrowEvery) {
-        var pt      = points[i];
-        var heading = parseFloat(pt.heading) || 0;
-        // Only draw arrow if heading is non-zero (device reported direction)
-        var arrowMkr = new google.maps.Marker({
-            position: latLngs[i], map: map, zIndex: 8,
-            icon: {
-                path:          google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-                scale:         3,
-                fillColor:     color,
-                fillOpacity:   0.75,
-                strokeColor:   '#ffffff',
-                strokeWeight:  1.5,
-                rotation:      heading,
-                anchor:        new google.maps.Point(0, 2.5),
-            },
-        });
-        trailRenderers[driverId].push(arrowMkr);
-    }
-
-    // ── 3. Start marker (hollow circle — where driver started) ────────────────
-    var startMkr = new google.maps.Marker({
-        position: latLngs[0], map: map, zIndex: 10,
-        title: 'Trail start',
-        icon: {
-            path:        google.maps.SymbolPath.CIRCLE,
-            scale:       7,
-            fillColor:   '#ffffff',
-            fillOpacity: 0.9,
-            strokeColor: color,
-            strokeWeight: 3,
-        },
-    });
-    trailRenderers[driverId].push(startMkr);
-
-    // ── 4. End arrow marker (bright green — latest direction) ──────────────────
-    var lastPt      = points[total - 1];
-    var lastHeading = parseFloat(lastPt.heading) || 0;
-    var endMkr = new google.maps.Marker({
-        position: latLngs[total - 1], map: map, zIndex: 15,
-        title: 'Latest position',
-        icon: {
-            path:        google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-            scale:       6,
-            fillColor:   '#22c55e',
-            fillOpacity: 1,
-            strokeColor: '#ffffff',
-            strokeWeight: 2,
-            rotation:    lastHeading,
-            anchor:      new google.maps.Point(0, 2.5),
-        },
-    });
-    trailRenderers[driverId].push(endMkr);
-
-    // ── 5. Fit map to trail ────────────────────────────────────────────────────
+    // Fit map immediately
     var bounds = new google.maps.LatLngBounds();
     latLngs.forEach(function(ll) { bounds.extend(ll); });
     map.fitBounds(bounds, { padding: 80 });
+
+    showToast('⏳ Snapping trail to roads...', color);
+
+    var svc      = new google.maps.DirectionsService();
+    var segsTotal = total - 1;
+    var segsDone  = 0;
+
+    // Route EACH consecutive pair through real roads.
+    // Driving → Walking fallback → raw line last resort.
+    for (var i = 0; i < segsTotal; i++) {
+        (function(idx) {
+            var frac    = segsTotal > 1 ? idx / (segsTotal - 1) : 1;
+            var opacity = 0.25 + frac * 0.70;
+            var weight  = frac >= 0.8 ? 6 : 4;
+            var orig    = latLngs[idx];
+            var dest    = latLngs[idx + 1];
+
+            function drawRenderer(result) {
+                var r = new google.maps.DirectionsRenderer({
+                    map: map, suppressMarkers: true, preserveViewport: true,
+                    polylineOptions: { strokeColor: color, strokeWeight: weight, strokeOpacity: opacity, icons: [] },
+                });
+                r.setDirections(result);
+                trailRenderers[driverId].push(r);
+            }
+
+            function drawRaw() {
+                var poly = new google.maps.Polyline({
+                    map: map, path: [orig, dest], geodesic: true,
+                    strokeColor: color, strokeWeight: weight, strokeOpacity: opacity,
+                });
+                trailRenderers[driverId].push(poly);
+            }
+
+            function onDone() {
+                segsDone++;
+                if (segsDone === segsTotal) _addTrailOverlays(driverId, points, latLngs, color, total);
+            }
+
+            svc.route({ origin: orig, destination: dest, travelMode: google.maps.TravelMode.DRIVING }, function(res, st) {
+                if (st === 'OK') { drawRenderer(res); onDone(); return; }
+                // DRIVING failed → try WALKING (better street coverage)
+                svc.route({ origin: orig, destination: dest, travelMode: google.maps.TravelMode.WALKING }, function(res2, st2) {
+                    if (st2 === 'OK') { drawRenderer(res2); } else { drawRaw(); }
+                    onDone();
+                });
+            });
+        })(i);
+    }
+}
+
+function _addTrailOverlays(driverId, points, latLngs, color, total) {
+    // Direction arrows (GPS heading)
+    var arrowEvery = Math.max(1, Math.floor(total / 8));
+    for (var i = arrowEvery; i < total - 1; i += arrowEvery) {
+        var hdg = parseFloat(points[i].heading) || 0;
+        trailRenderers[driverId].push(new google.maps.Marker({
+            position: latLngs[i], map: map, zIndex: 8,
+            icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 3,
+                    fillColor: color, fillOpacity: 0.85, strokeColor: '#fff', strokeWeight: 1.5,
+                    rotation: hdg, anchor: new google.maps.Point(0, 2.5) },
+        }));
+    }
+    // Start circle
+    trailRenderers[driverId].push(new google.maps.Marker({
+        position: latLngs[0], map: map, zIndex: 10,
+        icon: { path: google.maps.SymbolPath.CIRCLE, scale: 7,
+                fillColor: '#fff', fillOpacity: 0.95, strokeColor: color, strokeWeight: 3 },
+    }));
+    // End arrow (green, heading direction)
+    var lastHdg = parseFloat(points[total - 1].heading) || 0;
+    trailRenderers[driverId].push(new google.maps.Marker({
+        position: latLngs[total - 1], map: map, zIndex: 15,
+        icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 6,
+                fillColor: '#22c55e', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2,
+                rotation: lastHdg, anchor: new google.maps.Point(0, 2.5) },
+    }));
     showToast('🛤 Trail · ' + total + ' pts · ' + trailMinutes + 'min', color);
 }
 
