@@ -22,14 +22,11 @@ Schedule::command('drivers:ping-location')
     ->withoutOverlapping()
     ->runInBackground();
 
-// ── Driver tracking: auto-offline stale drivers every 5 minutes ──────────
-// Marks drivers offline when their background service stops posting locations
-// (foreground service posts every 5 s; 10-min gap = service is dead).
-Schedule::command('drivers:mark-stale-offline')
-    ->everyFiveMinutes()
-    ->name('drivers:mark-stale-offline')
-    ->withoutOverlapping()
-    ->runInBackground();
+// ── Driver auto-offline DISABLED ──────────────────────────────────────────
+// Drivers can only go offline by their own manual toggle.
+// The 5-layer GPS system (FCM ping + watchdog + ForegroundService) keeps
+// every driver's location live as long as they have internet.
+// Schedule::command('drivers:mark-stale-offline') — intentionally removed.
 
 // Recompute post quality scores every 5 minutes
 Schedule::call(fn () => FeedRankingService::recomputePostScores())
