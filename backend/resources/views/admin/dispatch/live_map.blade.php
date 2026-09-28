@@ -351,6 +351,7 @@ function renderDrivers(drivers) {
                     '<button class="trail-btn" onclick="setTrailMinutes(60,this)" style="flex:1;padding:4px;border:1px solid #e5e7eb;border-radius:5px;background:#fff;font-size:10px;font-weight:800;cursor:pointer;">1h</button>' +
                     '<button class="trail-btn" onclick="setTrailMinutes(240,this)" style="flex:1;padding:4px;border:1px solid #e5e7eb;border-radius:5px;background:#fff;font-size:10px;cursor:pointer;">4h</button>' +
                     '<button class="trail-btn" onclick="setTrailMinutes(480,this)" style="flex:1;padding:4px;border:1px solid #e5e7eb;border-radius:5px;background:#fff;font-size:10px;cursor:pointer;">8h</button>' +
+                    '<button class="trail-btn" onclick="setTrailMinutes(1440,this)" style="flex:1;padding:4px;border:1px solid #e5e7eb;border-radius:5px;background:#fff;font-size:10px;cursor:pointer;">24h</button>' +
                     '</div>' +
                     '<div style="display:flex;gap:4px;">' +
                     '<button data-trail-btn="' + dd.id + '" onclick="showTrail(' + dd.id + ')" style="flex:1;padding:5px;border:none;border-radius:5px;background:#22c55e;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">▶ Show Trail</button>' +
