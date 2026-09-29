@@ -384,7 +384,7 @@ class AdminEWholesaleController extends Controller
     {
         $product->variants()->delete();
         $product->delete();
-        return back()->with('success', "Product "{$product->name}" deleted.");
+        return back()->with('success', "Product \"{$product->name}\" deleted.");
     }
 
     public function productBulkDelete(Request $r)
@@ -402,7 +402,7 @@ class AdminEWholesaleController extends Controller
         $supplier->products()->each(fn($p) => $p->variants()->delete());
         $supplier->products()->delete();
         $supplier->delete();
-        return back()->with('success', "Supplier "{$name}" deleted.");
+        return back()->with('success', "Supplier \"{$name}\" deleted.");
     }
 
     public function supplierBulkDelete(Request $r)
