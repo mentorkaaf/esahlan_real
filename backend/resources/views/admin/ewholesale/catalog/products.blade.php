@@ -7,7 +7,10 @@
 <div style="padding:24px">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
     <h2 style="margin:0;font-size:20px;font-weight:700;color:#1B1444">Products</h2>
-    <div style="display:flex;gap:8px">
+    <div style="display:flex;gap:8px;align-items:center;">
+        <button id="pBulkDelBtn" onclick="bulkDeleteProducts()" style="display:none;padding:8px 14px;background:#ef4444;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">
+            🗑 Delete Selected (<span id="pSelCount">0</span>)
+        </button>
         <a href="{{ route('admin.module-data.wholesale.catalog.categories') }}" style="padding:8px 14px;background:#6b7280;color:#fff;border-radius:6px;font-size:13px;text-decoration:none">🗂 Categories</a>
         <a href="{{ route('admin.module-data.wholesale.products.create') }}" style="padding:8px 16px;background:#F7941D;color:#fff;border-radius:6px;font-size:13px;text-decoration:none">+ Add Product</a>
     </div>
@@ -52,6 +55,7 @@
 <div style="overflow-x:auto">
 <table style="width:100%;border-collapse:collapse;font-size:13px">
 <thead><tr style="background:#f9fafb;border-bottom:2px solid #e5e7eb">
+    <th style="padding:10px 10px;width:36px;"><input type="checkbox" id="pCheckAll" onchange="pToggleAll(this)" style="cursor:pointer;width:15px;height:15px;"></th>
     <th style="padding:10px 14px;text-align:left;color:#374151;font-weight:600">Product</th>
     <th style="padding:10px 14px;text-align:left;color:#374151;font-weight:600">Supplier</th>
     <th style="padding:10px 14px;text-align:left;color:#374151;font-weight:600">Category</th>
@@ -63,6 +67,7 @@
 <tbody>
 @forelse($products as $p)
 <tr style="border-bottom:1px solid #f3f4f6" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background=''">
+    <td style="padding:10px 10px;"><input type="checkbox" class="p-row-check" value="{{ $p->id }}" onchange="pUpdateBulkBtn()" style="cursor:pointer;width:15px;height:15px;"></td>
     <td style="padding:10px 14px">
         <div style="font-weight:600;color:#1B1444">{{ $p->name }}</div>
         @if($p->name_so) <div style="font-size:11px;color:#9ca3af">{{ $p->name_so }}</div> @endif
@@ -84,12 +89,16 @@
         </form>
     </td>
     <td style="padding:10px 14px;text-align:center;white-space:nowrap">
-        <a href="{{ route('admin.module-data.wholesale.products.show', $p) }}" style="padding:4px 10px;background:#1B1444;color:#fff;border-radius:4px;font-size:11px;text-decoration:none;margin-right:4px">View</a>
-        <a href="{{ route('admin.module-data.wholesale.products.edit', $p) }}" style="padding:4px 10px;background:#F7941D;color:#fff;border-radius:4px;font-size:11px;text-decoration:none">Edit</a>
+        <a href="{{ route('admin.module-data.wholesale.products.show', $p) }}" style="padding:4px 9px;background:#1B1444;color:#fff;border-radius:4px;font-size:11px;text-decoration:none;margin-right:2px">View</a>
+        <a href="{{ route('admin.module-data.wholesale.products.edit', $p) }}" style="padding:4px 9px;background:#F7941D;color:#fff;border-radius:4px;font-size:11px;text-decoration:none;margin-right:2px">Edit</a>
+        <form method="POST" action="{{ route('admin.module-data.wholesale.products.delete', $p) }}" style="display:inline" onsubmit="return confirm('Delete {{ addslashes($p->name) }}?')">
+            @csrf @method('DELETE')
+            <button type="submit" style="padding:4px 9px;background:#ef4444;color:#fff;border:none;border-radius:4px;font-size:11px;cursor:pointer;">Del</button>
+        </form>
     </td>
 </tr>
 @empty
-<tr><td colspan="7" style="padding:32px;text-align:center;color:#9ca3af">No products found.</td></tr>
+<tr><td colspan="8" style="padding:32px;text-align:center;color:#9ca3af">No products found.</td></tr>
 @endforelse
 </tbody>
 </table>
@@ -97,4 +106,33 @@
 </div>
 <div style="margin-top:16px">{{ $products->links() }}</div>
 </div>
+
+<form id="pBulkDelForm" method="POST" action="{{ route('admin.module-data.wholesale.products.bulk-delete') }}" style="display:none">
+    @csrf @method('DELETE')
+    <div id="pBulkDelInputs"></div>
+</form>
+
+@push('scripts')
+<script>
+function pToggleAll(cb) {
+    document.querySelectorAll('.p-row-check').forEach(c => { c.checked = cb.checked; });
+    pUpdateBulkBtn();
+}
+function pUpdateBulkBtn() {
+    const checked = document.querySelectorAll('.p-row-check:checked');
+    const btn = document.getElementById('pBulkDelBtn');
+    document.getElementById('pSelCount').textContent = checked.length;
+    btn.style.display = checked.length > 0 ? 'inline-block' : 'none';
+    document.getElementById('pCheckAll').indeterminate = checked.length > 0 && checked.length < document.querySelectorAll('.p-row-check').length;
+}
+function bulkDeleteProducts() {
+    const ids = [...document.querySelectorAll('.p-row-check:checked')].map(c => c.value);
+    if (!ids.length) return;
+    if (!confirm(`Delete ${ids.length} product(s)? This cannot be undone.`)) return;
+    const form = document.getElementById('pBulkDelForm');
+    document.getElementById('pBulkDelInputs').innerHTML = ids.map(id => `<input type="hidden" name="ids[]" value="${id}">`).join('');
+    form.submit();
+}
+</script>
+@endpush
 @endsection

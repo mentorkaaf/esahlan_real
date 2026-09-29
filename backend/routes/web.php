@@ -876,6 +876,8 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
                 Route::put('/suppliers/{supplier}',          [$ew, 'supplierUpdate'])->name('suppliers.update');
                 Route::post('/suppliers/{supplier}/action',  [$ew, 'supplierAction'])->name('suppliers.action');
                 Route::post('/suppliers/{supplier}/shipping',[$ew, 'supplierShippingUpdate'])->name('suppliers.shipping');
+                Route::delete('/suppliers/{supplier}',       [$ew, 'supplierDelete'])->name('suppliers.delete');
+                Route::delete('/suppliers',                  [$ew, 'supplierBulkDelete'])->name('suppliers.bulk-delete');
 
                 // Banners
                 Route::get('/banners',                       [$ew, 'banners'])->name('banners');
@@ -909,6 +911,8 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
                 Route::get('/catalog/products/{product}/edit',  [$ew, 'productEdit'])->name('products.edit');
                 Route::put('/catalog/products/{product}',       [$ew, 'productUpdate'])->name('products.update');
                 Route::patch('/catalog/products/{product}/status', [$ew, 'productStatusUpdate'])->name('products.status');
+                Route::delete('/catalog/products/{product}',       [$ew, 'productDelete'])->name('products.delete');
+                Route::delete('/catalog/products',                  [$ew, 'productBulkDelete'])->name('products.bulk-delete');
 
                 // RFQ Center
                 Route::get('/rfq',                              [$ew, 'rfqs'])->name('rfq');

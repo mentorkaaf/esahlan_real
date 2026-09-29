@@ -380,6 +380,44 @@ class AdminEWholesaleController extends Controller
         return back()->with('success', 'Product status updated.');
     }
 
+    public function productDelete(EWProduct $product)
+    {
+        $product->variants()->delete();
+        $product->delete();
+        return back()->with('success', "Product "{$product->name}" deleted.");
+    }
+
+    public function productBulkDelete(Request $r)
+    {
+        $r->validate(['ids' => 'required|array', 'ids.*' => 'integer']);
+        $count = EWProduct::whereIn('id', $r->ids)->count();
+        EWProductVariant::whereIn('product_id', $r->ids)->delete();
+        EWProduct::whereIn('id', $r->ids)->delete();
+        return back()->with('success', "{$count} product(s) deleted.");
+    }
+
+    public function supplierDelete(EWSupplier $supplier)
+    {
+        $name = $supplier->display_name;
+        $supplier->products()->each(fn($p) => $p->variants()->delete());
+        $supplier->products()->delete();
+        $supplier->delete();
+        return back()->with('success', "Supplier "{$name}" deleted.");
+    }
+
+    public function supplierBulkDelete(Request $r)
+    {
+        $r->validate(['ids' => 'required|array', 'ids.*' => 'integer']);
+        $suppliers = EWSupplier::whereIn('id', $r->ids)->with('products')->get();
+        foreach ($suppliers as $sup) {
+            $sup->products()->each(fn($p) => $p->variants()->delete());
+            $sup->products()->delete();
+        }
+        $count = $suppliers->count();
+        EWSupplier::whereIn('id', $r->ids)->delete();
+        return back()->with('success', "{$count} supplier(s) deleted.");
+    }
+
     private function productRules(): array
     {
         return [
