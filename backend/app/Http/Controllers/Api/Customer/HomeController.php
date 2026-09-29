@@ -61,7 +61,9 @@ class HomeController extends Controller
 
     public function modules(Request $request)
     {
-        $userId = $request->user()?->id;
+        // Route is public (no auth middleware), but token may still be present.
+        // auth('sanctum')->id() reads it without throwing on missing/invalid tokens.
+        $userId = auth('sanctum')->id();
 
         // Public modules: always cached
         $publicModules = Cache::remember('modules.active.public', 300, function () {
