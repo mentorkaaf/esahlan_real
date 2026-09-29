@@ -59,10 +59,18 @@ $moduleIcons = [
                     <div>
                         <div style="font-weight:700;font-size:13px;color:var(--text);">{{ $m->name }}</div>
                         <div style="font-size:11px;color:var(--text-muted);">
-                            <span class="badge {{ $m->is_active ? 'badge-success' : 'badge-danger' }} badge-dot" style="font-size:10px;">{{ $m->is_active ? 'Active' : 'Inactive' }}</span>
+                            <span id="status-badge-{{ $m->id }}" class="badge {{ $m->is_active ? 'badge-success' : 'badge-danger' }} badge-dot" style="font-size:10px;">{{ $m->is_active ? 'Active' : 'Inactive' }}</span>
                         </div>
                     </div>
                 </div>
+
+                {{-- Active/Inactive toggle --}}
+                <button id="toggle-btn-{{ $m->id }}" onclick="toggleActive({{ $m->id }}, {{ $m->is_active ? 'true' : 'false' }})"
+                    style="border:none;cursor:pointer;border-radius:20px;padding:5px 14px;font-size:11px;font-weight:700;flex-shrink:0;transition:all .2s;
+                        {{ $m->is_active ? 'background:#dcfce7;color:#16a34a;border:1.5px solid #86efac;' : 'background:#fee2e2;color:#dc2626;border:1.5px solid #fca5a5;' }}">
+                    <i id="toggle-icon-{{ $m->id }}" class="fas {{ $m->is_active ? 'fa-toggle-on' : 'fa-toggle-off' }}"></i>
+                    <span id="toggle-label-{{ $m->id }}">{{ $m->is_active ? 'Active' : 'Inactive' }}</span>
+                </button>
 
                 {{-- Visibility toggle --}}
                 <div style="display:inline-flex;border-radius:20px;overflow:hidden;border:1.5px solid var(--border);flex-shrink:0;">
@@ -239,6 +247,28 @@ async function addBetaUserInline(moduleId, userId, name, email) {
     chip.style.cssText = 'display:inline-flex;align-items:center;gap:5px;background:#7c3aed18;border:1px solid #7c3aed40;border-radius:20px;padding:3px 10px 3px 8px;font-size:11px;font-weight:600;color:#7c3aed;';
     chip.innerHTML = `<span style="width:18px;height:18px;border-radius:50%;background:#7c3aed;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;">${name.charAt(0).toUpperCase()}</span>${name}<button onclick="removeBetaUserInline(${moduleId},${userId},'${name.replace(/'/g,"\\'")}');this.closest('span').remove();" style="background:none;border:none;cursor:pointer;color:#7c3aed;padding:0;font-size:11px;line-height:1;">×</button>`;
     document.getElementById('bu-chips-' + moduleId).appendChild(chip);
+}
+
+async function toggleActive(moduleId, currentlyActive) {
+    const btn = document.getElementById('toggle-btn-' + moduleId);
+    btn.style.opacity = '.5'; btn.disabled = true;
+    const res = await fetch(`/admin/modules/${moduleId}/toggle`, {
+        method:'POST', credentials:'same-origin',
+        headers:{'X-CSRF-TOKEN':CSRF}
+    });
+    btn.style.opacity = '1'; btn.disabled = false;
+    if (!res.ok) return;
+    const nowActive = !currentlyActive;
+    // Update button
+    btn.style.cssText = `border:none;cursor:pointer;border-radius:20px;padding:5px 14px;font-size:11px;font-weight:700;flex-shrink:0;transition:all .2s;${nowActive ? 'background:#dcfce7;color:#16a34a;border:1.5px solid #86efac;' : 'background:#fee2e2;color:#dc2626;border:1.5px solid #fca5a5;'}`;
+    document.getElementById('toggle-icon-' + moduleId).className = 'fas ' + (nowActive ? 'fa-toggle-on' : 'fa-toggle-off');
+    document.getElementById('toggle-label-' + moduleId).textContent = nowActive ? 'Active' : 'Inactive';
+    // Update status badge
+    const badge = document.getElementById('status-badge-' + moduleId);
+    badge.className = 'badge ' + (nowActive ? 'badge-success' : 'badge-danger') + ' badge-dot';
+    badge.textContent = nowActive ? 'Active' : 'Inactive';
+    // Update onclick state
+    btn.setAttribute('onclick', `toggleActive(${moduleId}, ${nowActive})`);
 }
 
 async function removeBetaUserInline(moduleId, userId, name) {
