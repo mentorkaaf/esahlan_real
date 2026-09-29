@@ -59,11 +59,29 @@ class HomeController extends Controller
         return response()->json(['success' => true, 'data' => $banners]);
     }
 
-    public function modules()
+    public function modules(Request $request)
     {
-        $modules = Cache::remember('modules.active', 300, function () {
-            return Module::where('is_active', true)->orderBy('sort_order')->get();
+        $userId = $request->user()?->id;
+
+        // Public modules: always cached
+        $publicModules = Cache::remember('modules.active.public', 300, function () {
+            return Module::where('is_active', true)
+                ->where('visibility', 'public')
+                ->orderBy('sort_order')
+                ->get();
         });
+
+        // Private modules assigned to this user (no cache — per-user)
+        $privateModules = collect();
+        if ($userId) {
+            $privateModules = Module::where('is_active', true)
+                ->where('visibility', 'private')
+                ->whereHas('betaUsers', fn($q) => $q->where('user_id', $userId))
+                ->orderBy('sort_order')
+                ->get();
+        }
+
+        $modules = $publicModules->merge($privateModules)->sortBy('sort_order')->values();
 
         return response()->json(['success' => true, 'data' => $modules]);
     }

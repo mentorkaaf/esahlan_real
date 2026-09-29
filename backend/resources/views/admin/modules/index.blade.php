@@ -53,6 +53,11 @@ $moduleIcons = [
                         <span class="badge {{ $module->is_active?'badge-success':'badge-danger' }} badge-dot">
                             {{ $module->is_active?'Active':'Inactive' }}
                         </span>
+                        @if(($module->visibility ?? 'public') === 'private')
+                        <span style="font-size:10px;font-weight:700;background:#7c3aed18;color:#7c3aed;border:1px solid #7c3aed40;border-radius:20px;padding:2px 8px;letter-spacing:.5px;">
+                            🔒 PRIVATE
+                        </span>
+                        @endif
                     </div>
                     <p style="font-size:12px;color:var(--text-muted);margin-top:4px;line-height:1.4;">{{ Str::limit($module->description??'',80) }}</p>
                 </div>

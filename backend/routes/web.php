@@ -420,10 +420,15 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
         // Modules
         Route::prefix('modules')->name('modules.')->group(function () {
             Route::get('/', [AdminModuleController::class, 'index'])->name('index');
+            Route::get('/search/users', [AdminModuleController::class, 'searchUsers'])->name('search-users');
             Route::get('/{module}', [AdminModuleController::class, 'show'])->name('show');
             Route::patch('/{module}', [AdminModuleController::class, 'update'])->name('update');
             Route::post('/{module}/toggle', [AdminModuleController::class, 'toggleStatus'])->name('toggle');
             Route::post('/{module}/districts', [AdminModuleController::class, 'updateDistricts'])->name('districts');
+            Route::post('/{module}/visibility', [AdminModuleController::class, 'setVisibility'])->name('visibility');
+            Route::get('/{module}/beta-users', [AdminModuleController::class, 'betaUsers'])->name('beta-users');
+            Route::post('/{module}/beta-users', [AdminModuleController::class, 'addBetaUser'])->name('beta-users.add');
+            Route::delete('/{module}/beta-users/{userId}', [AdminModuleController::class, 'removeBetaUser'])->name('beta-users.remove');
         });
 
         // Rewards & Points
