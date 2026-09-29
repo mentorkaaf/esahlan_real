@@ -12,7 +12,7 @@ class AdminModuleController extends Controller
 {
     public function index()
     {
-        $modules = Module::withCount('vendors')->get();
+        $modules = Module::withCount(['vendors', 'betaUsers'])->get();
         return view('admin.modules.index', compact('modules'));
     }
 

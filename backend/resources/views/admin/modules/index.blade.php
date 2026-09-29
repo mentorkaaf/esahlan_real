@@ -32,6 +32,92 @@ $moduleIcons = [
 ];
 @endphp
 
+{{-- ── Bulk Visibility Control ─────────────────────────────────────────────── --}}
+<div class="card" style="margin-bottom:20px;">
+    <div class="card-header" style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;" onclick="toggleBulkPanel()">
+        <i class="fas fa-eye" style="color:var(--brand);"></i>
+        <span style="font-weight:700;">Visibility Control</span>
+        <span style="font-size:11px;color:var(--text-muted);">— set public/private for all modules at once</span>
+        <i id="bulkChevron" class="fas fa-chevron-down" style="margin-left:auto;color:var(--text-muted);transition:transform .2s;"></i>
+    </div>
+    <div id="bulkPanel" style="display:none;">
+        <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                <thead>
+                    <tr style="background:var(--bg);border-bottom:1px solid var(--border);">
+                        <th style="padding:10px 16px;text-align:left;font-weight:700;color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.8px;">Module</th>
+                        <th style="padding:10px 16px;text-align:left;font-weight:700;color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.8px;">Status</th>
+                        <th style="padding:10px 16px;text-align:center;font-weight:700;color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.8px;">Visibility</th>
+                        <th style="padding:10px 16px;text-align:center;font-weight:700;color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.8px;">Beta Users</th>
+                        <th style="padding:10px 16px;text-align:right;font-weight:700;color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.8px;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach($modules ?? [] as $m)
+                @php
+                    $s = strtolower($m->slug ?? '');
+                    [$ic, $cl] = $moduleIcons[$s] ?? ['fas fa-th-large', $m->color ?? '#FF8A00'];
+                    $isPrivate = ($m->visibility ?? 'public') === 'private';
+                @endphp
+                <tr style="border-bottom:1px solid var(--border);" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">
+                    <td style="padding:11px 16px;">
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <div style="width:32px;height:32px;border-radius:8px;background:{{ $cl }}18;color:{{ $cl }};display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">
+                                <i class="{{ $ic }}"></i>
+                            </div>
+                            <span style="font-weight:700;color:var(--text);">{{ $m->name }}</span>
+                        </div>
+                    </td>
+                    <td style="padding:11px 16px;">
+                        <span class="badge {{ $m->is_active ? 'badge-success' : 'badge-danger' }} badge-dot" style="font-size:11px;">
+                            {{ $m->is_active ? 'Active' : 'Inactive' }}
+                        </span>
+                    </td>
+                    <td style="padding:11px 16px;text-align:center;">
+                        <div style="display:inline-flex;border-radius:20px;overflow:hidden;border:1.5px solid var(--border);">
+                            <form action="{{ route('admin.modules.visibility', $m->id) }}" method="POST" style="margin:0;">
+                                @csrf
+                                <input type="hidden" name="visibility" value="public">
+                                <button type="submit"
+                                    style="border:none;padding:4px 12px;font-size:11px;font-weight:700;cursor:pointer;transition:background .15s;
+                                        {{ !$isPrivate ? 'background:#10b981;color:#fff;' : 'background:transparent;color:var(--text-muted);' }}">
+                                    🌐 Public
+                                </button>
+                            </form>
+                            <form action="{{ route('admin.modules.visibility', $m->id) }}" method="POST" style="margin:0;border-left:1.5px solid var(--border);">
+                                @csrf
+                                <input type="hidden" name="visibility" value="private">
+                                <button type="submit"
+                                    style="border:none;padding:4px 12px;font-size:11px;font-weight:700;cursor:pointer;transition:background .15s;
+                                        {{ $isPrivate ? 'background:#7c3aed;color:#fff;' : 'background:transparent;color:var(--text-muted);' }}">
+                                    🔒 Private
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                    <td style="padding:11px 16px;text-align:center;">
+                        @if($isPrivate)
+                            <span style="font-size:12px;font-weight:700;color:#7c3aed;">
+                                {{ $m->beta_users_count ?? 0 }} user{{ ($m->beta_users_count ?? 0) != 1 ? 's' : '' }}
+                            </span>
+                        @else
+                            <span style="font-size:12px;color:var(--text-muted);">—</span>
+                        @endif
+                    </td>
+                    <td style="padding:11px 16px;text-align:right;">
+                        <a href="{{ route('admin.modules.show', $m->id) }}"
+                            style="font-size:11px;color:var(--brand);font-weight:700;text-decoration:none;">
+                            <i class="fas fa-user-plus" style="margin-right:4px;"></i>Manage Users
+                        </a>
+                    </td>
+                </tr>
+                @endforeach
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;">
     @forelse($modules ?? [] as $module)
     @php
@@ -104,5 +190,19 @@ $moduleIcons = [
 
 @push('styles')
 <style>.w-100{width:100%;}</style>
+@endpush
+@push('scripts')
+<script>
+function toggleBulkPanel() {
+    const p = document.getElementById('bulkPanel');
+    const c = document.getElementById('bulkChevron');
+    const open = p.style.display === 'block';
+    p.style.display = open ? 'none' : 'block';
+    c.style.transform = open ? '' : 'rotate(180deg)';
+    try { localStorage.setItem('bulkVisPanel', open ? '0' : '1'); } catch(e){}
+}
+// Restore state
+try { if (localStorage.getItem('bulkVisPanel') === '1') toggleBulkPanel(); } catch(e){}
+</script>
 @endpush
 @endsection
