@@ -365,12 +365,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
             child: Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
                   child: Row(children: [
                     GestureDetector(
                       onTap: () => context.go('/auth/login'),
                       child: Container(
-                        width: 40, height: 40,
+                        width: 36, height: 36,
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.12),
                           borderRadius: BorderRadius.circular(11),
@@ -379,20 +379,20 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                       ),
                     ),
                     const Spacer(),
-                    Image.asset(AppAssets.appLogo, height: 36, fit: BoxFit.contain),
+                    Image.asset(AppAssets.appLogo, height: 28, fit: BoxFit.contain),
                     const Spacer(),
                     const SizedBox(width: 40),
                   ]),
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 22, 24, 0),
+                  padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
                   child: FadeTransition(
                     opacity: _fadeAnim,
                     child: SlideTransition(
                       position: _slideAnim,
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Text('${AppL10n.of(context).createAccount} 🚀', style: const TextStyle(
-                          fontSize: 26, fontWeight: FontWeight.w900,
+                          fontSize: 20, fontWeight: FontWeight.w900,
                           color: Colors.white, letterSpacing: -0.5)),
                         const SizedBox(height: 6),
                         Text(AppL10n.of(context).joinEsahlan,
@@ -416,15 +416,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                           borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
                         ),
                         child: SingleChildScrollView(
-                          padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
+                          padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
                           child: Builder(builder: (ctx) {
                             final l = AppL10n.of(ctx);
                             return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             _Label(l.fullName),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 6),
                             _InputField(ctrl: _nameCtrl, hint: 'Mohamed Omar',
                                 icon: Icons.person_outline_rounded, cap: TextCapitalization.words),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 12),
                             Row(children: [
                               _Label(l.phoneNumber),
                               const SizedBox(width: 6),
@@ -438,12 +438,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                                     fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.primary)),
                               ),
                             ]),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 6),
                             PhoneInputField(controller: _phoneCtrl,
                                 onCountryChanged: (c) => setState(() => _country = c)),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 12),
                             _Label(l.district),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 6),
                             distAsync.when(
                               loading: () => Builder(builder: (ctx2) => _distContainer(ctx2,
                                 child: const Center(child: SizedBox(width: 20, height: 20,
@@ -471,17 +471,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                                 ),
                               )),
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 12),
                             _Label(l.referralCode),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 6),
                             _InputField(ctrl: _referralCtrl, hint: 'e.g. ABC12345',
                                 icon: Icons.card_giftcard_rounded, cap: TextCapitalization.characters),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 14),
                             _Label(l.securityMethod),
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 8),
                             _CredToggle(selected: _credMode,
                                 onChanged: (v) => setState(() => _credMode = v)),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 14),
                             if (_credMode == 0) ...[
                               Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                                 _Label(l.createPin),
@@ -491,7 +491,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                               const SizedBox(height: 4),
                               Text(l.quickEasySignIn,
                                 style: TextStyle(fontSize: 12, color: ctx.colors.mutedText, height: 1.4)),
-                              const SizedBox(height: 12),
+                              const SizedBox(height: 8),
                               Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: List.generate(4, (i) => _PinBox(
                                   controller: _pinCtrls[i], focusNode: _pinFocus[i],
@@ -524,10 +524,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                                   onToggle: () => setState(() => _showConfirm = !_showConfirm),
                                   onSubmit: (_) => _register()),
                             ],
-                            const SizedBox(height: 28),
+                            const SizedBox(height: 18),
                             _ActionButton(label: l.createAccount, icon: Icons.check_rounded,
                                 isLoading: isLoading, onTap: isLoading ? null : _register),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 14),
                             Center(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                               Text('${l.alreadyHaveAccount} ',
                                 style: TextStyle(color: ctx.colors.mutedText, fontSize: 14)),
@@ -552,7 +552,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
   }
 
   Widget _distContainer(BuildContext ctx, {required Widget child}) => Container(
-    height: 54,
+    height: 48,
     decoration: BoxDecoration(
       color: ctx.colors.inputFill,
       borderRadius: BorderRadius.circular(14),
@@ -862,7 +862,7 @@ class _InputField extends StatelessWidget {
             hintText: hint,
             hintStyle: TextStyle(color: c.subtleText, fontSize: 14, fontWeight: FontWeight.w400),
             border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           ),
         )),
       ]),
@@ -899,7 +899,7 @@ class _PasswordField extends StatelessWidget {
             hintText: hint,
             hintStyle: TextStyle(color: c.subtleText, fontSize: 14, fontWeight: FontWeight.w400),
             border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           ),
         )),
         IconButton(
@@ -929,7 +929,7 @@ class _PinBox extends StatelessWidget {
         final focused = focusNode.hasFocus;
         final filled  = controller.text.isNotEmpty;
         return Container(
-          width: 68, height: 68,
+          width: 58, height: 58,
           decoration: BoxDecoration(
             color: focused ? AppColors.primary.withOpacity(0.12)
                 : filled ? c.surfaceBg : isDark ? c.scaffoldBg : c.inputFill,
@@ -968,7 +968,7 @@ class _ActionButton extends StatelessWidget {
   const _ActionButton({required this.label, required this.icon, this.onTap, this.isLoading = false});
   @override
   Widget build(BuildContext context) => SizedBox(
-    width: double.infinity, height: 56,
+    width: double.infinity, height: 50,
     child: ElevatedButton(
       onPressed: onTap,
       style: ElevatedButton.styleFrom(

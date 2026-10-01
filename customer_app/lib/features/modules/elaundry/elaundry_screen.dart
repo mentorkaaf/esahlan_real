@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/module_api_service.dart';
@@ -9,7 +9,6 @@ import '../../payment/waafi_pay_sheet.dart';
 import '../../payment/mobile_pay_sheet.dart';
 import '../../payment/payment_method_section.dart';
 import '../../../shared/widgets/wallet_pin_dialog.dart';
-import '../../ads/services/ad_service.dart';
 import '../../../../core/theme/theme_x.dart';
 import '../../rewards/redeem_points_bar.dart';
 import '../../auth/presentation/providers/auth_provider.dart';
@@ -26,13 +25,41 @@ class ELaundryScreen extends ConsumerStatefulWidget {
 
 double _toD(dynamic v) => double.tryParse(v?.toString() ?? '0') ?? 0;
 
-class _ELaundryScreenState extends ConsumerState<ELaundryScreen> {
-  String _serviceType = 'normal'; // normal | express
-  final Map<int, int> _qty = {}; // item_id → quantity
+/// Flatten grouped API response → flat item list
+List<Map<String, dynamic>> _flatItems(List categories) {
+  final out = <Map<String, dynamic>>[];
+  for (final cat in categories) {
+    for (final sub in (cat['sub_categories'] as List? ?? [])) {
+      for (final item in (sub['items'] as List? ?? [])) {
+        out.add(Map<String, dynamic>.from(item as Map));
+      }
+    }
+  }
+  return out;
+}
 
-  double _calcTotal(List items) {
+class _ELaundryScreenState extends ConsumerState<ELaundryScreen>
+    with SingleTickerProviderStateMixin {
+  String _serviceType = 'normal';
+  final Map<int, int> _qty = {};
+  late TabController _tabController;
+  final List<String> _mainCats = ['Clean & Press', 'Press Only', 'Wash & Fold', 'Bed & Bath'];
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: _mainCats.length, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  double _calcTotal(List<Map<String, dynamic>> flat) {
     double total = 0;
-    for (final item in items) {
+    for (final item in flat) {
       final q = _qty[item['id']] ?? 0;
       if (q > 0) {
         final price = _serviceType == 'express'
@@ -49,26 +76,31 @@ class _ELaundryScreenState extends ConsumerState<ELaundryScreen> {
   @override
   Widget build(BuildContext context) {
     final itemsAsync = ref.watch(_laundryItemsProvider);
-
     final c = context.colors;
+
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: c.navyText), onPressed: () => context.pop()),
-        title: Text('eLaundry', style: TextStyle(fontWeight: FontWeight.w800, color: c.navyText, fontFamily: 'Cairo')),
+        leading: IconButton(
+            icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: c.navyText),
+            onPressed: () => context.pop()),
+        title: Text('eLaundry',
+            style: TextStyle(fontWeight: FontWeight.w800, color: c.navyText, fontFamily: 'Cairo')),
       ),
       body: itemsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (res) {
-          final items = res['data'] as List? ?? [];
-          final total = _calcTotal(items);
+          final categories = res['data'] as List? ?? [];
+          final flat = _flatItems(categories);
+          final total = _calcTotal(flat);
 
-          // Derive package info from items for the service type cards
-          final firstItem = items.isNotEmpty ? items.first : null;
-          final minNormal  = items.isEmpty ? 0.0 : items.map((e) => _toD(e['normal_price'])).reduce((a, b) => a < b ? a : b);
-          final minExpress = items.isEmpty ? 0.0 : items.map((e) => _toD(e['express_price'])).reduce((a, b) => a < b ? a : b);
-          final normalDays  = firstItem != null ? '${firstItem['normal_days']} Day${(firstItem['normal_days'] as num? ?? 1) > 1 ? 's' : ''}' : '1-2 Days';
-          final expressHrs  = firstItem != null ? '${firstItem['express_hours']} Hours' : '24 Hours';
+          final minNormal  = flat.isEmpty ? 0.0 : flat.map((e) => _toD(e['normal_price'])).reduce((a, b) => a < b ? a : b);
+          final minExpress = flat.isEmpty ? 0.0 : flat.map((e) => _toD(e['express_price'])).reduce((a, b) => a < b ? a : b);
+          final firstItem  = flat.isNotEmpty ? flat.first : null;
+          final normalDays = firstItem != null
+              ? '${firstItem['normal_days']} Day${(firstItem['normal_days'] as num? ?? 1) > 1 ? 's' : ''}'
+              : '1-3 Days';
+          final expressHrs = firstItem != null ? '${firstItem['express_hours']} Hours' : '24 Hours';
 
           return Column(children: [
             // Service type selector
@@ -76,7 +108,8 @@ class _ELaundryScreenState extends ConsumerState<ELaundryScreen> {
               color: c.cardBg,
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Select Service', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: c.navyText)),
+                Text('Select Service',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: c.navyText)),
                 const SizedBox(height: 10),
                 Row(children: [
                   Expanded(child: _ServiceTypeCard(
@@ -101,96 +134,178 @@ class _ELaundryScreenState extends ConsumerState<ELaundryScreen> {
                 ]),
               ]),
             ),
-            const SizedBox(height: 8),
 
-            // Items list header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                Text('Select Items', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: c.navyText)),
-                Text('${_serviceType == 'express' ? 'Express' : 'Normal'} Rate',
-                    style: const TextStyle(fontSize: 12, color: AppColors.textGrey)),
-              ]),
-            ),
-            const SizedBox(height: 8),
-
-            // Items list
-            Expanded(child: RefreshIndicator(
-              color: AppColors.primary,
-              onRefresh: () async => ref.invalidate(_laundryItemsProvider),
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: items.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 10),
-                itemBuilder: (_, i) {
-                  final item  = items[i];
-                  final price = _serviceType == 'express'
-                      ? _toD(item['express_price'])
-                      : _toD(item['normal_price']);
-                  final qty   = _qty[item['id']] ?? 0;
-
-                  return Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: c.cardBg, borderRadius: BorderRadius.circular(14),
-                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)],
-                    ),
-                    child: Row(children: [
-                      // Icon/Image
-                      Container(
-                        width: 56, height: 56,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: item['image'] != null
-                            ? ClipRRect(borderRadius: BorderRadius.circular(12),
-                                child: NetImage(url: item['image'], fit: BoxFit.cover))
-                            : const Icon(Icons.checkroom_outlined, color: AppColors.primary, size: 28),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(item['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: c.navyText)),
-                        const SizedBox(height: 2),
-                        Text(
-                          _serviceType == 'express'
-                              ? '${item['express_hours']} hours • \$${price.toStringAsFixed(2)}'
-                              : '${item['normal_days']} days • \$${price.toStringAsFixed(2)}',
-                          style: const TextStyle(fontSize: 12, color: AppColors.textGrey),
-                        ),
-                        if (qty > 0)
-                          Text('Subtotal: \$${(price * qty).toStringAsFixed(2)}',
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary)),
-                      ])),
-                      // Qty stepper
-                      Row(children: [
-                        GestureDetector(
-                          onTap: () => setState(() { if (qty > 0) _qty[item['id']] = qty - 1; }),
-                          child: Container(
-                            width: 30, height: 30,
-                            decoration: BoxDecoration(
-                              color: qty > 0 ? AppColors.primary : AppColors.surface,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Icon(Icons.remove, size: 16, color: qty > 0 ? Colors.white : AppColors.textGrey),
-                          ),
-                        ),
-                        SizedBox(width: 32, child: Text('$qty', textAlign: TextAlign.center,
-                            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: c.navyText))),
-                        GestureDetector(
-                          onTap: () => setState(() => _qty[item['id']] = qty + 1),
-                          child: Container(
-                            width: 30, height: 30,
-                            decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(8)),
-                            child: const Icon(Icons.add, size: 16, color: Colors.white),
-                          ),
-                        ),
-                      ]),
-                    ]),
-                  );
-                },
+            // Main category tabs
+            Container(
+              color: c.cardBg,
+              child: TabBar(
+                controller: _tabController,
+                isScrollable: true,
+                tabAlignment: TabAlignment.start,
+                labelColor: AppColors.primary,
+                unselectedLabelColor: c.mutedText,
+                indicatorColor: AppColors.primary,
+                labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                tabs: _mainCats.map((cat) => Tab(text: cat)).toList(),
               ),
-            )),
+            ),
+
+            // Items by tab
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: _mainCats.map((mainCat) {
+                  // Find matching category from API
+                  final catData = categories.cast<Map<String, dynamic>>()
+                      .where((c) => c['main_category'] == mainCat)
+                      .toList();
+
+                  if (catData.isEmpty) {
+                    return const Center(
+                      child: Text('No items', style: TextStyle(color: AppColors.textGrey)));
+                  }
+
+                  final subCats = catData.first['sub_categories'] as List? ?? [];
+
+                  return RefreshIndicator(
+                    color: AppColors.primary,
+                    onRefresh: () async => ref.invalidate(_laundryItemsProvider),
+                    child: ListView.builder(
+                      padding: const EdgeInsets.only(top: 8, bottom: 16, left: 16, right: 16),
+                      itemCount: subCats.length,
+                      itemBuilder: (_, si) {
+                        final sub = subCats[si] as Map<String, dynamic>;
+                        final subName = sub['name'] as String? ?? '';
+                        final subItems = sub['items'] as List? ?? [];
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Sub-category header
+                            Padding(
+                              padding: EdgeInsets.only(top: si == 0 ? 4 : 16, bottom: 8),
+                              child: Row(children: [
+                                Container(
+                                  width: 4, height: 18,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary,
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(subName,
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 14,
+                                        color: c.navyText)),
+                              ]),
+                            ),
+                            // Items in this sub-category
+                            ...subItems.asMap().entries.map((e) {
+                              final item = e.value as Map<String, dynamic>;
+                              final id    = item['id'] as int;
+                              final price = _serviceType == 'express'
+                                  ? _toD(item['express_price'])
+                                  : _toD(item['normal_price']);
+                              final qty = _qty[id] ?? 0;
+
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: c.cardBg,
+                                  borderRadius: BorderRadius.circular(14),
+                                  boxShadow: [BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.05),
+                                      blurRadius: 8)],
+                                ),
+                                child: Row(children: [
+                                  // Icon/Image
+                                  Container(
+                                    width: 50, height: 50,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: item['image'] != null
+                                        ? ClipRRect(
+                                            borderRadius: BorderRadius.circular(12),
+                                            child: NetImage(url: item['image'], fit: BoxFit.cover))
+                                        : const Icon(Icons.checkroom_outlined,
+                                            color: AppColors.primary, size: 26),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(item['name'] ?? '',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 13,
+                                              color: c.navyText)),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        _serviceType == 'express'
+                                            ? '${item['express_hours']} hrs • \$${price.toStringAsFixed(2)}'
+                                            : '${item['normal_days']} days • \$${price.toStringAsFixed(2)}',
+                                        style: const TextStyle(
+                                            fontSize: 11, color: AppColors.textGrey),
+                                      ),
+                                      if (qty > 0)
+                                        Text('Subtotal: \$${(price * qty).toStringAsFixed(2)}',
+                                            style: const TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w700,
+                                                color: AppColors.primary)),
+                                    ],
+                                  )),
+                                  // Qty stepper
+                                  Row(children: [
+                                    GestureDetector(
+                                      onTap: () => setState(() {
+                                        if (qty > 0) _qty[id] = qty - 1;
+                                      }),
+                                      child: Container(
+                                        width: 28, height: 28,
+                                        decoration: BoxDecoration(
+                                          color: qty > 0 ? AppColors.primary : AppColors.surface,
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Icon(Icons.remove, size: 14,
+                                            color: qty > 0 ? Colors.white : AppColors.textGrey),
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: 30,
+                                      child: Text('$qty',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w800,
+                                              fontSize: 15,
+                                              color: c.navyText)),
+                                    ),
+                                    GestureDetector(
+                                      onTap: () => setState(() => _qty[id] = qty + 1),
+                                      child: Container(
+                                        width: 28, height: 28,
+                                        decoration: BoxDecoration(
+                                            color: AppColors.primary,
+                                            borderRadius: BorderRadius.circular(8)),
+                                        child: const Icon(Icons.add, size: 14, color: Colors.white),
+                                      ),
+                                    ),
+                                  ]),
+                                ]),
+                              );
+                            }),
+                          ],
+                        );
+                      },
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
 
             // Summary + Order button
             if (_totalQty > 0)
@@ -198,17 +313,27 @@ class _ELaundryScreenState extends ConsumerState<ELaundryScreen> {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: c.cardBg,
-                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 10, offset: const Offset(0, -2))],
+                  boxShadow: [BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.06),
+                      blurRadius: 10,
+                      offset: const Offset(0, -2))],
                 ),
                 child: Column(children: [
                   Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                    Text('$_totalQty item${_totalQty > 1 ? 's' : ''} • ${_serviceType == 'express' ? expressHrs : normalDays}',
-                        style: const TextStyle(color: AppColors.textGrey, fontSize: 13)),
+                    Text(
+                      '$_totalQty item${_totalQty > 1 ? 's' : ''} • ${_serviceType == 'express' ? expressHrs : normalDays}',
+                      style: const TextStyle(color: AppColors.textGrey, fontSize: 13)),
                     Text('\$${total.toStringAsFixed(2)}',
-                        style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: AppColors.primary)),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 20,
+                            color: AppColors.primary)),
                   ]),
                   const SizedBox(height: 10),
-                  AppButton(label: 'Place Laundry Order', onPressed: () => _placeOrder(context, items)),
+                  AppButton(
+                    label: 'Place Laundry Order',
+                    onPressed: () => _placeOrder(context, flat),
+                  ),
                 ]),
               ),
           ]);
@@ -217,12 +342,12 @@ class _ELaundryScreenState extends ConsumerState<ELaundryScreen> {
     );
   }
 
-  void _placeOrder(BuildContext context, List items) {
-    final total = _calcTotal(items);
+  void _placeOrder(BuildContext context, List<Map<String, dynamic>> flat) {
+    final total = _calcTotal(flat);
     Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => _OrderConfirmPage(
         serviceType: _serviceType,
-        items: items,
+        items: flat,
         qty: _qty,
         subtotal: total,
         onConfirm: (districtId, payMethod, waafiRef, pointsToRedeem, selfPickup) async {
@@ -269,8 +394,12 @@ class _ServiceTypeCard extends StatelessWidget {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Icon(icon, color: selected ? color : c.mutedText, size: 26),
           const SizedBox(height: 8),
-          Text(label, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: selected ? color : c.navyText)),
-          Text(price, style: TextStyle(fontSize: 11, color: selected ? color : c.mutedText, fontWeight: FontWeight.w600)),
+          Text(label,
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13,
+                  color: selected ? color : c.navyText)),
+          Text(price,
+              style: TextStyle(fontSize: 11, color: selected ? color : c.mutedText,
+                  fontWeight: FontWeight.w600)),
           Text(eta, style: TextStyle(fontSize: 11, color: c.mutedText)),
         ]),
       ),
@@ -281,10 +410,9 @@ class _ServiceTypeCard extends StatelessWidget {
 // ─── Full-screen order confirmation page ────────────────────────────────────
 class _OrderConfirmPage extends ConsumerStatefulWidget {
   final String serviceType;
-  final List items;
+  final List<Map<String, dynamic>> items;
   final Map<int, int> qty;
   final double subtotal;
-  // districtId=0 means self pickup
   final Future<void> Function(int districtId, String payMethod, String? waafiRef, int pointsToRedeem, bool selfPickup) onConfirm;
 
   const _OrderConfirmPage({required this.serviceType, required this.items,
@@ -295,11 +423,10 @@ class _OrderConfirmPage extends ConsumerStatefulWidget {
 }
 
 class _OrderConfirmPageState extends ConsumerState<_OrderConfirmPage> {
-  // Districts fetched from API — list of {id, name}
   List<Map<String, dynamic>> _districts = [];
   bool _districtsLoading = true;
 
-  int     _districtId     = 0; // 0 = not yet loaded
+  int     _districtId     = 0;
   bool    _selfPickup     = false;
   String  _payMethod      = 'wallet';
   String? _waafiRef;
@@ -328,7 +455,6 @@ class _OrderConfirmPageState extends ConsumerState<_OrderConfirmPage> {
         'name': d['name']?.toString() ?? '',
       }).where((d) => d['id'] != 0).toList();
 
-      // Auto-fill user's registered district
       final user = ref.read(authStateProvider).valueOrNull;
       int defaultId = districts.isNotEmpty ? (districts.first['id'] as int) : 1;
       if (user?.districtId != null && user!.districtId! > 0) {
@@ -373,15 +499,17 @@ class _OrderConfirmPageState extends ConsumerState<_OrderConfirmPage> {
     final c = context.colors;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Confirm Order', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
-        leading: IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+        title: const Text('Confirm Order',
+            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
+        leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
             onPressed: () => Navigator.of(context).pop()),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
-          // ── Order summary card ─────────────────────────────────────────
+          // Order summary card
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
@@ -390,13 +518,18 @@ class _OrderConfirmPageState extends ConsumerState<_OrderConfirmPage> {
             ),
             child: Column(children: [
               Row(children: [
-                Container(width: 44, height: 44, decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
-                  child: const Icon(Icons.local_laundry_service_rounded, color: AppColors.primary, size: 24)),
+                Container(
+                  width: 44, height: 44,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(12)),
+                  child: const Icon(Icons.local_laundry_service_rounded,
+                      color: AppColors.primary, size: 24)),
                 const SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('eLaundry Order', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: c.navyText)),
-                  Text(widget.serviceType == 'express' ? 'Express — 24 Hours' : 'Normal — 1-2 Days',
+                  Text('eLaundry Order',
+                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: c.navyText)),
+                  Text(widget.serviceType == 'express' ? 'Express — 24 Hours' : 'Normal — 1-3 Days',
                       style: const TextStyle(fontSize: 12, color: AppColors.textGrey)),
                 ])),
                 Text('\$${_grandTotal.toStringAsFixed(2)}',
@@ -424,7 +557,6 @@ class _OrderConfirmPageState extends ConsumerState<_OrderConfirmPage> {
               const Divider(),
               const SizedBox(height: 6),
 
-              // Subtotal row
               Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                 Text('Subtotal', style: TextStyle(fontSize: 13, color: c.mutedText)),
                 Text('\$${widget.subtotal.toStringAsFixed(2)}',
@@ -432,7 +564,6 @@ class _OrderConfirmPageState extends ConsumerState<_OrderConfirmPage> {
               ]),
               const SizedBox(height: 6),
 
-              // Delivery fee row
               Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                 Text('Delivery Fee', style: TextStyle(fontSize: 13, color: c.mutedText)),
                 _feeLoading
@@ -461,7 +592,7 @@ class _OrderConfirmPageState extends ConsumerState<_OrderConfirmPage> {
 
           const SizedBox(height: 22),
 
-          // ── Delivery Type ──────────────────────────────────────────────
+          // Delivery Type
           Text('Delivery Type', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: c.navyText)),
           const SizedBox(height: 8),
           Row(children: [
@@ -474,12 +605,17 @@ class _OrderConfirmPageState extends ConsumerState<_OrderConfirmPage> {
                   decoration: BoxDecoration(
                     color: !_selfPickup ? AppColors.primary.withValues(alpha: 0.10) : c.inputFill,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: !_selfPickup ? AppColors.primary : c.borderColor, width: !_selfPickup ? 2 : 1),
+                    border: Border.all(
+                        color: !_selfPickup ? AppColors.primary : c.borderColor,
+                        width: !_selfPickup ? 2 : 1),
                   ),
                   child: Column(children: [
-                    Icon(Icons.local_shipping_rounded, color: !_selfPickup ? AppColors.primary : c.mutedText, size: 22),
+                    Icon(Icons.local_shipping_rounded,
+                        color: !_selfPickup ? AppColors.primary : c.mutedText, size: 22),
                     const SizedBox(height: 4),
-                    Text('Home Pickup', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: !_selfPickup ? AppColors.primary : c.mutedText)),
+                    Text('Home Pickup',
+                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12,
+                            color: !_selfPickup ? AppColors.primary : c.mutedText)),
                     Text('We collect & return', style: TextStyle(fontSize: 10, color: c.mutedText)),
                   ]),
                 ),
@@ -495,12 +631,17 @@ class _OrderConfirmPageState extends ConsumerState<_OrderConfirmPage> {
                   decoration: BoxDecoration(
                     color: _selfPickup ? AppColors.primary.withValues(alpha: 0.10) : c.inputFill,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: _selfPickup ? AppColors.primary : c.borderColor, width: _selfPickup ? 2 : 1),
+                    border: Border.all(
+                        color: _selfPickup ? AppColors.primary : c.borderColor,
+                        width: _selfPickup ? 2 : 1),
                   ),
                   child: Column(children: [
-                    Icon(Icons.storefront_rounded, color: _selfPickup ? AppColors.primary : c.mutedText, size: 22),
+                    Icon(Icons.storefront_rounded,
+                        color: _selfPickup ? AppColors.primary : c.mutedText, size: 22),
                     const SizedBox(height: 4),
-                    Text('Self Pickup', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: _selfPickup ? AppColors.primary : c.mutedText)),
+                    Text('Self Pickup',
+                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12,
+                            color: _selfPickup ? AppColors.primary : c.mutedText)),
                     Text('No delivery fee', style: TextStyle(fontSize: 10, color: c.mutedText)),
                   ]),
                 ),
@@ -508,10 +649,10 @@ class _OrderConfirmPageState extends ConsumerState<_OrderConfirmPage> {
             ),
           ]),
 
-          // ── District (only when home pickup) ──────────────────────────
           if (!_selfPickup) ...[
             const SizedBox(height: 16),
-            Text('Your District', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: c.navyText)),
+            Text('Your District',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: c.navyText)),
             const SizedBox(height: 4),
             Text('Delivery = Hamarweyne ↔ your district (round trip: pickup + return).',
                 style: TextStyle(fontSize: 11, color: c.mutedText)),
@@ -519,7 +660,9 @@ class _OrderConfirmPageState extends ConsumerState<_OrderConfirmPage> {
             _districtsLoading
               ? const LinearProgressIndicator(minHeight: 2)
               : DropdownButtonFormField<int>(
-                  value: _districts.any((d) => d['id'] == _districtId) ? _districtId : (_districts.isNotEmpty ? _districts.first['id'] as int : null),
+                  value: _districts.any((d) => d['id'] == _districtId)
+                      ? _districtId
+                      : (_districts.isNotEmpty ? _districts.first['id'] as int : null),
                   onChanged: (v) {
                     if (v == null) return;
                     setState(() => _districtId = v);
@@ -527,9 +670,15 @@ class _OrderConfirmPageState extends ConsumerState<_OrderConfirmPage> {
                   },
                   decoration: InputDecoration(
                     filled: true, fillColor: c.inputFill,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.divider)),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.divider)),
-                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 2)),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppColors.divider)),
+                    enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppColors.divider)),
+                    focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppColors.primary, width: 2)),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                   ),
                   items: _districts.map((d) => DropdownMenuItem<int>(
@@ -548,8 +697,8 @@ class _OrderConfirmPageState extends ConsumerState<_OrderConfirmPage> {
 
           const SizedBox(height: 22),
 
-          // ── Payment Method ─────────────────────────────────────────────
-          Text('Payment Method', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: c.navyText)),
+          Text('Payment Method',
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: c.navyText)),
           const SizedBox(height: 10),
           PaymentMethodSection(
             selected: _payMethod,
@@ -574,8 +723,8 @@ class _OrderConfirmPageState extends ConsumerState<_OrderConfirmPage> {
                 if (result?.success != true) return;
                 _waafiRef = result!.account != null ? 'mobile_pay_${result.account!.id}' : 'mobile_pay';
               } else {
-                final result = await showWaafiPaySheet(
-                  context, amount: _grandTotal, type: 'order', description: 'eLaundry Order');
+                final result = await showWaafiPaySheet(context, amount: _grandTotal,
+                    type: 'order', description: 'eLaundry Order');
                 if (result?.success != true) return;
                 _waafiRef = result!.reference;
               }
@@ -601,51 +750,28 @@ class _OrderConfirmPageState extends ConsumerState<_OrderConfirmPage> {
 class _SuccessView extends StatelessWidget {
   final VoidCallback onDone;
   const _SuccessView({required this.onDone});
+
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: Theme.of(context).scaffoldBackgroundColor,
     body: Center(child: Padding(
       padding: const EdgeInsets.all(32),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Container(width: 90, height: 90,
+        Container(
+          width: 90, height: 90,
           decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle),
           child: const Icon(Icons.check_rounded, color: Colors.white, size: 52)),
-        SizedBox(height: 24),
-        Text('Order Placed!', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: context.colors.navyText)),
+        const SizedBox(height: 24),
+        Text('Order Placed!',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900,
+                color: context.colors.navyText)),
         const SizedBox(height: 10),
         const Text('Your laundry order has been placed.\nWe\'ll notify you when it\'s picked up.',
-            textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: AppColors.textGrey, height: 1.5)),
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, color: AppColors.textGrey, height: 1.5)),
         const SizedBox(height: 32),
         AppButton(label: 'Back to eLaundry', onPressed: onDone),
       ]),
     )),
   );
-}
-
-class _PayChip extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final bool selected;
-  final VoidCallback onTap;
-  const _PayChip({required this.label, required this.icon, required this.selected, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.primary.withOpacity(0.08) : AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: selected ? AppColors.primary : AppColors.divider, width: selected ? 2 : 1),
-        ),
-        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(icon, size: 18, color: selected ? AppColors.primary : AppColors.textGrey),
-          const SizedBox(width: 6),
-          Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: selected ? AppColors.primary : AppColors.textGrey)),
-        ]),
-      ),
-    );
-  }
 }

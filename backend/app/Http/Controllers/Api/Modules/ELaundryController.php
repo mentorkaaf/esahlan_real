@@ -13,17 +13,49 @@ use App\Services\LoyaltyService;
 
 class ELaundryController extends Controller
 {
-    // GET /elaundry/items
+    // GET /elaundry/items — returns grouped by main_category → sub_category
     public function items()
     {
-        $items = DB::table('laundry_items')
+        $mainOrder = ['Clean & Press', 'Press Only', 'Wash & Fold', 'Bed & Bath'];
+
+        $rows = DB::table('laundry_items')
             ->where('is_active', true)
+            ->orderBy('main_category')
+            ->orderBy('sub_category')
             ->orderBy('sort_order')
-            ->get(['id', 'name', 'name_so', 'normal_price', 'express_price', 'normal_days', 'express_hours', 'image']);
+            ->get(['id', 'name', 'name_so', 'normal_price', 'express_price',
+                   'normal_days', 'express_hours', 'image', 'main_category', 'sub_category']);
 
-        $items = $items->map(fn($i) => array_merge((array)$i, ['image' => cdn_url($i->image)]));
+        // Group main → sub → items
+        $grouped = [];
+        foreach ($rows as $row) {
+            $main = $row->main_category ?? 'Other';
+            $sub  = $row->sub_category  ?? 'General';
+            $grouped[$main][$sub][] = [
+                'id'            => $row->id,
+                'name'          => $row->name,
+                'name_so'       => $row->name_so,
+                'normal_price'  => (float)$row->normal_price,
+                'express_price' => (float)$row->express_price,
+                'normal_days'   => $row->normal_days,
+                'express_hours' => $row->express_hours,
+                'image'         => cdn_url($row->image),
+            ];
+        }
 
-        return response()->json(['success' => true, 'data' => $items]);
+        // Sort main categories by defined order
+        $categories = [];
+        $ordered = array_merge(array_intersect($mainOrder, array_keys($grouped)),
+                               array_diff(array_keys($grouped), $mainOrder));
+        foreach ($ordered as $main) {
+            $subArr = [];
+            foreach ($grouped[$main] as $sub => $items) {
+                $subArr[] = ['name' => $sub, 'items' => $items];
+            }
+            $categories[] = ['main_category' => $main, 'sub_categories' => $subArr];
+        }
+
+        return response()->json(['success' => true, 'data' => $categories]);
     }
 
     // POST /elaundry/estimate

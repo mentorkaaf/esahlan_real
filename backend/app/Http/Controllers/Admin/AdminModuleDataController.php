@@ -39,11 +39,13 @@ class AdminModuleDataController extends Controller
     public function laundryStore(Request $request)
     {
         $data = $request->validate([
-            'name'          => 'required|string|max:100',
+            'name'          => 'required|string|max:150',
+            'main_category' => 'required|string|max:100',
+            'sub_category'  => 'nullable|string|max:100',
             'normal_price'  => 'required|numeric|min:0',
-            'express_price' => 'required|numeric|min:0',
-            'normal_days'   => 'required|integer|min:1',
-            'express_hours' => 'required|integer|min:1',
+            'express_price' => 'nullable|numeric|min:0',
+            'normal_days'   => 'nullable|integer|min:1',
+            'express_hours' => 'nullable|integer|min:1',
             'sort_order'    => 'nullable|integer',
             'is_active'     => 'nullable|boolean',
             'image_file'    => 'nullable|image|max:5120',
@@ -52,18 +54,23 @@ class AdminModuleDataController extends Controller
             $data['image'] = $this->storeUpload($request->file('image_file'), 'laundry');
         }
         unset($data['image_file']);
+        $data['express_price'] = $data['express_price'] ?? 0;
+        $data['normal_days']   = $data['normal_days']   ?? 3;
+        $data['express_hours'] = $data['express_hours'] ?? 24;
         LaundryItem::create($data + ['is_active' => $request->boolean('is_active', true)]);
-        return back()->with('success', 'Item added.');
+        return back()->with('success', 'Item added successfully.');
     }
 
     public function laundryUpdate(Request $request, LaundryItem $item)
     {
         $data = $request->validate([
-            'name'          => 'required|string|max:100',
+            'name'          => 'required|string|max:150',
+            'main_category' => 'required|string|max:100',
+            'sub_category'  => 'nullable|string|max:100',
             'normal_price'  => 'required|numeric|min:0',
-            'express_price' => 'required|numeric|min:0',
-            'normal_days'   => 'required|integer|min:1',
-            'express_hours' => 'required|integer|min:1',
+            'express_price' => 'nullable|numeric|min:0',
+            'normal_days'   => 'nullable|integer|min:1',
+            'express_hours' => 'nullable|integer|min:1',
             'sort_order'    => 'nullable|integer',
             'is_active'     => 'nullable|boolean',
             'image_file'    => 'nullable|image|max:5120',
@@ -72,8 +79,11 @@ class AdminModuleDataController extends Controller
             $data['image'] = $this->storeUpload($request->file('image_file'), 'laundry');
         }
         unset($data['image_file']);
+        $data['express_price'] = $data['express_price'] ?? 0;
+        $data['normal_days']   = $data['normal_days']   ?? 3;
+        $data['express_hours'] = $data['express_hours'] ?? 24;
         $item->update($data + ['is_active' => $request->boolean('is_active', true)]);
-        return back()->with('success', 'Item updated.');
+        return back()->with('success', 'Item updated successfully.');
     }
 
     public function laundryDestroy(LaundryItem $item)

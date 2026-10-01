@@ -19,21 +19,34 @@
     <div class="alert alert-success mb-3">{{ session('success') }}</div>
 @endif
 
+{{-- Category filter tabs --}}
+@php
+    $mainCats = ['All', 'Clean & Press', 'Press Only', 'Wash & Fold', 'Bed & Bath'];
+@endphp
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+    @foreach($mainCats as $cat)
+    <button class="cat-tab {{ $loop->first ? 'active' : '' }}"
+            onclick="filterCat('{{ $cat }}', this)">
+        {{ $cat }}
+    </button>
+    @endforeach
+</div>
+
 <div class="card">
     <div class="card-header">
-        <span>Laundry Items ({{ $items->count() }})</span>
+        <span>Laundry Items (<span id="visibleCount">{{ $items->count() }}</span>)</span>
     </div>
     <div class="table-responsive">
-        <table>
+        <table id="laundryTable">
             <thead>
                 <tr>
                     <th>#</th>
                     <th>Image</th>
+                    <th>Main Category</th>
+                    <th>Sub Category</th>
                     <th>Item Name</th>
                     <th>Normal Price</th>
                     <th>Normal (days)</th>
-                    <th>Express Price</th>
-                    <th>Express (hours)</th>
                     <th>Sort</th>
                     <th>Status</th>
                     <th>Actions</th>
@@ -41,7 +54,7 @@
             </thead>
             <tbody>
                 @forelse($items as $item)
-                <tr>
+                <tr data-cat="{{ $item->main_category ?? 'Other' }}">
                     <td>{{ $item->id }}</td>
                     <td>
                         @if($item->image)
@@ -52,11 +65,11 @@
                             </div>
                         @endif
                     </td>
+                    <td><span class="badge" style="background:{{ match($item->main_category ?? '') { 'Clean & Press' => '#2980B9', 'Press Only' => '#8E44AD', 'Wash & Fold' => '#27AE60', 'Bed & Bath' => '#E67E22', default => '#7f8c8d' } }};color:#fff;">{{ $item->main_category ?? '—' }}</span></td>
+                    <td style="color:#666;font-size:13px;">{{ $item->sub_category ?? '—' }}</td>
                     <td><strong>{{ $item->name }}</strong></td>
                     <td><strong class="text-success">${{ number_format($item->normal_price, 2) }}</strong></td>
-                    <td>{{ $item->normal_days }} day{{ $item->normal_days > 1 ? 's' : '' }}</td>
-                    <td><strong class="text-danger">${{ number_format($item->express_price, 2) }}</strong></td>
-                    <td>{{ $item->express_hours }}h</td>
+                    <td>{{ $item->normal_days ?? 1 }} day{{ ($item->normal_days ?? 1) > 1 ? 's' : '' }}</td>
                     <td>{{ $item->sort_order }}</td>
                     <td>
                         <span class="badge {{ $item->is_active ? 'badge-success' : 'badge-danger' }}">
@@ -67,10 +80,12 @@
                         <button class="btn btn-sm btn-secondary" onclick="openEdit(
                             {{ $item->id }},
                             '{{ addslashes($item->name) }}',
+                            '{{ addslashes($item->main_category ?? '') }}',
+                            '{{ addslashes($item->sub_category ?? '') }}',
                             {{ $item->normal_price }},
-                            {{ $item->express_price }},
-                            {{ $item->normal_days }},
-                            {{ $item->express_hours }},
+                            {{ $item->express_price ?? 0 }},
+                            {{ $item->normal_days ?? 3 }},
+                            {{ $item->express_hours ?? 24 }},
                             {{ $item->sort_order ?? 0 }},
                             {{ $item->is_active ? 1 : 0 }},
                             '{{ $item->image ?? '' }}'
@@ -100,6 +115,7 @@
         </div>
         <form action="{{ route('admin.module-data.laundry.store') }}" method="POST" enctype="multipart/form-data">
             @csrf
+
             {{-- Image upload --}}
             <div class="form-group">
                 <label class="form-label">Item Image</label>
@@ -115,8 +131,24 @@
 
             <div class="grid-2">
                 <div class="form-group">
+                    <label class="form-label">Main Category *</label>
+                    <select name="main_category" id="addMainCat" class="form-control" required onchange="syncSubOptions('addMainCat','addSubCat')">
+                        <option value="Clean &amp; Press">Clean &amp; Press</option>
+                        <option value="Press Only">Press Only</option>
+                        <option value="Wash &amp; Fold">Wash &amp; Fold</option>
+                        <option value="Bed &amp; Bath">Bed &amp; Bath</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Sub Category *</label>
+                    <select name="sub_category" id="addSubCat" class="form-control" required></select>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="form-group">
                     <label class="form-label">Item Name *</label>
-                    <input type="text" name="name" class="form-control" required placeholder="e.g. Shirt, Trouser">
+                    <input type="text" name="name" class="form-control" required placeholder="e.g. Shaati-Shirt">
                 </div>
                 <div class="form-group">
                     <label class="form-label">Sort Order</label>
@@ -132,22 +164,8 @@
                         <input type="number" name="normal_price" class="form-control" step="0.01" required placeholder="1.00">
                     </div>
                     <div class="form-group" style="margin-bottom:0">
-                        <label class="form-label">Duration (days) *</label>
-                        <input type="number" name="normal_days" class="form-control" required value="2" min="1">
-                    </div>
-                </div>
-            </div>
-
-            <div style="background:#fce4ec;border-radius:10px;padding:14px;margin-bottom:14px;">
-                <div style="font-weight:700;font-size:13px;color:#c62828;margin-bottom:10px;"><i class="fas fa-bolt"></i> Express Wash</div>
-                <div class="grid-2">
-                    <div class="form-group" style="margin-bottom:0">
-                        <label class="form-label">Price ($) *</label>
-                        <input type="number" name="express_price" class="form-control" step="0.01" required placeholder="2.00">
-                    </div>
-                    <div class="form-group" style="margin-bottom:0">
-                        <label class="form-label">Duration (hours) *</label>
-                        <input type="number" name="express_hours" class="form-control" required value="24" min="1">
+                        <label class="form-label">Duration (days)</label>
+                        <input type="number" name="normal_days" class="form-control" value="3" min="1">
                     </div>
                 </div>
             </div>
@@ -187,6 +205,22 @@
 
             <div class="grid-2">
                 <div class="form-group">
+                    <label class="form-label">Main Category *</label>
+                    <select name="main_category" id="editMainCat" class="form-control" required onchange="syncSubOptions('editMainCat','editSubCat')">
+                        <option value="Clean &amp; Press">Clean &amp; Press</option>
+                        <option value="Press Only">Press Only</option>
+                        <option value="Wash &amp; Fold">Wash &amp; Fold</option>
+                        <option value="Bed &amp; Bath">Bed &amp; Bath</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Sub Category *</label>
+                    <select name="sub_category" id="editSubCat" class="form-control" required></select>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="form-group">
                     <label class="form-label">Item Name *</label>
                     <input type="text" name="name" id="editName" class="form-control" required>
                 </div>
@@ -204,22 +238,8 @@
                         <input type="number" name="normal_price" id="editNormal" class="form-control" step="0.01" required>
                     </div>
                     <div class="form-group" style="margin-bottom:0">
-                        <label class="form-label">Duration (days) *</label>
-                        <input type="number" name="normal_days" id="editNormalDays" class="form-control" required min="1">
-                    </div>
-                </div>
-            </div>
-
-            <div style="background:#fce4ec;border-radius:10px;padding:14px;margin-bottom:14px;">
-                <div style="font-weight:700;font-size:13px;color:#c62828;margin-bottom:10px;"><i class="fas fa-bolt"></i> Express Wash</div>
-                <div class="grid-2">
-                    <div class="form-group" style="margin-bottom:0">
-                        <label class="form-label">Price ($) *</label>
-                        <input type="number" name="express_price" id="editExpress" class="form-control" step="0.01" required>
-                    </div>
-                    <div class="form-group" style="margin-bottom:0">
-                        <label class="form-label">Duration (hours) *</label>
-                        <input type="number" name="express_hours" id="editExpressHours" class="form-control" required min="1">
+                        <label class="form-label">Duration (days)</label>
+                        <input type="number" name="normal_days" id="editNormalDays" class="form-control" min="1">
                     </div>
                 </div>
             </div>
@@ -234,11 +254,47 @@
     </div>
 </div>
 
+<style>
+.cat-tab {
+    padding: 6px 16px;
+    border-radius: 20px;
+    border: 1.5px solid #ddd;
+    background: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .15s;
+    color: #555;
+}
+.cat-tab.active, .cat-tab:hover {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+}
+</style>
+
 <script>
+const subCatMap = {
+    'Clean & Press': ['Ladies Group','Men','Traditional','Suit Group','Underwear Group','Sportswear','Dress Group','Bags Group','Shoes Group'],
+    'Press Only':    ['Ladies Group','Men','Traditional','Suit Group','Underwear Group','Sportswear','Dress Group'],
+    'Wash & Fold':   ['Ladies Group','Men','Underwear Group','Bath'],
+    'Bed & Bath':    ['Bath','Bed','Home','Guest'],
+};
+
+function syncSubOptions(mainSelectId, subSelectId, current) {
+    const main = document.getElementById(mainSelectId).value;
+    const sub  = document.getElementById(subSelectId);
+    const subs = subCatMap[main] || [];
+    sub.innerHTML = subs.map(s => `<option value="${s}"${s === current ? ' selected' : ''}>${s}</option>`).join('');
+}
+
+// Initialize add modal sub options
+document.addEventListener('DOMContentLoaded', () => syncSubOptions('addMainCat','addSubCat'));
+
 function previewImg(input, previewId, wrapId, nameId) {
     if (input.files && input.files[0]) {
-        var reader = new FileReader();
-        reader.onload = function(e) {
+        const reader = new FileReader();
+        reader.onload = e => {
             document.getElementById(previewId).src = e.target.result;
             document.getElementById(wrapId).style.display = 'block';
             document.getElementById(nameId).textContent = input.files[0].name;
@@ -247,30 +303,37 @@ function previewImg(input, previewId, wrapId, nameId) {
     }
 }
 
-function openEdit(id, name, normalPrice, expressPrice, normalDays, expressHours, sort, isActive, imageUrl) {
+function openEdit(id, name, mainCat, subCat, normalPrice, expressPrice, normalDays, expressHours, sort, isActive, imageUrl) {
     document.getElementById('editForm').action = `/admin/module-data/laundry/items/${id}`;
     document.getElementById('editName').value         = name;
+    document.getElementById('editMainCat').value      = mainCat;
+    syncSubOptions('editMainCat', 'editSubCat', subCat);
     document.getElementById('editNormal').value       = normalPrice;
-    document.getElementById('editExpress').value      = expressPrice;
     document.getElementById('editNormalDays').value   = normalDays;
-    document.getElementById('editExpressHours').value = expressHours;
     document.getElementById('editSort').value         = sort;
     document.getElementById('editActive').checked     = isActive == 1;
 
-    var preview = document.getElementById('editPreview');
-    var wrap    = document.getElementById('editPreviewWrap');
-    if (imageUrl) {
-        preview.src = imageUrl;
-        wrap.style.display = 'block';
-    } else {
-        preview.src = '';
-        wrap.style.display = 'none';
-    }
-    // Reset file input
+    const preview = document.getElementById('editPreview');
+    const wrap    = document.getElementById('editPreviewWrap');
+    if (imageUrl) { preview.src = imageUrl; wrap.style.display = 'block'; }
+    else { preview.src = ''; wrap.style.display = 'none'; }
     document.getElementById('editImageFile').value = '';
     document.getElementById('editFileName').textContent = 'Change image (optional)';
 
     openModal('editModal');
+}
+
+function filterCat(cat, btn) {
+    document.querySelectorAll('.cat-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const rows = document.querySelectorAll('#laundryTable tbody tr[data-cat]');
+    let count = 0;
+    rows.forEach(row => {
+        const show = cat === 'All' || row.dataset.cat === cat;
+        row.style.display = show ? '' : 'none';
+        if (show) count++;
+    });
+    document.getElementById('visibleCount').textContent = count;
 }
 </script>
 @endsection

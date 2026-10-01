@@ -205,20 +205,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             child: Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                  child: Center(child: Image.asset(AppAssets.appLogo, height: 36, fit: BoxFit.contain)),
+                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+                  child: Center(child: Image.asset(AppAssets.appLogo, height: 30, fit: BoxFit.contain)),
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 28, 24, 0),
+                  padding: const EdgeInsets.fromLTRB(24, 14, 24, 0),
                   child: FadeTransition(
                     opacity: _fadeAnim,
                     child: SlideTransition(
                       position: _slideAnim,
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Text(AppL10n.of(context).welcomeBack, style: const TextStyle(
-                          fontSize: 28, fontWeight: FontWeight.w900,
+                          fontSize: 22, fontWeight: FontWeight.w900,
                           color: Colors.white, letterSpacing: -0.5)),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 4),
                         Text(AppL10n.of(context).signInSubtitle,
                           style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.55),
                               fontWeight: FontWeight.w500)),
@@ -234,30 +234,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                           .animate(CurvedAnimation(parent: _animCtrl,
                               curve: const Interval(0.2, 1.0, curve: Curves.easeOut))),
                       child: Container(
-                        margin: const EdgeInsets.only(top: 28),
+                        margin: const EdgeInsets.only(top: 16),
                         decoration: BoxDecoration(
                           color: context.colors.elevatedBg,
                           borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
                         ),
                         child: SingleChildScrollView(
-                          padding: const EdgeInsets.fromLTRB(24, 28, 24, 36),
+                          padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
                           child: Builder(builder: (ctx) {
                             final l = AppL10n.of(ctx);
                             return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             _ModeToggle(selected: _mode, onChanged: (v) => setState(() => _mode = v)),
-                            const SizedBox(height: 28),
+                            const SizedBox(height: 18),
                             if (_mode == 0) ...[
                               _Label(l.phoneNumber),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 6),
                               PhoneInputField(controller: _phoneCtrl,
                                   onCountryChanged: (c) => setState(() => _country = c)),
-                              const SizedBox(height: 24),
+                              const SizedBox(height: 16),
                               Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                                 _Label(l.pinCode),
                                 Text(l.fourDigits, style: TextStyle(
                                     fontSize: 12, color: ctx.colors.mutedText)),
                               ]),
-                              const SizedBox(height: 12),
+                              const SizedBox(height: 8),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: List.generate(4, (i) => _PinBox(
@@ -272,24 +272,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                             ],
                             if (_mode == 1) ...[
                               _Label(l.emailAddress),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 6),
                               _InputField(ctrl: _emailCtrl, hint: 'you@example.com',
                                   icon: Icons.email_outlined, type: TextInputType.emailAddress),
-                              const SizedBox(height: 20),
+                              const SizedBox(height: 14),
                               _Label(l.password),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 6),
                               _PasswordField(ctrl: _passwordCtrl, show: _showPassword,
                                   onToggle: () => setState(() => _showPassword = !_showPassword),
                                   onSubmit: (_) => _login()),
                             ],
-                            const SizedBox(height: 32),
+                            const SizedBox(height: 20),
                             _ActionButton(label: l.signIn, icon: Icons.arrow_forward_rounded,
                                 isLoading: isLoading, onTap: isLoading ? null : _login),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 14),
                             _OrDivider(),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 14),
                             _GoogleButton(isLoading: isGoogleLoading, onTap: isGoogleLoading ? null : _googleLogin),
-                            const SizedBox(height: 24),
+                            const SizedBox(height: 16),
                             Center(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                               Text('${l.dontHaveAccount} ',
                                 style: TextStyle(color: ctx.colors.mutedText, fontSize: 14)),
@@ -445,7 +445,7 @@ class _Tab extends StatelessWidget {
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(vertical: 10),
+          padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
             color: active ? AppColors.primary : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
@@ -517,7 +517,7 @@ class _InputField extends StatelessWidget {
               hintText: hint,
               hintStyle: TextStyle(color: c.subtleText, fontSize: 14, fontWeight: FontWeight.w400),
               border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             ),
           ),
         ),
@@ -557,7 +557,7 @@ class _PasswordField extends StatelessWidget {
               hintText: AppL10n.of(context).yourPassword,
               hintStyle: TextStyle(color: c.subtleText, fontSize: 14, fontWeight: FontWeight.w400),
               border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             ),
           ),
         ),
@@ -587,7 +587,7 @@ class _PinBox extends StatelessWidget {
     return ListenableBuilder(
       listenable: focusNode,
       builder: (_, __) => Container(
-        width: 68, height: 68,
+        width: 58, height: 58,
         decoration: BoxDecoration(
           color: focused
               ? AppColors.primary.withOpacity(0.12)
@@ -646,7 +646,7 @@ class _GoogleButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: double.infinity, height: 56,
+      width: double.infinity, height: 50,
       child: OutlinedButton(
         onPressed: onTap,
         style: OutlinedButton.styleFrom(
@@ -695,7 +695,7 @@ class _ActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: double.infinity, height: 56,
+      width: double.infinity, height: 50,
       child: ElevatedButton(
         onPressed: onTap,
         style: ElevatedButton.styleFrom(
