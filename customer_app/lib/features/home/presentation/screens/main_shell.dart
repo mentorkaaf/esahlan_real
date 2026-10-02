@@ -1,8 +1,11 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/api/api_client.dart';
 import '../../../../core/l10n/app_strings.dart';
 import '../../../../core/providers/community_feature_provider.dart';
 import '../../../../core/services/realtime_client.dart';
@@ -49,7 +52,7 @@ class MainShell extends ConsumerStatefulWidget {
   ConsumerState<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends ConsumerState<MainShell> {
+class _MainShellState extends ConsumerState<MainShell> with WidgetsBindingObserver {
   bool _maintenance      = false;
   String _maintMessage   = 'The app is currently under maintenance. Please try again later.';
 
@@ -66,6 +69,7 @@ class _MainShellState extends ConsumerState<MainShell> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     RealtimeClient.instance.listen('modules', 'modules.updated', _onModulesUpdated);
     // Maintenance mode — public channel
     RealtimeClient.instance.listen('maintenance', 'maintenance.status', _onMaintenance);
@@ -73,7 +77,29 @@ class _MainShellState extends ConsumerState<MainShell> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) AppUpdateChecker.check(context, 'customer');
       _subscribeBanned();
+      _checkMaintenanceStatus(); // always check on launch/return
     });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkMaintenanceStatus();
+    }
+  }
+
+  Future<void> _checkMaintenanceStatus() async {
+    try {
+      final res = await ApiClient.instance.get('/app/maintenance');
+      final data = res.data['data'];
+      if (!mounted) return;
+      setState(() {
+        _maintenance  = data['enabled'] == true;
+        _maintMessage = data['message']?.toString() ?? _maintMessage;
+      });
+    } catch (_) {
+      // network error — keep existing state
+    }
   }
 
   void _subscribeBanned() {
@@ -85,6 +111,7 @@ class _MainShellState extends ConsumerState<MainShell> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     RealtimeClient.instance.removeListener('modules', 'modules.updated', _onModulesUpdated);
     RealtimeClient.instance.removeListener('maintenance', 'maintenance.status', _onMaintenance);
     final user = ref.read(authStateProvider).valueOrNull;
@@ -211,45 +238,233 @@ class _MainShellState extends ConsumerState<MainShell> {
 }
 
 // ─── Maintenance overlay ─────────────────────────────────────────────────────
-class _MaintenanceOverlay extends StatelessWidget {
+class _MaintenanceOverlay extends StatefulWidget {
   final String message;
   const _MaintenanceOverlay({required this.message});
 
   @override
+  State<_MaintenanceOverlay> createState() => _MaintenanceOverlayState();
+}
+
+class _MaintenanceOverlayState extends State<_MaintenanceOverlay>
+    with TickerProviderStateMixin {
+  late final AnimationController _pulseCtrl;
+  late final AnimationController _gearCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseCtrl = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 2400))..repeat();
+    _gearCtrl = AnimationController(
+      vsync: this, duration: const Duration(seconds: 10))..repeat();
+  }
+
+  @override
+  void dispose() {
+    _pulseCtrl.dispose();
+    _gearCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.white,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF07003B), Color(0xFF110060), Color(0xFF07003B)],
+        ),
+      ),
       child: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(36),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Container(
-                width: 90, height: 90,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0C0148).withValues(alpha: 0.08),
-                  shape: BoxShape.circle,
+        child: Column(children: [
+          const Spacer(),
+          // ── Animated icon area ────────────────────────────────────────────
+          SizedBox(
+            width: 180,
+            height: 180,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                AnimatedBuilder(
+                  animation: _pulseCtrl,
+                  builder: (_, __) => Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      _PulseRing(progress: (_pulseCtrl.value + 0.0) % 1.0, size: 170),
+                      _PulseRing(progress: (_pulseCtrl.value + 0.33) % 1.0, size: 170),
+                      _PulseRing(progress: (_pulseCtrl.value + 0.66) % 1.0, size: 170),
+                    ],
+                  ),
                 ),
-                child: const Icon(Icons.build_circle_rounded,
-                    color: Color(0xFF0C0148), size: 48),
+                Container(
+                  width: 96, height: 96,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF1A0070), Color(0xFF2A00A8)],
+                    ),
+                    border: Border.all(
+                      color: _kOrange.withValues(alpha: 0.5), width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: _kOrange.withValues(alpha: 0.35),
+                        blurRadius: 32,
+                        spreadRadius: 4,
+                      ),
+                    ],
+                  ),
+                  child: AnimatedBuilder(
+                    animation: _gearCtrl,
+                    builder: (_, child) => Transform.rotate(
+                      angle: _gearCtrl.value * 2 * math.pi,
+                      child: child,
+                    ),
+                    child: const Icon(Icons.settings_rounded,
+                        color: _kOrange, size: 46),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 36),
+
+          // ── Title ─────────────────────────────────────────────────────────
+          const Text(
+            'Under Maintenance',
+            style: TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+              letterSpacing: -0.5,
+              decoration: TextDecoration.none,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            width: 44, height: 3,
+            decoration: BoxDecoration(
+              color: _kOrange,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // ── Message ───────────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 48),
+            child: Text(
+              widget.message,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.white.withValues(alpha: 0.55),
+                height: 1.65,
+                fontWeight: FontWeight.w400,
+                decoration: TextDecoration.none,
               ),
-              const SizedBox(height: 24),
-              const Text('Under Maintenance',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900,
-                      color: Color(0xFF0C0148))),
-              const SizedBox(height: 12),
-              Text(message,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 14, color: Colors.grey, height: 1.5)),
-              const SizedBox(height: 32),
-              const CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation(Color(0xFFFF8A00))),
-              const SizedBox(height: 16),
-              const Text('We\'ll be back soon.',
-                  style: TextStyle(fontSize: 12, color: Colors.grey)),
+            ),
+          ),
+          const SizedBox(height: 44),
+
+          // ── Bouncing dots ─────────────────────────────────────────────────
+          _BouncingDots(ctrl: _pulseCtrl),
+          const SizedBox(height: 14),
+          Text(
+            'We\'ll be back soon',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.white.withValues(alpha: 0.35),
+              letterSpacing: 0.6,
+              fontWeight: FontWeight.w500,
+              decoration: TextDecoration.none,
+            ),
+          ),
+
+          const Spacer(),
+
+          // ── Brand footer ──────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.only(bottom: 28),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              RichText(text: const TextSpan(children: [
+                TextSpan(text: 'e-',
+                  style: TextStyle(color: _kOrange, fontSize: 15,
+                    fontWeight: FontWeight.w900, decoration: TextDecoration.none)),
+                TextSpan(text: 'Sahlan',
+                  style: TextStyle(color: Colors.white, fontSize: 15,
+                    fontWeight: FontWeight.w900, decoration: TextDecoration.none)),
+              ])),
+              const SizedBox(width: 8),
+              Text('· Everything You Need',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.25),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w400,
+                  decoration: TextDecoration.none,
+                )),
             ]),
           ),
+        ]),
+      ),
+    );
+  }
+}
+
+class _PulseRing extends StatelessWidget {
+  final double progress;
+  final double size;
+  const _PulseRing({required this.progress, required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Curves.easeOut.transform(progress);
+    final opacity = (1 - t) * 0.35;
+    final scale   = 0.5 + t * 0.5;
+    return Transform.scale(
+      scale: scale,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: _kOrange.withValues(alpha: opacity), width: 1.5),
         ),
+      ),
+    );
+  }
+}
+
+class _BouncingDots extends StatelessWidget {
+  final AnimationController ctrl;
+  const _BouncingDots({required this.ctrl});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: ctrl,
+      builder: (_, __) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: List.generate(3, (i) {
+          final phase = (ctrl.value - i * 0.22).clamp(0.0, 1.0);
+          final bounce = math.sin(phase * math.pi).clamp(0.0, 1.0);
+          return Container(
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            transform: Matrix4.translationValues(0, -10 * bounce, 0),
+            child: Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: _kOrange.withValues(alpha: 0.35 + 0.65 * bounce),
+                shape: BoxShape.circle,
+              ),
+            ),
+          );
+        }),
       ),
     );
   }
