@@ -67,14 +67,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     await ref.read(googleLoginProvider.notifier).login();
     if (!mounted) return;
     ref.read(googleLoginProvider).whenOrNull(
-      data: (needsCompletion) {
-        if (needsCompletion) {
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (_) => const _CompleteProfileDialog(),
-          );
-        }
+      data: (_) {
+        // Profile completion is handled by MainShell after navigation
       },
       error: (e, _) {
         final msg = e.toString().replaceFirst('Exception: ', '');

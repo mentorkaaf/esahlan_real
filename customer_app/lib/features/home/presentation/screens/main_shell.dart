@@ -10,8 +10,14 @@ import '../../../../core/l10n/app_strings.dart';
 import '../../../../core/providers/community_feature_provider.dart';
 import '../../../../core/services/realtime_client.dart';
 import '../../../../core/services/app_update_checker.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/theme_x.dart';
+import '../../../../core/widgets/phone_input_field.dart';
 import '../../../../core/widgets/smart_location_banner.dart';
 import '../providers/home_provider.dart';
+import '../../../auth/data/models/district_model.dart';
+import '../../../auth/data/repositories/auth_repository.dart';
+import '../../../auth/data/repositories/district_repository.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
@@ -75,9 +81,11 @@ class _MainShellState extends ConsumerState<MainShell> with WidgetsBindingObserv
     RealtimeClient.instance.listen('maintenance', 'maintenance.status', _onMaintenance);
     // Banned user — private channel — subscribed after first frame (need user id)
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) AppUpdateChecker.check(context, 'customer');
+      if (!mounted) return;
+      AppUpdateChecker.check(context, 'customer');
       _subscribeBanned();
-      _checkMaintenanceStatus(); // always check on launch/return
+      _checkMaintenanceStatus();
+      _checkProfileCompletion();
     });
   }
 
@@ -100,6 +108,18 @@ class _MainShellState extends ConsumerState<MainShell> with WidgetsBindingObserv
     } catch (_) {
       // network error — keep existing state
     }
+  }
+
+  void _checkProfileCompletion() {
+    final user = ref.read(authStateProvider).valueOrNull;
+    if (user == null) return;
+    final needsCompletion = user.phone.isEmpty || user.districtId == null;
+    if (!needsCompletion) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const _ProfileCompletionDialog(),
+    );
   }
 
   void _subscribeBanned() {
@@ -232,6 +252,191 @@ class _MainShellState extends ConsumerState<MainShell> with WidgetsBindingObserv
           if (_maintenance)
             _MaintenanceOverlay(message: _maintMessage),
         ],
+      ),
+    );
+  }
+}
+
+// ─── Profile completion dialog ────────────────────────────────────────────────
+class _ProfileCompletionDialog extends ConsumerStatefulWidget {
+  const _ProfileCompletionDialog();
+  @override
+  ConsumerState<_ProfileCompletionDialog> createState() => _ProfileCompletionDialogState();
+}
+
+class _ProfileCompletionDialogState extends ConsumerState<_ProfileCompletionDialog> {
+  final _phoneCtrl = TextEditingController();
+  CountryCode _country = const CountryCode(name: 'Somalia', dialCode: '+252', flag: '🇸🇴', iso: 'SO');
+  DistrictModel? _district;
+  List<DistrictModel> _districts = [];
+  bool _loadingDistricts = true;
+  bool _submitting = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDistricts();
+  }
+
+  @override
+  void dispose() {
+    _phoneCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadDistricts() async {
+    try {
+      final list = await DistrictRepository().getDistricts();
+      if (mounted) setState(() { _districts = list; _loadingDistricts = false; });
+    } catch (_) {
+      if (mounted) setState(() => _loadingDistricts = false);
+    }
+  }
+
+  Future<void> _submit() async {
+    final phone = _phoneCtrl.text.trim();
+    if (phone.isEmpty) {
+      setState(() => _error = 'Please enter your phone number');
+      return;
+    }
+    if (_district == null) {
+      setState(() => _error = 'Please select your district');
+      return;
+    }
+    setState(() { _submitting = true; _error = null; });
+    try {
+      await AuthRepository().completeProfile(
+        phone: '${_country.dialCode}$phone',
+        districtId: _district!.id,
+      );
+      if (!mounted) return;
+      // Invalidate in-memory auth state so updated user (with phone+district) is loaded
+      ref.invalidate(authStateProvider);
+      Navigator.of(context).pop();
+    } catch (e) {
+      if (mounted) setState(() {
+        _error = e.toString().replaceFirst('Exception: ', '');
+        _submitting = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return PopScope(
+      canPop: false,
+      child: Dialog(
+        backgroundColor: c.scaffoldBg,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Center(
+              child: Container(
+                width: 64, height: 64,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.person_add_rounded, color: AppColors.primary, size: 32),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Center(
+              child: Text('Complete Your Profile',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900,
+                    color: c.navyText, decoration: TextDecoration.none)),
+            ),
+            const SizedBox(height: 6),
+            Center(
+              child: Text('Please add your phone number and district\nto continue using eSahlan.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, color: c.mutedText, height: 1.5,
+                    decoration: TextDecoration.none)),
+            ),
+            const SizedBox(height: 24),
+
+            Text('Phone Number',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700,
+                  color: c.navyText, decoration: TextDecoration.none)),
+            const SizedBox(height: 8),
+            PhoneInputField(
+              controller: _phoneCtrl,
+              initialCountry: _country,
+              onCountryChanged: (v) => setState(() => _country = v),
+            ),
+            const SizedBox(height: 16),
+
+            Text('Your District',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700,
+                  color: c.navyText, decoration: TextDecoration.none)),
+            const SizedBox(height: 8),
+            Container(
+              height: 48,
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              decoration: BoxDecoration(
+                color: c.inputFill,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: c.borderColor),
+              ),
+              child: _loadingDistricts
+                  ? const Center(child: SizedBox(width: 18, height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2)))
+                  : DropdownButtonHideUnderline(
+                      child: DropdownButton<DistrictModel>(
+                        value: _district,
+                        isExpanded: true,
+                        hint: Text('Select district',
+                          style: TextStyle(color: c.mutedText, fontSize: 13)),
+                        dropdownColor: c.scaffoldBg,
+                        items: _districts.map((d) => DropdownMenuItem(
+                          value: d,
+                          child: Text(d.name,
+                            style: TextStyle(color: c.navyText, fontSize: 14)),
+                        )).toList(),
+                        onChanged: (v) => setState(() => _district = v),
+                      ),
+                    ),
+            ),
+
+            if (_error != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.error.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(_error!,
+                  style: const TextStyle(color: AppColors.error, fontSize: 12,
+                      decoration: TextDecoration.none)),
+              ),
+            ],
+
+            const SizedBox(height: 24),
+
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton(
+                onPressed: _submitting ? null : _submit,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                child: _submitting
+                    ? const SizedBox(width: 20, height: 20,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+                    : const Text('Continue',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800,
+                            color: Colors.white, decoration: TextDecoration.none)),
+              ),
+            ),
+          ]),
+        ),
       ),
     );
   }

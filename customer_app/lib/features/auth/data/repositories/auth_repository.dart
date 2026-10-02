@@ -103,6 +103,8 @@ class AuthRepository {
         'phone': phone,
         'district_id': districtId,
       });
+      // Refresh local user cache so the dialog never re-appears
+      await getMe();
     } on DioException catch (e) {
       throw ApiException.fromDio(e);
     }
