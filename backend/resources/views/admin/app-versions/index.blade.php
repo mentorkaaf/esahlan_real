@@ -297,6 +297,47 @@ $apps = [
 </div>
 @endforeach
 
+{{-- ═══ Maintenance Mode ═══════════════════════════════════════════════════ --}}
+@php
+    $maintEnabled = \App\Models\Setting::get('maintenance_mode','0') === '1';
+    $maintMessage = \App\Models\Setting::get('maintenance_message','The app is currently under maintenance. Please try again later.');
+@endphp
+<div class="app-card" style="border:2px solid {{ $maintEnabled ? '#e74c3c' : 'var(--border)' }};">
+    <div class="app-card-header" style="background:{{ $maintEnabled ? 'rgba(231,76,60,0.08)' : '' }}">
+        <div style="width:52px;height:52px;border-radius:14px;background:{{ $maintEnabled ? '#e74c3c' : '#7f8c8d' }};display:flex;align-items:center;justify-content:center;">
+            <i class="fas fa-tools" style="color:#fff;font-size:22px;"></i>
+        </div>
+        <div style="flex:1;">
+            <div style="font-weight:800;font-size:16px;color:var(--text);">Maintenance Mode</div>
+            <div style="font-size:12px;color:var(--text-muted);">When ON, all apps (Customer, Driver, Vendor) show a maintenance screen in real-time</div>
+        </div>
+        <span id="maintBadge" style="padding:6px 16px;border-radius:20px;font-size:13px;font-weight:700;background:{{ $maintEnabled ? '#e74c3c' : '#27ae60' }};color:#fff;">
+            {{ $maintEnabled ? '🔴 ACTIVE' : '🟢 OFF' }}
+        </span>
+    </div>
+    <div style="padding:24px;">
+        @if($maintEnabled)
+        <div style="background:#ffeaea;border:1px solid #e74c3c;border-radius:10px;padding:12px 16px;margin-bottom:20px;color:#c0392b;font-size:13px;font-weight:600;">
+            <i class="fas fa-exclamation-triangle"></i> Maintenance Mode is ACTIVE. All users see a maintenance screen right now.
+        </div>
+        @endif
+
+        <div style="margin-bottom:16px;">
+            <label style="font-weight:700;font-size:13px;color:var(--text);display:block;margin-bottom:8px;">Maintenance Message (shown to users)</label>
+            <textarea id="maintMsg" class="form-input" rows="2" style="width:100%;">{{ $maintMessage }}</textarea>
+        </div>
+
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+            <button onclick="setMaintenance(true)"  class="save-btn" style="background:#e74c3c;flex:1;min-width:140px;">
+                <i class="fas fa-tools"></i> Enable Maintenance
+            </button>
+            <button onclick="setMaintenance(false)" class="save-btn" style="background:#27ae60;flex:1;min-width:140px;">
+                <i class="fas fa-check-circle"></i> Disable Maintenance
+            </button>
+        </div>
+    </div>
+</div>
+
 @push('scripts')
 <script>
 function toggleWarning(type, checked) {
@@ -305,6 +346,32 @@ function toggleWarning(type, checked) {
         el.classList.add('visible');
     } else {
         el.classList.remove('visible');
+    }
+}
+
+async function setMaintenance(enable) {
+    const msg = document.getElementById('maintMsg').value;
+    const label = enable ? 'Enable' : 'Disable';
+    if (!confirm(`${label} maintenance mode?`)) return;
+
+    try {
+        const res = await fetch('{{ route("admin.maintenance.toggle") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify({ enabled: enable, message: msg }),
+        });
+        const data = await res.json();
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + (data.message || 'Unknown error'));
+        }
+    } catch(e) {
+        alert('Network error. Please try again.');
     }
 }
 </script>

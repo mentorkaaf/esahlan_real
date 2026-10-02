@@ -64,6 +64,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     await ref.read(googleLoginProvider.notifier).login();
     if (!mounted) return;
     ref.read(googleLoginProvider).whenOrNull(
+      data: (needsCompletion) {
+        if (needsCompletion) {
+          context.push('/complete-profile');
+        }
+      },
       error: (e, _) {
         final msg = e.toString().replaceFirst('Exception: ', '');
         if (msg != 'cancelled') _err(msg);

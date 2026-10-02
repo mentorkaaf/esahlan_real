@@ -67,7 +67,7 @@ class AuthRepository {
     }
   }
 
-  Future<({UserModel user, String token})> googleLogin() async {
+  Future<({UserModel user, String token, bool needsProfileCompletion})> googleLogin() async {
     final googleSignIn = GoogleSignIn(scopes: ['email', 'profile']);
     try {
       final account = await googleSignIn.signIn();
@@ -77,15 +77,16 @@ class AuthRepository {
       final idToken = auth.idToken;
       if (idToken == null) throw Exception('Failed to get Google ID token.');
 
-      final res   = await _dio.post('/auth/google', data: {'id_token': idToken});
-      final data  = res.data['data'];
-      final token = data['token'] as String;
+      final res    = await _dio.post('/auth/google', data: {'id_token': idToken});
+      final data   = res.data['data'];
+      final token  = data['token'] as String;
+      final needs  = data['needs_profile_completion'] == true;
       await LocalStorage.saveToken(token);
       final user = await getMe();
       FirebaseService().registerTokenAfterLogin();
       RealtimeClient.instance.connect();
       MessagesNotifier.setMyId(user.id);
-      return (user: user, token: token);
+      return (user: user, token: token, needsProfileCompletion: needs);
     } on DioException catch (e) {
       throw ApiException.fromDio(e);
     } catch (e) {
@@ -93,6 +94,17 @@ class AuthRepository {
         throw Exception('cancelled');
       }
       rethrow;
+    }
+  }
+
+  Future<void> completeProfile({required String phone, required int districtId}) async {
+    try {
+      await _dio.post('/auth/complete-profile', data: {
+        'phone': phone,
+        'district_id': districtId,
+      });
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
     }
   }
 

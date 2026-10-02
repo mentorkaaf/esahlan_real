@@ -225,7 +225,8 @@ Route::prefix('v1')->group(function () {
     });
 
     // App version check (public — no auth) ?app=customer|driver|vendor&version=1.0.0
-    Route::get('app/version-check', [\App\Http\Controllers\Api\AppVersionController::class, 'check']);
+    Route::get('app/version-check',   [\App\Http\Controllers\Api\AppVersionController::class, 'check']);
+    Route::get('app/maintenance',      [\App\Http\Controllers\Admin\AdminMaintenanceController::class, 'status']);
 
     // Landing page section visibility (public — no auth)
     Route::get('landing/sections', [\App\Http\Controllers\Api\LandingPageController::class, 'sections']);
@@ -592,6 +593,7 @@ Route::prefix('v1')->group(function () {
         Route::get('auth/sessions',             [AuthController::class, 'sessions']);
         Route::delete('auth/sessions/{id}',     [AuthController::class, 'revokeSession']);
         Route::get('auth/me',                   [AuthController::class, 'me']);
+        Route::post('auth/complete-profile',    [AuthController::class, 'completeProfile']);
         Route::post('auth/update-profile',      [AuthController::class, 'updateProfile']);
         Route::delete('auth/delete-account',    [AuthController::class, 'deleteAccount']);
         Route::post('auth/fcm-token',           [AuthController::class, 'updateFcmToken']);

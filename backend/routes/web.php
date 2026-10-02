@@ -720,6 +720,9 @@ Route::prefix('admin')->name('admin.')->middleware('admin.monitor')->group(funct
         });
 
         // App Version Control (force update)
+        // Maintenance mode
+        Route::post('maintenance/toggle', [\App\Http\Controllers\Admin\AdminMaintenanceController::class, 'toggle'])->name('maintenance.toggle');
+
         Route::prefix('app-versions')->name('app-versions.')->group(function () {
             Route::get('/', [\App\Http\Controllers\Admin\AdminAppVersionController::class, 'index'])->name('index');
             Route::patch('/{app_type}', [\App\Http\Controllers\Admin\AdminAppVersionController::class, 'update'])->name('update');

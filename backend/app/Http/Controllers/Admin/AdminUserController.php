@@ -97,6 +97,14 @@ class AdminUserController extends Controller
     {
         $request->validate(['status' => 'required|in:active,inactive,banned']);
         $user->update(['status' => $request->status]);
+
+        // Real-time: force logout if banned
+        if ($request->status === 'banned') {
+            \App\Services\RealtimeService::toUser($user->id, 'user.banned', [
+                'message' => 'Your account has been suspended.',
+            ]);
+        }
+
         return back()->with('success', 'User status updated.');
     }
 

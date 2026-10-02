@@ -24,6 +24,7 @@ import '../../features/auth/presentation/screens/country_selection_screen.dart';
 import '../../features/auth/presentation/screens/onboarding_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/register_screen.dart';
+import '../../features/auth/presentation/screens/complete_profile_screen.dart';
 import '../../features/auth/presentation/screens/otp_screen.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/home/presentation/screens/main_shell.dart';
@@ -186,6 +187,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       // While auth is still loading, stay on the current route.
       // The ref.listen above will notify GoRouter once it resolves.
       if (isLoading) return null;
+      if (state.matchedLocation == '/complete-profile') return null;
       if (!isLoggedIn && !isAuthRoute) return '/auth/login';
       if (isLoggedIn  && isAuthRoute)  return '/home';
       return null;
@@ -197,8 +199,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/onboarding',     builder: (_, __) => const OnboardingScreen()),
 
       // Auth routes
-      GoRoute(path: '/auth/login',    builder: (_, __) => const LoginScreen()),
-      GoRoute(path: '/auth/register', builder: (_, __) => const RegisterScreen()),
+      GoRoute(path: '/auth/login',       builder: (_, __) => const LoginScreen()),
+      GoRoute(path: '/auth/register',    builder: (_, __) => const RegisterScreen()),
+      GoRoute(path: '/complete-profile', builder: (_, __) => const CompleteProfileScreen()),
       GoRoute(
         path: '/auth/otp',
         builder: (_, state) {

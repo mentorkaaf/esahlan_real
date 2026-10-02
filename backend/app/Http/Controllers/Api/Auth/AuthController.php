@@ -480,9 +480,39 @@ class AuthController extends Controller
 
         $token = $user->createToken('mobile')->plainTextToken;
 
+        // Flag if phone or district is missing — app will show completion screen
+        $needsCompletion = empty($user->phone) || empty($user->district_id);
+
         return response()->json([
             'success' => true,
-            'data'    => ['user' => $user->load('role'), 'token' => $token],
+            'data'    => [
+                'user'                => $user->load('role'),
+                'token'               => $token,
+                'needs_profile_completion' => $needsCompletion,
+            ],
+        ]);
+    }
+
+    /**
+     * POST /auth/complete-profile  (auth required)
+     * Called after Google sign-in when phone/district is missing.
+     */
+    public function completeProfile(Request $request)
+    {
+        $request->validate([
+            'phone'       => 'required|string|max:20|unique:users,phone,' . $request->user()->id,
+            'district_id' => 'required|exists:districts,id',
+        ]);
+
+        $user = $request->user();
+        $user->update([
+            'phone'       => $request->phone,
+            'district_id' => $request->district_id,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data'    => ['user' => $user->fresh()->load('role')],
         ]);
     }
 

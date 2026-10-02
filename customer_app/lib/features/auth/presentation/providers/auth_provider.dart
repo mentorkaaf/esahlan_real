@@ -41,23 +41,24 @@ class LoginNotifier extends AsyncNotifier<void> {
 
 final loginProvider = AsyncNotifierProvider<LoginNotifier, void>(LoginNotifier.new);
 
-// Google Sign-In state
-class GoogleLoginNotifier extends AsyncNotifier<void> {
+// Google Sign-In state — returns true if profile completion needed
+class GoogleLoginNotifier extends AsyncNotifier<bool> {
   @override
-  Future<void> build() async {}
+  Future<bool> build() async => false;
 
   Future<void> login() async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      final repo = ref.read(authRepositoryProvider);
-      await repo.googleLogin();
+      final repo   = ref.read(authRepositoryProvider);
+      final result = await repo.googleLogin();
       ref.invalidate(authStateProvider);
+      return result.needsProfileCompletion;
     });
   }
 }
 
 final googleLoginProvider =
-    AsyncNotifierProvider<GoogleLoginNotifier, void>(GoogleLoginNotifier.new);
+    AsyncNotifierProvider<GoogleLoginNotifier, bool>(GoogleLoginNotifier.new);
 
 // Register state
 class RegisterNotifier extends AsyncNotifier<void> {

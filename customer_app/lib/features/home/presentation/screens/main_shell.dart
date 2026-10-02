@@ -9,6 +9,7 @@ import '../../../../core/services/realtime_client.dart';
 import '../../../../core/services/app_update_checker.dart';
 import '../../../../core/widgets/smart_location_banner.dart';
 import '../providers/home_provider.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const _kNavy   = Color(0xFF07003B);
@@ -49,6 +50,9 @@ class MainShell extends ConsumerStatefulWidget {
 }
 
 class _MainShellState extends ConsumerState<MainShell> {
+  bool _maintenance      = false;
+  String _maintMessage   = 'The app is currently under maintenance. Please try again later.';
+
   int _selectedIndex(String path, List<_Dest> dests) {
     for (var i = 0; i < dests.length; i++) {
       if (path.startsWith(dests[i].path)) return i;
@@ -63,16 +67,66 @@ class _MainShellState extends ConsumerState<MainShell> {
   void initState() {
     super.initState();
     RealtimeClient.instance.listen('modules', 'modules.updated', _onModulesUpdated);
-    // Force update check — runs once after first frame
+    // Maintenance mode — public channel
+    RealtimeClient.instance.listen('maintenance', 'maintenance.status', _onMaintenance);
+    // Banned user — private channel — subscribed after first frame (need user id)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) AppUpdateChecker.check(context, 'customer');
+      _subscribeBanned();
     });
+  }
+
+  void _subscribeBanned() {
+    final user = ref.read(authStateProvider).valueOrNull;
+    if (user == null) return;
+    RealtimeClient.instance.listen(
+      'private-user.${user.id}', 'user.banned', _onBanned);
   }
 
   @override
   void dispose() {
     RealtimeClient.instance.removeListener('modules', 'modules.updated', _onModulesUpdated);
+    RealtimeClient.instance.removeListener('maintenance', 'maintenance.status', _onMaintenance);
+    final user = ref.read(authStateProvider).valueOrNull;
+    if (user != null) {
+      RealtimeClient.instance.removeListener('private-user.${user.id}', 'user.banned', _onBanned);
+    }
     super.dispose();
+  }
+
+  void _onMaintenance(dynamic data) {
+    if (!mounted) return;
+    final enabled = data['enabled'] == true;
+    final message = data['message']?.toString() ?? _maintMessage;
+    setState(() { _maintenance = enabled; _maintMessage = message; });
+  }
+
+  void _onBanned(dynamic data) {
+    if (!mounted) return;
+    // Force logout
+    ref.read(authRepositoryProvider).logout().catchError((_) {});
+    ref.invalidate(authStateProvider);
+    // Navigate to login with banned message
+    context.go('/auth/login');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(children: [
+            Icon(Icons.block_rounded, color: Colors.red),
+            SizedBox(width: 10),
+            Text('Account Suspended', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+          ]),
+          content: Text(data['message']?.toString() ?? 'Your account has been suspended. Please contact support.'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(_), child: const Text('OK')),
+          ],
+        ),
+      );
+    });
   }
 
   void _onModulesUpdated(dynamic _) {
@@ -132,19 +186,70 @@ class _MainShellState extends ConsumerState<MainShell> {
         systemNavigationBarColor: showBar ? Colors.white : Colors.transparent,
         systemNavigationBarIconBrightness: Brightness.dark,
       ),
-      child: Scaffold(
-        backgroundColor: _kBg,
-        extendBody: showBar,
-        body: Stack(
-          children: [
-            widget.child,
-            // Smart banner: detects if local user is now abroad → suggest Global
-            const SmartLocationBanner(isLocalApp: true),
-          ],
+      child: Stack(
+        children: [
+          Scaffold(
+            backgroundColor: _kBg,
+            extendBody: showBar,
+            body: Stack(
+              children: [
+                widget.child,
+                const SmartLocationBanner(isLocalApp: true),
+              ],
+            ),
+            bottomNavigationBar: showBar
+                ? _FloatingNavBar(selectedIndex: idx, location: location, destinations: dests)
+                : null,
+          ),
+          // Maintenance overlay — covers everything real-time
+          if (_maintenance)
+            _MaintenanceOverlay(message: _maintMessage),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Maintenance overlay ─────────────────────────────────────────────────────
+class _MaintenanceOverlay extends StatelessWidget {
+  final String message;
+  const _MaintenanceOverlay({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.white,
+      child: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(36),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Container(
+                width: 90, height: 90,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0C0148).withValues(alpha: 0.08),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.build_circle_rounded,
+                    color: Color(0xFF0C0148), size: 48),
+              ),
+              const SizedBox(height: 24),
+              const Text('Under Maintenance',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900,
+                      color: Color(0xFF0C0148))),
+              const SizedBox(height: 12),
+              Text(message,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 14, color: Colors.grey, height: 1.5)),
+              const SizedBox(height: 32),
+              const CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation(Color(0xFFFF8A00))),
+              const SizedBox(height: 16),
+              const Text('We\'ll be back soon.',
+                  style: TextStyle(fontSize: 12, color: Colors.grey)),
+            ]),
+          ),
         ),
-        bottomNavigationBar: showBar
-            ? _FloatingNavBar(selectedIndex: idx, location: location, destinations: dests)
-            : null,
       ),
     );
   }
