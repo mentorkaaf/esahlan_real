@@ -9,7 +9,7 @@ on:
 jobs:
   build_ios:
     name: Build & Upload iOS
-    runs-on: macos-14          # Apple Silicon Mac runner (free 2000 min/month)
+    runs-on: macos-13          # Intel Mac runner (more stable capacity)
     timeout-minutes: 60
 
     steps:
