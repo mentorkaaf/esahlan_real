@@ -1,87 +1,135 @@
 default_platform(:ios)
 
-# ── App Store Connect API key (no 2FA required) ──────────────────────────────
+TEAM_ID      = "29N353YB8U"
+BUNDLE_ID    = "com.esahlan.user"
+PROFILE_NAME = "match AppStore com.esahlan.user"
+
 def api_key
   app_store_connect_api_key(
-    key_id:        ENV["APP_STORE_CONNECT_KEY_ID"],
-    issuer_id:     ENV["APP_STORE_CONNECT_ISSUER_ID"],
-    key_content:   ENV["APP_STORE_CONNECT_KEY_CONTENT"],
-    is_key_content_base64: true,
-    in_house: false
+    key_id:                  ENV["APP_STORE_CONNECT_KEY_ID"],
+    issuer_id:               ENV["APP_STORE_CONNECT_ISSUER_ID"],
+    key_content:             ENV["APP_STORE_CONNECT_KEY_CONTENT"],
+    is_key_content_base64:   true,
+    in_house:                false
   )
 end
 
 platform :ios do
 
-  # ── match: sync certificates & provisioning profiles ──────────────────────
+  # ── 1. Sync certificates & provisioning profiles via Match ────────────────
   lane :sync_signing do
     match(
-      type:             "appstore",
-      app_identifier:   "com.esahlan.user",
-      git_url:          "https://github.com/mentorkaaf/esahlan-certificates",
+      type:                    "appstore",
+      app_identifier:          BUNDLE_ID,
+      git_url:                 "https://github.com/mentorkaaf/esahlan-certificates",
       git_basic_authorization: ENV["MATCH_GIT_BASIC_AUTH"],
-      readonly:         false,
-      api_key:          api_key
+      readonly:                false,
+      api_key:                 api_key
     )
   end
 
-  # ── beta: build + upload to TestFlight ────────────────────────────────────
+  # ── 2. Build & upload to TestFlight ───────────────────────────────────────
   lane :beta do
-    sync_signing
+    key = api_key
 
-    # Build Flutter first (from customer_app/)
+    # Step A — install certs & profiles
+    match(
+      type:                    "appstore",
+      app_identifier:          BUNDLE_ID,
+      git_url:                 "https://github.com/mentorkaaf/esahlan-certificates",
+      git_basic_authorization: ENV["MATCH_GIT_BASIC_AUTH"],
+      readonly:                false,
+      api_key:                 key
+    )
+
+    # Step B — switch project to Manual signing with the installed profile
+    update_code_signing_settings(
+      use_automatic_signing:  false,
+      team_id:                TEAM_ID,
+      bundle_identifier:      BUNDLE_ID,
+      profile_name:           PROFILE_NAME,
+      code_sign_identity:     "iPhone Distribution",
+      path:                   "Runner.xcodeproj"
+    )
+
+    # Step C — Flutter build (from customer_app/, no Xcode signing here)
+    build_name   = ENV["IOS_BUILD_NAME"]   || "1.0.0"
+    build_number = ENV["IOS_BUILD_NUMBER"] || "1"
     Dir.chdir("..") do
-      build_name   = ENV['IOS_BUILD_NAME']   || '1.0.0'
-      build_number = ENV['IOS_BUILD_NUMBER'] || '1'
-      sh("flutter build ios --release --no-codesign --build-name=#{build_name} --build-number=#{build_number}")
+      sh("flutter build ios --release --no-codesign " \
+         "--build-name=#{build_name} --build-number=#{build_number}")
     end
 
-    # Then Xcode archive + sign
+    # Step D — Xcode archive + sign + export IPA
     build_app(
-      workspace:          "Runner.xcworkspace",
-      scheme:             "Runner",
-      configuration:      "Release",
-      export_method:      "app-store",
-      output_directory:   "../build/ios/ipa",
-      output_name:        "esahlan-customer.ipa",
-      xcargs:             "FLUTTER_BUILD_NAME=#{ENV['FLUTTER_BUILD_NAME'] || '1.0.0'} FLUTTER_BUILD_NUMBER=#{ENV['FLUTTER_BUILD_NUMBER'] || '1'}"
+      workspace:         "Runner.xcworkspace",
+      scheme:            "Runner",
+      configuration:     "Release",
+      export_method:     "app-store",
+      output_directory:  "../build/ios/ipa",
+      output_name:       "esahlan-customer.ipa",
+      xcargs:            "DEVELOPMENT_TEAM=#{TEAM_ID} " \
+                         "PROVISIONING_PROFILE_SPECIFIER='#{PROFILE_NAME}' " \
+                         "CODE_SIGN_STYLE=Manual " \
+                         "FLUTTER_BUILD_NUMBER=#{build_number}"
     )
 
-    # Upload to TestFlight
+    # Step E — upload to TestFlight
     upload_to_testflight(
-      api_key:            api_key,
+      api_key:                           key,
       skip_waiting_for_build_processing: true,
-      changelog:          "eSahlan v#{ENV['FLUTTER_BUILD_NAME']} — New build"
+      changelog:                         "eSahlan v#{build_name} (#{build_number})"
     )
 
-    UI.success("✅ Uploaded to TestFlight successfully!")
+    UI.success("✅ Uploaded to TestFlight — v#{build_name} (#{build_number})")
   end
 
-  # ── release: submit to App Store Review ───────────────────────────────────
+  # ── 3. Submit to App Store Review ─────────────────────────────────────────
   lane :release do
-    sync_signing
+    key = api_key
+
+    match(
+      type:                    "appstore",
+      app_identifier:          BUNDLE_ID,
+      git_url:                 "https://github.com/mentorkaaf/esahlan-certificates",
+      git_basic_authorization: ENV["MATCH_GIT_BASIC_AUTH"],
+      readonly:                false,
+      api_key:                 key
+    )
+
+    update_code_signing_settings(
+      use_automatic_signing:  false,
+      team_id:                TEAM_ID,
+      bundle_identifier:      BUNDLE_ID,
+      profile_name:           PROFILE_NAME,
+      code_sign_identity:     "iPhone Distribution",
+      path:                   "Runner.xcodeproj"
+    )
 
     Dir.chdir("..") do
       sh("flutter build ios --release --no-codesign")
     end
 
     build_app(
-      workspace:        "Runner.xcworkspace",
-      scheme:           "Runner",
-      configuration:    "Release",
-      export_method:    "app-store",
-      output_directory: "../build/ios/ipa",
-      output_name:      "esahlan-customer.ipa"
+      workspace:         "Runner.xcworkspace",
+      scheme:            "Runner",
+      configuration:     "Release",
+      export_method:     "app-store",
+      output_directory:  "../build/ios/ipa",
+      output_name:       "esahlan-customer.ipa",
+      xcargs:            "DEVELOPMENT_TEAM=#{TEAM_ID} " \
+                         "PROVISIONING_PROFILE_SPECIFIER='#{PROFILE_NAME}' " \
+                         "CODE_SIGN_STYLE=Manual"
     )
 
     upload_to_app_store(
-      api_key:                api_key,
-      submit_for_review:      true,
-      automatic_release:      false,          # You approve manually
-      force:                  true,
-      skip_screenshots:       true,           # Upload screenshots via App Store Connect
-      skip_metadata:          false,
-      metadata_path:          "./metadata"
+      api_key:            key,
+      submit_for_review:  true,
+      automatic_release:  false,
+      force:              true,
+      skip_screenshots:   true,
+      skip_metadata:      false,
+      metadata_path:      "./metadata"
     )
 
     UI.success("✅ Submitted to App Store Review!")
