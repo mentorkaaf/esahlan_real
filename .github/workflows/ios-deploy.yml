@@ -63,8 +63,8 @@ jobs:
           APP_STORE_CONNECT_KEY_ID:         ${{ secrets.ASC_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID:      ${{ secrets.ASC_ISSUER_ID }}
           APP_STORE_CONNECT_KEY_CONTENT:    ${{ secrets.ASC_KEY_CONTENT }}
-          FLUTTER_BUILD_NAME:               ${{ github.ref_name || '1.0.0' }}
-          FLUTTER_BUILD_NUMBER:             ${{ github.run_number }}
+          IOS_BUILD_NAME:                   ${{ github.ref_name || '1.0.0' }}
+          IOS_BUILD_NUMBER:                 ${{ github.run_number }}
         run: bundle exec fastlane beta
 
       # ── 8. Upload IPA as artifact (backup) ──────────────────────────────

@@ -31,7 +31,9 @@ platform :ios do
 
     # Build Flutter first (from customer_app/)
     Dir.chdir("..") do
-      sh("flutter build ios --release --no-codesign")
+      build_name   = ENV['IOS_BUILD_NAME']   || '1.0.0'
+      build_number = ENV['IOS_BUILD_NUMBER'] || '1'
+      sh("flutter build ios --release --no-codesign --build-name=#{build_name} --build-number=#{build_number}")
     end
 
     # Then Xcode archive + sign
