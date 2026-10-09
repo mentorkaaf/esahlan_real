@@ -69,6 +69,8 @@ jobs:
           APP_STORE_CONNECT_KEY_CONTENT:    ${{ secrets.ASC_KEY_CONTENT }}
           IOS_BUILD_NAME:                   ${{ github.ref_name || '1.0.0' }}
           IOS_BUILD_NUMBER:                 ${{ github.run_number }}
+          FASTLANE_XCODEBUILD_SETTINGS_TIMEOUT: "120"
+          FASTLANE_XCODEBUILD_SETTINGS_RETRIES: "10"
         run: bundle exec fastlane beta
 
       # ── 8. Upload IPA as artifact (backup) ──────────────────────────────
