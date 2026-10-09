@@ -32,27 +32,7 @@ jobs:
 
       # ── 3b. Patch livekit_client null-safety bug (Dart 3.6+ strict promotion) ──
       - name: Patch livekit_client null safety
-        run: |
-          FILE=$(find "$HOME/.pub-cache/hosted/pub.dev" \
-            -path "*/livekit_client*/src/participant/local.dart" \
-            2>/dev/null | head -1)
-          if [ -z "$FILE" ] || [ ! -f "$FILE" ]; then
-            echo "WARNING: livekit local.dart not found — skipping patch"
-            exit 0
-          fi
-          cat > /tmp/patch_livekit.py << 'PYEOF'
-import sys
-path = sys.argv[1]
-with open(path, 'r') as f:
-    content = f.read()
-content = content.replace('publishOptions.videoCodec', 'publishOptions!.videoCodec')
-content = content.replace('publishOptions.degradationPreference', 'publishOptions!.degradationPreference')
-content = content.replace('publishOptions.backupVideoCodec', 'publishOptions!.backupVideoCodec')
-with open(path, 'w') as f:
-    f.write(content)
-print('livekit_client patched: ' + path)
-PYEOF
-          python3 /tmp/patch_livekit.py "$FILE"
+        run: python3 customer_app/scripts/patch_livekit.py
 
       # ── 4. GoogleService-Info.plist (from GitHub Secret) ─────────────────
       - name: Write GoogleService-Info.plist
