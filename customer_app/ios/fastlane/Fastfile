@@ -20,7 +20,7 @@ platform :ios do
       app_identifier:   "com.esahlan.user",
       git_url:          "https://github.com/mentorkaaf/esahlan-certificates",
       git_basic_authorization: ENV["MATCH_GIT_BASIC_AUTH"],
-      readonly:         is_ci,
+      readonly:         false,
       api_key:          api_key
     )
   end
