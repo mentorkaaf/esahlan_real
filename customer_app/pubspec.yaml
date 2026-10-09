@@ -115,6 +115,7 @@ dependencies:
 
 dependency_overrides:
   device_info_plus: '10.1.2'
+  connectivity_plus: '6.0.5'
 
 dev_dependencies:
   flutter_test:
