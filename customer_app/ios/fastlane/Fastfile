@@ -29,8 +29,8 @@ platform :ios do
   lane :beta do
     sync_signing
 
-    # Build Flutter first (from repo root)
-    Dir.chdir("../..") do
+    # Build Flutter first (from customer_app/)
+    Dir.chdir("..") do
       sh("flutter build ios --release --no-codesign")
     end
 
@@ -59,7 +59,7 @@ platform :ios do
   lane :release do
     sync_signing
 
-    Dir.chdir("../..") do
+    Dir.chdir("..") do
       sh("flutter build ios --release --no-codesign")
     end
 
