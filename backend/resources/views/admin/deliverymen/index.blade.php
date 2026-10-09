@@ -135,8 +135,8 @@
                             </button>
                             <form action="{{ route('admin.deliverymen.toggle-block', $dm->id) }}" method="POST" style="margin:0;">
                                 @csrf
-                                <button class="btn btn-xs {{ $dm->user->status === 'banned' ? 'btn-outline' : 'btn-danger' }}" title="{{ $dm->user->status === 'banned' ? 'Unblock' : 'Block' }}">
-                                    <i class="fas {{ $dm->user->status === 'banned' ? 'fa-unlock' : 'fa-ban' }}"></i>
+                                <button class="btn btn-xs {{ ($dm->user->status ?? '') === 'banned' ? 'btn-outline' : 'btn-danger' }}" title="{{ ($dm->user->status ?? '') === 'banned' ? 'Unblock' : 'Block' }}">
+                                    <i class="fas {{ ($dm->user->status ?? '') === 'banned' ? 'fa-unlock' : 'fa-ban' }}"></i>
                                 </button>
                             </form>
                             <form action="{{ route('admin.deliverymen.destroy', $dm->id) }}" method="POST" style="margin:0;" onsubmit="return confirm('Delete this driver permanently?')">
