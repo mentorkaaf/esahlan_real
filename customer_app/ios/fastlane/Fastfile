@@ -43,11 +43,13 @@ platform :ios do
     )
 
     # Step B — switch project to Manual signing with the installed profile
+    # Match sets sigh_<bundle_id>_<type>_profile-name env var with the actual name
+    actual_profile = ENV["sigh_com.esahlan.user_appstore_profile-name"] || PROFILE_NAME
     update_code_signing_settings(
       use_automatic_signing:  false,
       team_id:                TEAM_ID,
       bundle_identifier:      BUNDLE_ID,
-      profile_name:           PROFILE_NAME,
+      profile_name:           actual_profile,
       code_sign_identity:     "iPhone Distribution",
       path:                   "Runner.xcodeproj"
     )
@@ -73,7 +75,7 @@ platform :ios do
       output_directory:  "../build/ios/ipa",
       output_name:       "esahlan-customer.ipa",
       xcargs:            "DEVELOPMENT_TEAM=#{TEAM_ID} " \
-                         "PROVISIONING_PROFILE_SPECIFIER='#{PROFILE_NAME}' " \
+                         "PROVISIONING_PROFILE_SPECIFIER='#{actual_profile}' " \
                          "CODE_SIGN_STYLE=Manual " \
                          "FLUTTER_BUILD_NUMBER=#{build_number}"
     )
