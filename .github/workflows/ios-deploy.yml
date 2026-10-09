@@ -29,21 +29,21 @@ jobs:
         working-directory: customer_app
         run: flutter pub get
 
-      # ── 3b. Patch livekit_client null-safety bug (affects Dart 3.6+) ──────
+      # ── 3b. Patch livekit_client null-safety bug (Dart 3.6+ strict promotion) ──
       - name: Patch livekit_client null safety
         run: |
-          FILE="$HOME/.pub-cache/hosted/pub.dev/livekit_client-2.8.1/lib/src/participant/local.dart"
-          if [ -f "$FILE" ]; then
-            python3 -c "
-import re, sys
-with open('$FILE') as f:
-    txt = f.read()
-# Replace publishOptions. (without !) after await lines with publishOptions!.
-txt = re.sub(r'\bpublishOptions\.', 'publishOptions!.', txt)
-with open('$FILE', 'w') as f:
-    f.write(txt)
-print('livekit patch applied')
-"
+          FILE=$(find "$HOME/.pub-cache/hosted/pub.dev" \
+            -path "*/livekit_client*/src/participant/local.dart" \
+            2>/dev/null | head -1)
+          if [ -n "$FILE" ] && [ -f "$FILE" ]; then
+            sed -i '' \
+              -e 's/publishOptions\.videoCodec/publishOptions!.videoCodec/g' \
+              -e 's/publishOptions\.degradationPreference/publishOptions!.degradationPreference/g' \
+              -e 's/publishOptions\.backupVideoCodec/publishOptions!.backupVideoCodec/g' \
+              "$FILE"
+            echo "livekit patch applied to: $FILE"
+          else
+            echo "WARNING: livekit local.dart not found — skipping patch"
           fi
 
       # ── 4. GoogleService-Info.plist (from GitHub Secret) ─────────────────
