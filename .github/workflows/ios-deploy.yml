@@ -9,8 +9,8 @@ on:
 jobs:
   build_ios:
     name: Build & Upload iOS
-    runs-on: macos-13          # Intel Mac runner (more stable capacity)
-    timeout-minutes: 60
+    runs-on: macos-latest
+    timeout-minutes: 90
 
     steps:
       # ── 1. Checkout ──────────────────────────────────────────────────────
