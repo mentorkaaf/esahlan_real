@@ -52,7 +52,7 @@ jobs:
           APP_STORE_CONNECT_KEY_ID:         ${{ secrets.ASC_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID:      ${{ secrets.ASC_ISSUER_ID }}
           APP_STORE_CONNECT_KEY_CONTENT:    ${{ secrets.ASC_KEY_CONTENT }}
-        run: bundle exec fastlane match appstore --force_for_new_devices
+        run: bundle exec fastlane sync_signing
 
       # ── 7. Build & Upload ────────────────────────────────────────────────
       - name: Build iOS & Upload to TestFlight
