@@ -113,6 +113,9 @@ dependencies:
   printing: ^5.13.2
   share_plus: ^10.0.0
 
+dependency_overrides:
+  device_info_plus: '10.1.2'
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
