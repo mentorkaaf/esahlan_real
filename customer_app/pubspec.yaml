@@ -92,8 +92,8 @@ dependencies:
   web_socket_channel: ^3.0.1
 
   # LiveKit — Video/Audio Calls + Live Streaming
-  livekit_client: 2.3.3
-  flutter_webrtc: ^1.2.1
+  livekit_client: ^2.5.4
+  flutter_webrtc: 1.2.1
 
   # Native call screen (background/killed app incoming call overlay)
   flutter_callkit_incoming: ^2.0.0+1
