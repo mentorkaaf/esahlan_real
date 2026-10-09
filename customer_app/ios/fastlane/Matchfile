@@ -1,0 +1,6 @@
+git_url("https://github.com/mentorkaaf/esahlan-certificates")
+git_basic_authorization(ENV["MATCH_GIT_BASIC_AUTH"])
+storage_mode("git")
+type("appstore")
+app_identifier(["com.esahlan.user"])
+username("mentorkaafi@gmail.com")
