@@ -8,6 +8,8 @@ import '../../data/models/district_model.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../data/repositories/district_repository.dart';
 
+// ignore_for_file: unused_import
+
 final _districtsProvider2 = FutureProvider<List<DistrictModel>>((ref) {
   return DistrictRepository().getDistricts();
 });
@@ -21,7 +23,7 @@ class CompleteProfileScreen extends ConsumerStatefulWidget {
 
 class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
   final _phoneCtrl  = TextEditingController();
-  Country _country  = const Country(name: 'Somalia', dialCode: '+252', flag: '🇸🇴', code: 'SO');
+  CountryCode _country = const CountryCode(name: 'Somalia', dialCode: '+252', flag: '🇸🇴', iso: 'SO');
   DistrictModel? _district;
   bool _loading     = false;
   String? _error;
@@ -91,7 +93,7 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
             const SizedBox(height: 8),
             PhoneInputField(
               controller: _phoneCtrl,
-              selectedCountry: _country,
+              initialCountry: _country,
               onCountryChanged: (v) => setState(() => _country = v),
             ),
             const SizedBox(height: 20),
