@@ -130,7 +130,7 @@
                             </form>
                             @endif
                             <button class="btn btn-xs btn-primary" title="Change Password"
-                                onclick="openPasswordModal({{ $dm->id }}, '{{ addslashes($dm->user->name) }}')">
+                                onclick="openPasswordModal({{ $dm->id }}, '{{ addslashes($dm->user->name ?? 'Driver') }}')">
                                 <i class="fas fa-key"></i>
                             </button>
                             <form action="{{ route('admin.deliverymen.toggle-block', $dm->id) }}" method="POST" style="margin:0;">
