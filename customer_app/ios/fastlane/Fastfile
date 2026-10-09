@@ -56,6 +56,10 @@ platform :ios do
     build_name   = ENV["IOS_BUILD_NAME"]   || "1.0.0"
     build_number = ENV["IOS_BUILD_NUMBER"] || "1"
     Dir.chdir("..") do
+      # Disable SPM: macos-14 runner has Xcode 15 which can't compile Firebase
+      # Swift 6 features (sending keyword, access-level imports). CocoaPods path
+      # uses our Podfile Swift 6 override and works correctly.
+      sh("flutter config --no-enable-swift-package-manager")
       sh("flutter build ios --release --no-codesign " \
          "--build-name=#{build_name} --build-number=#{build_number}")
     end
