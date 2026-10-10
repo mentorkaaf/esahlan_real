@@ -55,10 +55,13 @@ platform :ios do
       path:                   "Runner.xcodeproj"
     )
 
-    # Step D — write ExportOptions.plist into ios/ (parent of fastlane/)
-    # Dir.pwd = customer_app/ios/fastlane, so .. = customer_app/ios/
-    export_options_path = File.expand_path(File.join(Dir.pwd, "..", "ExportOptions.plist"))
-    File.write(export_options_path, <<~XML)
+    # Step D — ONE flutter build ipa (compile + archive + sign + export — single step)
+    build_name   = ENV["IOS_BUILD_NAME"]   || "1.0.0"
+    build_number = ENV["IOS_BUILD_NUMBER"] || "1"
+
+    # __dir__ = absolute path to fastlane/ dir; write ExportOptions.plist in ios/ (parent)
+    export_options_abs = File.expand_path("../ExportOptions.plist", __dir__)
+    File.write(export_options_abs, <<~XML)
       <?xml version="1.0" encoding="UTF-8"?>
       <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
       <plist version="1.0">
@@ -82,14 +85,12 @@ platform :ios do
       </plist>
     XML
 
-    # Step E — ONE flutter build ipa (compile + archive + sign + export — single step)
-    build_name   = ENV["IOS_BUILD_NAME"]   || "1.0.0"
-    build_number = ENV["IOS_BUILD_NUMBER"] || "1"
     Dir.chdir("..") do
       sh("flutter config --no-enable-swift-package-manager")
+      # Pass absolute path so flutter finds the plist regardless of cwd
       sh("flutter build ipa --release " \
          "--build-name=#{build_name} --build-number=#{build_number} " \
-         "--export-options-plist=ios/ExportOptions.plist")
+         "--export-options-plist=#{export_options_abs}")
     end
 
     # Step F — find and upload the IPA
@@ -129,8 +130,8 @@ platform :ios do
       path:                   "Runner.xcodeproj"
     )
 
-    release_export_options_path = File.expand_path(File.join(Dir.pwd, "..", "ExportOptions.plist"))
-    File.write(release_export_options_path, <<~XML)
+    release_export_options_abs = File.expand_path("../ExportOptions.plist", __dir__)
+    File.write(release_export_options_abs, <<~XML)
       <?xml version="1.0" encoding="UTF-8"?>
       <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
       <plist version="1.0">
@@ -153,7 +154,7 @@ platform :ios do
     Dir.chdir("..") do
       sh("flutter config --no-enable-swift-package-manager")
       sh("flutter build ipa --release " \
-         "--export-options-plist=ios/ExportOptions.plist")
+         "--export-options-plist=#{release_export_options_abs}")
     end
 
     ipa_path = Dir["../build/ios/ipa/*.ipa"].first
