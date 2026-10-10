@@ -28,7 +28,7 @@ platform :ios do
     )
   end
 
-  # ── 2. Build & upload to TestFlight ───────────────────────────────────────
+  # ── 2. Build & upload to TestFlight (ONE Xcode compilation) ───────────────
   lane :beta do
     key = api_key
 
@@ -42,9 +42,10 @@ platform :ios do
       api_key:                 key
     )
 
-    # Step B — switch project to Manual signing with the installed profile
-    # Match sets sigh_<bundle_id>_<type>_profile-name env var with the actual name
+    # Step B — actual profile name set by match (includes suffix like "... 1791560964")
     actual_profile = ENV["sigh_com.esahlan.user_appstore_profile-name"] || PROFILE_NAME
+
+    # Step C — set manual signing in xcodeproj
     update_code_signing_settings(
       use_automatic_signing:  false,
       team_id:                TEAM_ID,
@@ -54,37 +55,49 @@ platform :ios do
       path:                   "Runner.xcodeproj"
     )
 
-    # Step C — Flutter build (from customer_app/, no Xcode signing here)
+    # Step D — write ExportOptions.plist with actual profile name
+    export_options_path = File.join(Dir.pwd, "ExportOptions.plist")
+    File.write(export_options_path, <<~XML)
+      <?xml version="1.0" encoding="UTF-8"?>
+      <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+      <plist version="1.0">
+      <dict>
+          <key>method</key>
+          <string>app-store</string>
+          <key>teamID</key>
+          <string>#{TEAM_ID}</string>
+          <key>uploadBitcode</key>
+          <false/>
+          <key>compileBitcode</key>
+          <false/>
+          <key>signingStyle</key>
+          <string>manual</string>
+          <key>provisioningProfiles</key>
+          <dict>
+              <key>#{BUNDLE_ID}</key>
+              <string>#{actual_profile}</string>
+          </dict>
+      </dict>
+      </plist>
+    XML
+
+    # Step E — ONE flutter build ipa (compile + archive + sign + export — single step)
     build_name   = ENV["IOS_BUILD_NAME"]   || "1.0.0"
     build_number = ENV["IOS_BUILD_NUMBER"] || "1"
     Dir.chdir("..") do
-      # Disable SPM: macos-14 runner has Xcode 15 which can't compile Firebase
-      # Swift 6 features (sending keyword, access-level imports). CocoaPods path
-      # uses our Podfile Swift 6 override and works correctly.
       sh("flutter config --no-enable-swift-package-manager")
-      sh("flutter build ios --release --no-codesign " \
-         "--build-name=#{build_name} --build-number=#{build_number}")
+      sh("flutter build ipa --release " \
+         "--build-name=#{build_name} --build-number=#{build_number} " \
+         "--export-options-plist=ios/ExportOptions.plist")
     end
 
-    # Step D — Xcode archive + sign + export IPA
-    build_app(
-      workspace:                            "Runner.xcworkspace",
-      scheme:                               "Runner",
-      configuration:                        "Release",
-      export_method:                        "app-store",
-      output_directory:                     "../build/ios/ipa",
-      output_name:                          "esahlan-customer.ipa",
-      skip_package_dependencies_resolution: true,
-      disable_package_automatic_updates:    true,
-      xcargs:                               "DEVELOPMENT_TEAM=#{TEAM_ID} " \
-                                            "PROVISIONING_PROFILE_SPECIFIER='#{actual_profile}' " \
-                                            "CODE_SIGN_STYLE=Manual " \
-                                            "FLUTTER_BUILD_NUMBER=#{build_number}"
-    )
+    # Step F — find and upload the IPA
+    ipa_path = Dir["../build/ios/ipa/*.ipa"].first
+    raise "IPA not found in build/ios/ipa/" unless ipa_path
 
-    # Step E — upload to TestFlight
     upload_to_testflight(
       api_key:                           key,
+      ipa:                               ipa_path,
       skip_waiting_for_build_processing: true,
       changelog:                         "eSahlan v#{build_name} (#{build_number})"
     )
@@ -105,39 +118,53 @@ platform :ios do
       api_key:                 key
     )
 
+    actual_profile = ENV["sigh_com.esahlan.user_appstore_profile-name"] || PROFILE_NAME
     update_code_signing_settings(
       use_automatic_signing:  false,
       team_id:                TEAM_ID,
       bundle_identifier:      BUNDLE_ID,
-      profile_name:           PROFILE_NAME,
+      profile_name:           actual_profile,
       code_sign_identity:     "iPhone Distribution",
       path:                   "Runner.xcodeproj"
     )
 
+    export_options_path = File.join(Dir.pwd, "ExportOptions.plist")
+    File.write(export_options_path, <<~XML)
+      <?xml version="1.0" encoding="UTF-8"?>
+      <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+      <plist version="1.0">
+      <dict>
+          <key>method</key>
+          <string>app-store</string>
+          <key>teamID</key>
+          <string>#{TEAM_ID}</string>
+          <key>signingStyle</key>
+          <string>manual</string>
+          <key>provisioningProfiles</key>
+          <dict>
+              <key>#{BUNDLE_ID}</key>
+              <string>#{actual_profile}</string>
+          </dict>
+      </dict>
+      </plist>
+    XML
+
     Dir.chdir("..") do
-      sh("flutter build ios --release --no-codesign")
+      sh("flutter config --no-enable-swift-package-manager")
+      sh("flutter build ipa --release " \
+         "--export-options-plist=ios/ExportOptions.plist")
     end
 
-    build_app(
-      workspace:         "Runner.xcworkspace",
-      scheme:            "Runner",
-      configuration:     "Release",
-      export_method:     "app-store",
-      output_directory:  "../build/ios/ipa",
-      output_name:       "esahlan-customer.ipa",
-      xcargs:            "DEVELOPMENT_TEAM=#{TEAM_ID} " \
-                         "PROVISIONING_PROFILE_SPECIFIER='#{PROFILE_NAME}' " \
-                         "CODE_SIGN_STYLE=Manual"
-    )
-
+    ipa_path = Dir["../build/ios/ipa/*.ipa"].first
     upload_to_app_store(
-      api_key:            key,
-      submit_for_review:  true,
-      automatic_release:  false,
-      force:              true,
-      skip_screenshots:   true,
-      skip_metadata:      false,
-      metadata_path:      "./metadata"
+      api_key:           key,
+      ipa:               ipa_path,
+      submit_for_review: true,
+      automatic_release: false,
+      force:             true,
+      skip_screenshots:  true,
+      skip_metadata:     false,
+      metadata_path:     "./metadata"
     )
 
     UI.success("✅ Submitted to App Store Review!")
