@@ -68,16 +68,18 @@ platform :ios do
 
     # Step D — Xcode archive + sign + export IPA
     build_app(
-      workspace:         "Runner.xcworkspace",
-      scheme:            "Runner",
-      configuration:     "Release",
-      export_method:     "app-store",
-      output_directory:  "../build/ios/ipa",
-      output_name:       "esahlan-customer.ipa",
-      xcargs:            "DEVELOPMENT_TEAM=#{TEAM_ID} " \
-                         "PROVISIONING_PROFILE_SPECIFIER='#{actual_profile}' " \
-                         "CODE_SIGN_STYLE=Manual " \
-                         "FLUTTER_BUILD_NUMBER=#{build_number}"
+      workspace:                            "Runner.xcworkspace",
+      scheme:                               "Runner",
+      configuration:                        "Release",
+      export_method:                        "app-store",
+      output_directory:                     "../build/ios/ipa",
+      output_name:                          "esahlan-customer.ipa",
+      skip_package_dependencies_resolution: true,
+      disable_package_automatic_updates:    true,
+      xcargs:                               "DEVELOPMENT_TEAM=#{TEAM_ID} " \
+                                            "PROVISIONING_PROFILE_SPECIFIER='#{actual_profile}' " \
+                                            "CODE_SIGN_STYLE=Manual " \
+                                            "FLUTTER_BUILD_NUMBER=#{build_number}"
     )
 
     # Step E — upload to TestFlight
