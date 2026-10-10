@@ -55,8 +55,9 @@ platform :ios do
       path:                   "Runner.xcodeproj"
     )
 
-    # Step D — write ExportOptions.plist with actual profile name
-    export_options_path = File.join(Dir.pwd, "ExportOptions.plist")
+    # Step D — write ExportOptions.plist into ios/ (parent of fastlane/)
+    # Dir.pwd = customer_app/ios/fastlane, so .. = customer_app/ios/
+    export_options_path = File.expand_path(File.join(Dir.pwd, "..", "ExportOptions.plist"))
     File.write(export_options_path, <<~XML)
       <?xml version="1.0" encoding="UTF-8"?>
       <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -128,8 +129,8 @@ platform :ios do
       path:                   "Runner.xcodeproj"
     )
 
-    export_options_path = File.join(Dir.pwd, "ExportOptions.plist")
-    File.write(export_options_path, <<~XML)
+    release_export_options_path = File.expand_path(File.join(Dir.pwd, "..", "ExportOptions.plist"))
+    File.write(release_export_options_path, <<~XML)
       <?xml version="1.0" encoding="UTF-8"?>
       <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
       <plist version="1.0">
