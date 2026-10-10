@@ -1,10 +1,12 @@
 name: iOS — Build & Upload to TestFlight
 
+
 on:
   workflow_dispatch:          # Manual trigger (you press "Run workflow")
   push:
     tags:
       - 'ios-v*'              # Auto-trigger: git tag ios-v1.0.0
+
 
 jobs:
   build_ios:
@@ -12,10 +14,12 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 120
 
+
     steps:
       # ── 1. Checkout ──────────────────────────────────────────────────────
       - name: Checkout code
         uses: actions/checkout@v4
+
 
       # ── 2. Flutter setup ─────────────────────────────────────────────────
       - name: Setup Flutter
@@ -24,20 +28,24 @@ jobs:
           channel: 'stable'
           cache: true
 
+
       # ── 3. Flutter dependencies ──────────────────────────────────────────
       - name: Flutter pub get
         working-directory: customer_app
         run: flutter pub get
 
+
       # ── 3b. Patch livekit_client null-safety bug (Dart 3.6+ strict promotion) ──
       - name: Patch livekit_client null safety
         run: python3 customer_app/scripts/patch_livekit.py
+
 
       # ── 4. GoogleService-Info.plist (from GitHub Secret) ─────────────────
       - name: Write GoogleService-Info.plist
         working-directory: customer_app/ios/Runner
         run: |
           echo "${{ secrets.GOOGLE_SERVICE_INFO_PLIST_BASE64 }}" | base64 --decode > GoogleService-Info.plist
+
 
       # ── 5. Ruby + Fastlane ───────────────────────────────────────────────
       - name: Setup Ruby
@@ -46,6 +54,23 @@ jobs:
           ruby-version: '3.2'
           bundler-cache: true
           working-directory: customer_app/ios
+
+      # ── Cache CocoaPods & DerivedData ────────────────────────────────────
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: customer_app/ios/Pods
+          key: pods-${{ hashFiles('customer_app/ios/Podfile.lock') }}
+          restore-keys: pods-
+
+      - name: Cache Xcode DerivedData
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData
+          key: deriveddata-${{ hashFiles('customer_app/ios/Podfile.lock') }}
+          restore-keys: deriveddata-
+
+
 
       # ── 6. Install certificates & profiles (via Fastlane Match) ──────────
       - name: Install signing certificates
@@ -57,6 +82,7 @@ jobs:
           APP_STORE_CONNECT_ISSUER_ID:      ${{ secrets.ASC_ISSUER_ID }}
           APP_STORE_CONNECT_KEY_CONTENT:    ${{ secrets.ASC_KEY_CONTENT }}
         run: bundle exec fastlane sync_signing
+
 
       # ── 7. Build & Upload ────────────────────────────────────────────────
       - name: Build iOS & Upload to TestFlight
@@ -73,6 +99,7 @@ jobs:
           FASTLANE_XCODEBUILD_SETTINGS_RETRIES: "4"
         run: bundle exec fastlane beta
 
+
       # ── 8. Upload IPA as artifact (backup) ──────────────────────────────
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
@@ -81,3 +108,4 @@ jobs:
           name: esahlan-customer-${{ github.run_number }}.ipa
           path: customer_app/build/ios/ipa/*.ipa
           retention-days: 30
+
